@@ -38,16 +38,20 @@ Antes de rodar o projeto, você precisa ter as seguintes ferramentas instaladas 
 Siga o passo a passo abaixo para configurar o ambiente de desenvolvimento.
 
 ### 1. Clonar o Repositório
-Abra o terminal e baixe o código para sua máquina:
+# Abra o terminal e baixe o código para sua máquina:
 git clone https://github.com/v1ct0rjoao/Planilha_recursos.git
+
 cd Planilha_recursos
 
 ### 2. Configurar o Frontend (Visual)
-Abra um terminal, entre na pasta do frontend e instale as dependências:
+# Abra um terminal, entre na pasta do frontend e instale as dependências:
+
 cd lab-manager
+
 npm install
 
-Para rodar o site:
+# Para rodar o site:
+.
 npm run dev
 
 
@@ -59,12 +63,15 @@ cd ..
 # Instale as dependências do Python
 pip install flask flask-cors
 
-Para rodar o servidor:
+# Para rodar o servidor:
 python backend/app.py
 
  
 👨‍💻 Desenvolvedor: João Victor
+
 📅 Ano: 2026
+
 🏷️ Versão: 1.0.0 (Alpha)
+
 🏢 Contexto: Laboratório de Testes Físicos
 ```bash
