@@ -62,21 +62,9 @@ pip install flask flask-cors
 Para rodar o servidor:
 python backend/app.py
 
-Desenvolvido por João Victor 🚀
-
-### ⚠️ Aviso Importante (Para não quebrar depois)
-
-Como você vai editar direto no site, o seu computador (VS Code) vai ficar "desatualizado" (ele não vai saber que você mudou o Readme lá no site).
-
-Na próxima vez que você for mexer no VS Code, a primeira coisa que você deve fazer antes de tudo é digitar:
-git pull 
-
  
- 👨‍💻 Desenvolvedor: João Victor
-
+👨‍💻 Desenvolvedor: João Victor
 📅 Ano: 2026
-
 🏷️ Versão: 1.0.0 (Alpha)
-
 🏢 Contexto: Laboratório de Testes Físicos
 ```bash
