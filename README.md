@@ -1,7 +1,7 @@
 # 🔋 LabManager - Sistema de Gestão Laboratorial
 
-> **Status:** 🚧 Em Desenvolvimento (Alpha)
-
+> **Status:** 🚧 Em Desenvolvimento (Alpha) | **Versão:** 1.0.0
+> 
 O **LabManager** é uma aplicação Full Stack desenvolvida para automatizar o controle de recursos e testes de baterias no laboratório físico. O objetivo é substituir o preenchimento manual de planilhas Excel por um sistema visual e inteligente com leitura automática (OCR) de telas de equipamentos.
 
 ---
@@ -39,7 +39,44 @@ Siga o passo a passo abaixo para configurar o ambiente de desenvolvimento.
 
 ### 1. Clonar o Repositório
 Abra o terminal e baixe o código para sua máquina:
-
-```bash
 git clone https://github.com/v1ct0rjoao/Planilha_recursos.git
 cd Planilha_recursos
+
+### 2. Configurar o Frontend (Visual)
+Abra um terminal, entre na pasta do frontend e instale as dependências:
+cd lab-manager
+npm install
+
+Para rodar o site:
+npm run dev
+
+
+### 3. Configurar o Backend (Servidor)
+Abra um segundo terminal (mantenha o anterior rodando), volte para a raiz do projeto e configure o Python:
+# Se estiver na pasta lab-manager, volte uma pasta:
+cd .. 
+
+# Instale as dependências do Python
+pip install flask flask-cors
+
+Para rodar o servidor:
+python backend/app.py
+
+Desenvolvido por João Victor 🚀
+
+### ⚠️ Aviso Importante (Para não quebrar depois)
+
+Como você vai editar direto no site, o seu computador (VS Code) vai ficar "desatualizado" (ele não vai saber que você mudou o Readme lá no site).
+
+Na próxima vez que você for mexer no VS Code, a primeira coisa que você deve fazer antes de tudo é digitar:
+git pull 
+
+ 
+ 👨‍💻 Desenvolvedor: João Victor
+
+📅 Ano: 2026
+
+🏷️ Versão: 1.0.0 (Alpha)
+
+🏢 Contexto: Laboratório de Testes Físicos
+```bash
