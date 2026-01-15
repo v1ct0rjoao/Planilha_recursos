@@ -42,3 +42,24 @@ Abra o terminal e baixe o código para sua máquina:
 ```bash
 git clone [https://github.com/v1ct0rjoao/Planilha_recursos.git](https://github.com/v1ct0rjoao/Planilha_recursos.git)
 cd Planilha_recursos
+
+### 2. Configurar o Frontend (Visual)
+Abra um terminal, entre na pasta do frontend e instale as dependências:
+cd lab-manager
+npm install
+
+###3. Configurar o Backend (Servidor)
+
+# Volte para a raiz se estiver na pasta lab-manager
+cd .. 
+# Instale as dependências do Python
+pip install flask flask-cors
+
+### ⚠️ Aviso Importante (Para não quebrar depois)
+
+Como você vai editar direto no site, o seu computador (VS Code) vai ficar "desatualizado" (ele não vai saber que você mudou o Readme lá no site).
+
+Na próxima vez que você for mexer no VS Code, a primeira coisa que você deve fazer antes de tudo é digitar:
+
+```bash
+git pull
