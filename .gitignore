@@ -1,0 +1,12 @@
+# Ignorar arquivos do sistema
+node_modules/
+.DS_Store
+
+# Ignorar arquivos do Python
+__pycache__/
+*.py[cod]
+venv/
+.env
+
+# Ignorar uploads de teste
+backend/uploads/
