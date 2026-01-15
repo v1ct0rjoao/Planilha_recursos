@@ -1,16 +1,44 @@
-# React + Vite
+# 🔋 LabManager - Sistema de Gestão Laboratorial
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> **Status:** 🚧 Em Desenvolvimento (Alpha)
 
-Currently, two official plugins are available:
+O **LabManager** é uma aplicação Full Stack desenvolvida para automatizar o controle de recursos e testes de baterias no laboratório físico. O objetivo é substituir o preenchimento manual de planilhas Excel por um sistema visual e inteligente com leitura automática (OCR) de telas de equipamentos.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+## 🛠️ Tecnologias Utilizadas
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+O projeto utiliza uma arquitetura moderna dividida em Frontend (Interface) e Backend (Processamento).
 
-## Expanding the ESLint configuration
+### Frontend (A Interface)
+* ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB) **React.js:** Biblioteca para criar interfaces interativas e rápidas.
+* ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white) **Vite:** Ferramenta de construção (build tool) ultra-rápida.
+* ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) **Tailwind CSS:** Framework de estilização para design responsivo e moderno.
+* **Lucide React:** Biblioteca de ícones leves e consistentes.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Backend (O Cérebro)
+* ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white) **Python 3:** Linguagem principal para lógica e processamento de dados.
+* ![Flask](https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white) **Flask:** Micro-framework web para criar a API do servidor.
+* **Flask-CORS:** Extensão para permitir comunicação segura entre Frontend e Backend.
+
+---
+
+## ⚙️ Pré-requisitos (Instalação)
+
+Antes de rodar o projeto, você precisa ter as seguintes ferramentas instaladas na sua máquina:
+
+1.  **Node.js (LTS):** O "motor" que roda o React. [Baixar aqui](https://nodejs.org/).
+2.  **Python (3.x):** Para rodar o servidor backend. [Baixar aqui](https://python.org/).
+3.  **Git:** Para baixar e versionar o código. [Baixar aqui](https://git-scm.com/).
+
+---
+
+## 🚀 Como Rodar o Projeto
+
+Siga o passo a passo abaixo para configurar o ambiente de desenvolvimento.
+
+### 1. Clonar o Repositório
+Abra o terminal e baixe o código para sua máquina:
+```bash
+git clone [https://github.com/v1ct0rjoao/Planilha_recursos.git](https://github.com/v1ct0rjoao/Planilha_recursos.git)
+cd Planilha_recursos
