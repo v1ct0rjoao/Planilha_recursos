@@ -1,25 +1,30 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
 import json
 import re
 from datetime import datetime, timedelta
 
-app = Flask(__name__)
-# Permite conexões do React (CORS)
+# --- CONFIGURAÇÃO DE DIRETÓRIOS ---
+# Define onde o Flask vai procurar o "site" (pasta dist)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DIST_DIR = os.path.join(BASE_DIR, 'dist')
+# Tenta achar a pasta dist um nível acima se não estiver na raiz
+if not os.path.exists(DIST_DIR):
+    DIST_DIR = os.path.join(os.path.dirname(BASE_DIR), 'dist')
+
+# Configura o Flask para servir a pasta estática
+app = Flask(__name__, static_folder=DIST_DIR, static_url_path='')
 CORS(app)
 
-# Configurações de Pastas
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.join(BASE_DIR, 'backend')
 UPLOAD_FOLDER = os.path.join(BACKEND_DIR, 'uploads')
 DB_FILE = os.path.join(BACKEND_DIR, 'database.json')
 
-# Garante que as pastas existam
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(BACKEND_DIR, exist_ok=True)
 
-# --- FUNÇÕES ---
+# --- FUNÇÕES AUXILIARES ---
 
 def load_db():
     if not os.path.exists(DB_FILE):
@@ -29,8 +34,9 @@ def load_db():
                 {"id": "BANHO - 06", "temp": 75, "circuits": []}
             ],
             "protocols": [
-                {"id": "SAEJ2801", "name": "SAEJ2801", "duration": 192},
-                {"id": "RC20", "name": "RC20", "duration": 20}
+                {"id": "RC20", "name": "RC20", "duration": 68},
+                {"id": "RRCR", "name": "RRCR", "duration": 48},
+                {"id": "SAEJ2801", "name": "SAEJ2801", "duration": 192}
             ],
             "logs": []
         }
@@ -39,21 +45,18 @@ def load_db():
     try:
         with open(DB_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            # Garante estrutura mínima caso o arquivo esteja incompleto
             if "protocols" not in data: data["protocols"] = []
             if "logs" not in data: data["logs"] = []
             if "baths" not in data: data["baths"] = []
             return data
     except Exception as e:
-        print(f"Erro ao carregar DB: {e}")
         return {"baths": [], "protocols": [], "logs": []}
 
 def save_db(data):
     try:
         with open(DB_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
-    except Exception as e:
-        print(f"Erro ao salvar DB: {e}")
+    except: pass
 
 def add_log(db, action, bath_id, details):
     new_log = {
@@ -63,199 +66,97 @@ def add_log(db, action, bath_id, details):
         "bath": bath_id,
         "details": details
     }
-    # Adiciona no início da lista
     db['logs'].insert(0, new_log)
-    # Mantém apenas os últimos 200 logs para não pesar
     db['logs'] = db['logs'][:200]
 
 def apenas_numeros(texto):
     return re.sub(r'\D', '', str(texto))
 
-# --- INTELIGÊNCIA: FINALIZAR TESTES VENCIDOS ---
+# --- INTELIGÊNCIA 1: RECONHECIMENTO DE NOME (CASCATA) ---
+def identificar_nome_padrao(nome_digatron):
+    """
+    Identifica o teste priorizando nomes mais longos/específicos.
+    Evita confundir RRCR com RC.
+    """
+    nome = str(nome_digatron).upper().replace('_', '').replace('-', '').replace(' ', '')
+    
+    # Nível 1: Testes Específicos (Prioridade Alta)
+    if "SAE" in nome or "2801" in nome: return "SAE J2801"
+    if "RRCR" in nome: return "RRCR"  # Verifica RRCR antes de RC
+    if "RC20" in nome: return "RC20"
+    
+    # Nível 2: Testes Genéricos
+    if "C20" in nome: return "C20"
+    if "RC" in nome: return "RC"
+    if "CCA" in nome: return "CCA"
+    
+    return nome_digatron[:12] # Retorna o original se não conhecer
+
+# --- INTELIGÊNCIA 2: CÁLCULO DE PREVISÃO ---
+def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
+    """
+    Pega a data de início e soma a duração do protocolo cadastrado.
+    """
+    # 1. Acha a duração
+    duracao = 0
+    for p in db_protocols:
+        if p['name'] == nome_protocolo:
+            duracao = p['duration']
+            break
+            
+    # 2. Valores de segurança se não achar no banco
+    if duracao == 0:
+        if "RC20" in nome_protocolo: duracao = 68
+        elif "2801" in nome_protocolo: duracao = 192
+        elif "RRCR" in nome_protocolo: duracao = 48
+        else: return "A calcular"
+
+    # 3. Cálculo Matemático
+    try:
+        dt_start = datetime.strptime(start_str, "%d/%m/%Y %H:%M")
+        dt_end = dt_start + timedelta(hours=duracao)
+        return dt_end.strftime("%d/%m/%Y %H:%M")
+    except:
+        return "-"
+
 def verificar_conclusao_testes(db):
-    """Verifica se a data de fim já passou e atualiza o status"""
     agora = datetime.now()
     alterado = False
-    
     for bath in db['baths']:
         for circuit in bath['circuits']:
-            status_atual = str(circuit.get('status', '')).lower().strip()
-            
-            # Só verifica se estiver rodando (case insensitive agora)
-            if status_atual == 'running':
+            if str(circuit.get('status', '')).lower().strip() == 'running':
                 try:
-                    # Previsão vem como "dd/mm/aaaa HH:MM"
                     previsao_str = circuit.get('previsao', '-')
                     if previsao_str and previsao_str not in ['-', 'A calcular', '']:
                         fim_previsto = datetime.strptime(previsao_str, "%d/%m/%Y %H:%M")
-                        
                         if agora >= fim_previsto:
-                            circuit['status'] = 'finished' # Muda para AZUL (Concluído)
+                            circuit['status'] = 'finished'
                             circuit['progress'] = 100
-                            add_log(db, "Conclusão", bath['id'], f"Teste C-{circuit['id']} finalizado automaticamente")
+                            add_log(db, "Conclusão", bath['id'], f"Teste C-{circuit['id']} finalizado")
                             alterado = True
-                except Exception as e:
-                    # Ignora erros de parse de data para não parar o servidor
-                    pass 
-    
-    if alterado:
-        save_db(db)
+                except: pass
+    if alterado: save_db(db)
 
-# --- ROTAS ---
+# --- ROTAS SERVIDOR WEB ---
 
 @app.route('/')
-def home(): 
-    return "Servidor LabManager Ativo! 🚀 Use /api/data para acessar os dados."
+def serve_react():
+    if os.path.exists(os.path.join(DIST_DIR, 'index.html')):
+        return send_from_directory(DIST_DIR, 'index.html')
+    return "<h1>LabManager Backend Online</h1><p>Frontend não encontrado na pasta dist.</p>"
+
+@app.route('/<path:path>')
+def serve_static(path):
+    if os.path.exists(os.path.join(DIST_DIR, path)):
+        return send_from_directory(DIST_DIR, path)
+    return send_from_directory(DIST_DIR, 'index.html')
+
+# --- ROTAS API ---
 
 @app.route('/api/data', methods=['GET'])
 def get_data():
     db = load_db()
-    # Verifica datas antes de enviar para o site (Real-time update)
     verificar_conclusao_testes(db)
-    return jsonify(db)
-
-@app.route('/api/baths/add', methods=['POST'])
-def add_bath():
-    data = request.json
-    bath_id = data.get('bathId')
-    temp = data.get('temp', 25)
-    db = load_db()
-    
-    # Verifica duplicidade
-    if any(b['id'] == bath_id for b in db['baths']): 
-        return jsonify({'error': 'Banho já existe!'}), 400
-        
-    db['baths'].append({"id": bath_id, "temp": temp, "circuits": []})
-    db['baths'].sort(key=lambda x: x['id'])
-    
-    add_log(db, "Configuração", bath_id, f"Unidade criada (Set: {temp}ºC)")
-    save_db(db)
-    return jsonify(db)
-
-@app.route('/api/baths/delete', methods=['POST'])
-def delete_bath():
-    data = request.json
-    bath_id = data.get('bathId')
-    db = load_db()
-    db['baths'] = [b for b in db['baths'] if b['id'] != bath_id]
-    save_db(db)
-    return jsonify(db)
-
-@app.route('/api/baths/temp', methods=['POST'])
-def update_temp():
-    data = request.json
-    bath_id = data.get('bathId')
-    new_temp = data.get('temp')
-    db = load_db()
-    for bath in db['baths']:
-        if bath['id'] == bath_id:
-            old = bath.get('temp', 0)
-            bath['temp'] = new_temp
-            add_log(db, "Temperatura", bath_id, f"{old}ºC -> {new_temp}ºC")
-            break
-    save_db(db)
-    return jsonify(db)
-
-@app.route('/api/protocols/add', methods=['POST'])
-def add_protocol():
-    data = request.json
-    name = str(data.get('name')).upper()
-    duration = int(data.get('duration'))
-    db = load_db()
-    # Remove se já existir (atualização/substituição)
-    db['protocols'] = [p for p in db['protocols'] if p['id'] != name]
-    db['protocols'].append({"id": name, "name": name, "duration": duration})
-    save_db(db)
-    return jsonify(db)
-
-@app.route('/api/protocols/delete', methods=['POST'])
-def delete_protocol():
-    data = request.json
-    pid = data.get('id')
-    db = load_db()
-    db['protocols'] = [p for p in db['protocols'] if p['id'] != pid]
-    save_db(db)
-    return jsonify(db)
-
-@app.route('/api/circuits/add', methods=['POST'])
-def add_circuit():
-    data = request.json
-    bath_id = data.get('bathId')
-    user_id = data.get('circuitId')
-    
-    # Padroniza ID do circuito
-    final_id = f"C-{user_id}" if not str(user_id).startswith("C-") else user_id
-    
-    db = load_db()
-    for bath in db['baths']:
-        if bath['id'] == bath_id:
-            if any(c['id'] == final_id for c in bath['circuits']): 
-                return jsonify({'error': 'Circuito já existe!'}), 400
-                
-            bath['circuits'].append({
-                "id": final_id, 
-                "status": "free", 
-                "batteryId": None, 
-                "protocol": None, 
-                "startTime": None, 
-                "progress": 0, 
-                "previsao": "-"
-            })
-            
-            # Tenta ordenar numericamente se possível
-            try: 
-                bath['circuits'].sort(key=lambda x: int(apenas_numeros(x['id'])) if apenas_numeros(x['id']) else 999)
-            except: 
-                pass
-                
-            add_log(db, "Cadastro", bath_id, f"Canal {final_id} adicionado")
-            break
-            
-    save_db(db)
-    return jsonify(db)
-
-@app.route('/api/circuits/delete', methods=['POST'])
-def delete_circuit():
-    data = request.json
-    db = load_db()
-    for bath in db['baths']:
-        if bath['id'] == data.get('bathId'):
-            bath['circuits'] = [c for c in bath['circuits'] if c['id'] != data.get('circuitId')]
-            add_log(db, "Remoção", data.get('bathId'), f"Canal {data.get('circuitId')} removido")
-            break
-    save_db(db)
-    return jsonify(db)
-
-@app.route('/api/circuits/status', methods=['POST'])
-def update_circuit_status():
-    data = request.json
-    bath_id = data.get('bathId')
-    circuit_id = data.get('circuitId')
-    new_status = data.get('status') # 'free', 'maintenance', 'running', etc.
-    
-    db = load_db()
-    for bath in db['baths']:
-        if bath['id'] == bath_id:
-            for circuit in bath['circuits']:
-                if circuit['id'] == circuit_id:
-                    # Se for liberar (free), limpa os dados
-                    if new_status == 'free':
-                        circuit['status'] = 'free'
-                        circuit['batteryId'] = None
-                        circuit['protocol'] = None
-                        circuit['startTime'] = None
-                        circuit['previsao'] = "-"
-                        circuit['progress'] = 0
-                        circuit['error'] = None
-                        add_log(db, "Sistema", bath_id, f"Canal {circuit_id} liberado")
-                    else:
-                        circuit['status'] = new_status
-                        msg = "Em Manutenção" if new_status == 'maintenance' else "Status alterado"
-                        if new_status == 'maintenance': 
-                            circuit['error'] = 'Manutenção Manual'
-                        add_log(db, "Status", bath_id, f"{circuit_id}: {msg}")
-                    break
-    save_db(db)
     return jsonify(db)
 
 @app.route('/api/import', methods=['POST'])
@@ -264,55 +165,126 @@ def import_text():
     db = load_db()
     atualizados = []
     
-    if not raw_text: 
-        return jsonify({'error': 'Texto vazio'}), 400
+    if not raw_text: return jsonify({'error': 'Texto vazio'}), 400
     
-    # Regex para capturar linhas do Digatron:
-    # Captura: (ID do Circuito) ... (Data Inicio) ... (Data Fim)
-    pattern = r"Circuit(\d+)\s*(\d{2}/\d{2}/\d{4}\s\d{2}:\d{2})\s*(\d{2}/\d{2}/\d{4}\s\d{2}:\d{2})"
+    # Regex Relaxado: Pega Circuito + Data Início (Ignora resto da linha se falhar)
+    pattern = r"Circuit(\d+)\s*(\d{2}/\d{2}/\d{4}\s\d{2}:\d{2})"
     matches = re.finditer(pattern, raw_text)
 
     for match in matches:
-        cid_num = match.group(1) # Ex: 01, 10
+        cid_num = match.group(1)
         start_dt = match.group(2)
-        stop_dt = match.group(3)
         
-        # Pega a linha completa para buscar ID da Bateria e Protocolo
+        # Pega a linha completa para achar o nome do teste
         start_pos = match.start()
         end_pos = raw_text.find('\n', match.end())
-        if end_pos == -1: end_pos = len(raw_text)
-        linha = raw_text[start_pos:end_pos]
+        linha = raw_text[start_pos:end_pos] if end_pos != -1 else raw_text[start_pos:]
         
-        # Busca ID da Bateria na linha (ex: 12345-ABC)
+        # 1. Identifica Bateria
         id_bateria = "Desconhecido"
         bat_match = re.search(r"(\d{5,}-[\w-]+)", linha)
         if bat_match: id_bateria = bat_match.group(1)
         
-        # Busca protocolo conhecido
-        protocolo_detectado = "Importado"
-        for p in db.get('protocols', []):
-            if p['name'] in linha: 
-                protocolo_detectado = p['name']
+        # 2. Identifica Nome do Teste (Com a nova função inteligente)
+        match_nome = re.search(r"Program:\s*([A-Za-z0-9_-]+)", linha)
+        nome_bruto = match_nome.group(1) if match_nome else "Desconhecido"
+        
+        protocolo_limpo = identificar_nome_padrao(nome_bruto)
 
-        # Atualiza o circuito correspondente no banco
+        # 3. Calcula Previsão (Data Início + Duração do Protocolo)
+        previsao_calculada = calcular_previsao_fim(start_dt, protocolo_limpo, db.get('protocols', []))
+
+        # 4. Atualiza no Banco
         for bath in db['baths']:
             for circuit in bath['circuits']:
-                # Compara apenas o número (Ex: C-01 vira 01)
                 if apenas_numeros(circuit['id']) == apenas_numeros(cid_num):
-                    circuit['status'] = 'running'
-                    circuit['startTime'] = start_dt
-                    circuit['previsao'] = stop_dt # Digatron já dá a data fim calculada
-                    circuit['batteryId'] = id_bateria
-                    circuit['protocol'] = protocolo_detectado
-                    circuit['progress'] = 10 # Começa com um pouco de progresso visual
-                    
-                    add_log(db, "Teste", bath['id'], f"Início {circuit['id']} | {id_bateria}")
+                    circuit.update({
+                        'status': 'running',
+                        'startTime': start_dt,
+                        'previsao': previsao_calculada,
+                        'batteryId': id_bateria,
+                        'protocol': protocolo_limpo,
+                        'progress': 10
+                    })
+                    add_log(db, "Teste", bath['id'], f"Início {circuit['id']} ({protocolo_limpo})")
                     atualizados.append(circuit['id'])
                     break
                     
     save_db(db)
     return jsonify({"sucesso": True, "atualizados": atualizados, "db_atualizado": db})
 
+# --- CRUD BÁSICO (Banhos, Circuitos, Protocolos) ---
+
+@app.route('/api/baths/add', methods=['POST'])
+def add_bath():
+    data = request.json; db = load_db()
+    if any(b['id'] == data['bathId'] for b in db['baths']): return jsonify({'error': 'Existe!'}), 400
+    db['baths'].append({"id": data['bathId'], "temp": data.get('temp', 25), "circuits": []})
+    db['baths'].sort(key=lambda x: x['id'])
+    save_db(db); return jsonify(db)
+
+@app.route('/api/baths/delete', methods=['POST'])
+def delete_bath():
+    data = request.json; db = load_db()
+    db['baths'] = [b for b in db['baths'] if b['id'] != data['bathId']]
+    save_db(db); return jsonify(db)
+
+@app.route('/api/baths/temp', methods=['POST'])
+def update_temp():
+    data = request.json; db = load_db()
+    for b in db['baths']: 
+        if b['id'] == data['bathId']: b['temp'] = data['temp']; break
+    save_db(db); return jsonify(db)
+
+@app.route('/api/circuits/add', methods=['POST'])
+def add_circuit():
+    data = request.json; db = load_db()
+    cid = f"C-{data['circuitId']}" if not str(data['circuitId']).startswith("C-") else data['circuitId']
+    for b in db['baths']:
+        if b['id'] == data['bathId']:
+            if any(c['id'] == cid for c in b['circuits']): return jsonify({'error': 'Existe!'}), 400
+            b['circuits'].append({"id": cid, "status": "free", "batteryId": None, "previsao": "-"})
+            try: b['circuits'].sort(key=lambda x: int(apenas_numeros(x['id'])) if apenas_numeros(x['id']) else 999)
+            except: pass
+            break
+    save_db(db); return jsonify(db)
+
+@app.route('/api/circuits/delete', methods=['POST'])
+def delete_circuit():
+    data = request.json; db = load_db()
+    for b in db['baths']:
+        if b['id'] == data['bathId']:
+            b['circuits'] = [c for c in b['circuits'] if c['id'] != data['circuitId']]
+            break
+    save_db(db); return jsonify(db)
+
+@app.route('/api/circuits/status', methods=['POST'])
+def update_circuit_status():
+    data = request.json; db = load_db()
+    for b in db['baths']:
+        if b['id'] == data['bathId']:
+            for c in b['circuits']:
+                if c['id'] == data['circuitId']:
+                    if data['status'] == 'free': 
+                        c.update({'status': 'free', 'batteryId': None, 'protocol': None, 'previsao': '-'})
+                    else: 
+                        c['status'] = data['status']
+                    break
+    save_db(db); return jsonify(db)
+
+@app.route('/api/protocols/add', methods=['POST'])
+def add_protocol():
+    data = request.json; db = load_db()
+    name = str(data.get('name')).upper()
+    db['protocols'] = [p for p in db['protocols'] if p['id'] != name]
+    db['protocols'].append({"id": name, "name": name, "duration": int(data['duration'])})
+    save_db(db); return jsonify(db)
+
+@app.route('/api/protocols/delete', methods=['POST'])
+def delete_protocol():
+    data = request.json; db = load_db()
+    db['protocols'] = [p for p in db['protocols'] if p['id'] != data['id']]
+    save_db(db); return jsonify(db)
+
 if __name__ == '__main__':
-    print("Iniciando servidor LabManager em http://127.0.0.1:5000")
     app.run(debug=True, port=5000)

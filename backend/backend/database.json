@@ -6,12 +6,12 @@
             "circuits": [
                 {
                     "id": "C-090",
-                    "status": "finished",
+                    "status": "running",
                     "batteryId": "19022-E433-2025_Exaustive",
-                    "protocol": "RC20",
+                    "protocol": "Desconhecido",
                     "startTime": "27/08/2025 09:44",
-                    "progress": 100,
-                    "previsao": "30/08/2025 08:19",
+                    "progress": 10,
+                    "previsao": "A calcular",
                     "error": null
                 }
             ]
@@ -32,9 +32,61 @@
             "id": "RC20",
             "name": "RC20",
             "duration": 20
+        },
+        {
+            "id": "REC",
+            "name": "REC",
+            "duration": 16
+        },
+        {
+            "id": "RC20R",
+            "name": "RC20R",
+            "duration": 72
         }
     ],
     "logs": [
+        {
+            "id": 1768582577427,
+            "date": "16/01/2026 13:56",
+            "action": "Teste",
+            "bath": "BANHO - 01",
+            "details": "Início C-090 (Desconhecido)"
+        },
+        {
+            "id": 1768580780647,
+            "date": "16/01/2026 13:26",
+            "action": "Teste",
+            "bath": "BANHO - 01",
+            "details": "Início C-090 | 19022-E433-2025_Exaustive"
+        },
+        {
+            "id": 1768580361787,
+            "date": "16/01/2026 13:19",
+            "action": "Conclusão",
+            "bath": "BANHO - 01",
+            "details": "Teste C-C-090 finalizado automaticamente"
+        },
+        {
+            "id": 1768580360438,
+            "date": "16/01/2026 13:19",
+            "action": "Teste",
+            "bath": "BANHO - 01",
+            "details": "Início C-090 | 19022-E433-2025_Exaustive"
+        },
+        {
+            "id": 1768580249008,
+            "date": "16/01/2026 13:17",
+            "action": "Conclusão",
+            "bath": "BANHO - 01",
+            "details": "Teste C-C-090 finalizado automaticamente"
+        },
+        {
+            "id": 1768580247530,
+            "date": "16/01/2026 13:17",
+            "action": "Teste",
+            "bath": "BANHO - 01",
+            "details": "Início C-090 | 19022-E433-2025_Exaustive"
+        },
         {
             "id": 1768538153770,
             "date": "16/01/2026 01:35",
