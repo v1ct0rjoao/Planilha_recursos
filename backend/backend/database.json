@@ -1,0 +1,74 @@
+{
+    "baths": [
+        {
+            "id": "BANHO - 01",
+            "temp": 25,
+            "circuits": [
+                {
+                    "id": "C-090",
+                    "status": "finished",
+                    "batteryId": "19022-E433-2025_Exaustive",
+                    "protocol": "RC20",
+                    "startTime": "27/08/2025 09:44",
+                    "progress": 100,
+                    "previsao": "30/08/2025 08:19",
+                    "error": null
+                }
+            ]
+        },
+        {
+            "id": "BANHO - 06",
+            "temp": 75,
+            "circuits": []
+        }
+    ],
+    "protocols": [
+        {
+            "id": "SAEJ2801",
+            "name": "SAEJ2801",
+            "duration": 192
+        },
+        {
+            "id": "RC20",
+            "name": "RC20",
+            "duration": 20
+        }
+    ],
+    "logs": [
+        {
+            "id": 1768538153770,
+            "date": "16/01/2026 01:35",
+            "action": "Conclusão",
+            "bath": "BANHO - 01",
+            "details": "Teste C-C-090 finalizado automaticamente"
+        },
+        {
+            "id": 1768538145917,
+            "date": "16/01/2026 01:35",
+            "action": "Teste",
+            "bath": "BANHO - 01",
+            "details": "Início C-090 | 19022-E433-2025_Exaustive"
+        },
+        {
+            "id": 1768538131778,
+            "date": "16/01/2026 01:35",
+            "action": "Sistema",
+            "bath": "BANHO - 01",
+            "details": "Canal C-090 liberado"
+        },
+        {
+            "id": 1768538128316,
+            "date": "16/01/2026 01:35",
+            "action": "Status",
+            "bath": "BANHO - 01",
+            "details": "C-090: Em Manutenção"
+        },
+        {
+            "id": 1768538126016,
+            "date": "16/01/2026 01:35",
+            "action": "Cadastro",
+            "bath": "BANHO - 01",
+            "details": "Canal C-090 adicionado"
+        }
+    ]
+}

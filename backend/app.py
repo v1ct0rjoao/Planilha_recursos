@@ -3,39 +3,57 @@ from flask_cors import CORS
 import os
 import json
 import re
-from datetime import datetime
-
-# Tenta importar a lógica de cálculo de datas (certifique-se de que logic.py existe)
-try:
-    from logic import calcular_previsao_fim
-except ImportError:
-    def calcular_previsao_fim(start, protocol): return "Pendente"
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
-CORS(app) # Permite a comunicação com o React
+# Permite conexões do React (CORS)
+CORS(app)
 
-DB_FILE = 'backend/database.json'
+# Configurações de Pastas
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BACKEND_DIR = os.path.join(BASE_DIR, 'backend')
+UPLOAD_FOLDER = os.path.join(BACKEND_DIR, 'uploads')
+DB_FILE = os.path.join(BACKEND_DIR, 'database.json')
 
-# --- GESTÃO DE BASE DE DADOS ---
+# Garante que as pastas existam
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(BACKEND_DIR, exist_ok=True)
+
+# --- FUNÇÕES ---
 
 def load_db():
     if not os.path.exists(DB_FILE):
-        # Estado inicial se o ficheiro não existir
         default = {
             "baths": [
-                {"id": "BANHO-01", "temp": 25, "circuits": []},
-                {"id": "BANHO-06", "temp": 75, "circuits": []}
-            ], 
+                {"id": "BANHO - 01", "temp": 25, "circuits": []},
+                {"id": "BANHO - 06", "temp": 75, "circuits": []}
+            ],
+            "protocols": [
+                {"id": "SAEJ2801", "name": "SAEJ2801", "duration": 192},
+                {"id": "RC20", "name": "RC20", "duration": 20}
+            ],
             "logs": []
         }
         save_db(default)
         return default
-    with open(DB_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    try:
+        with open(DB_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            # Garante estrutura mínima caso o arquivo esteja incompleto
+            if "protocols" not in data: data["protocols"] = []
+            if "logs" not in data: data["logs"] = []
+            if "baths" not in data: data["baths"] = []
+            return data
+    except Exception as e:
+        print(f"Erro ao carregar DB: {e}")
+        return {"baths": [], "protocols": [], "logs": []}
 
 def save_db(data):
-    with open(DB_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
+    try:
+        with open(DB_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Erro ao salvar DB: {e}")
 
 def add_log(db, action, bath_id, details):
     new_log = {
@@ -45,28 +63,72 @@ def add_log(db, action, bath_id, details):
         "bath": bath_id,
         "details": details
     }
+    # Adiciona no início da lista
     db['logs'].insert(0, new_log)
-    db['logs'] = db['logs'][:50] # Mantém os últimos 50 logs
+    # Mantém apenas os últimos 200 logs para não pesar
+    db['logs'] = db['logs'][:200]
 
-# --- ROTAS DA API ---
+def apenas_numeros(texto):
+    return re.sub(r'\D', '', str(texto))
+
+# --- INTELIGÊNCIA: FINALIZAR TESTES VENCIDOS ---
+def verificar_conclusao_testes(db):
+    """Verifica se a data de fim já passou e atualiza o status"""
+    agora = datetime.now()
+    alterado = False
+    
+    for bath in db['baths']:
+        for circuit in bath['circuits']:
+            status_atual = str(circuit.get('status', '')).lower().strip()
+            
+            # Só verifica se estiver rodando (case insensitive agora)
+            if status_atual == 'running':
+                try:
+                    # Previsão vem como "dd/mm/aaaa HH:MM"
+                    previsao_str = circuit.get('previsao', '-')
+                    if previsao_str and previsao_str not in ['-', 'A calcular', '']:
+                        fim_previsto = datetime.strptime(previsao_str, "%d/%m/%Y %H:%M")
+                        
+                        if agora >= fim_previsto:
+                            circuit['status'] = 'finished' # Muda para AZUL (Concluído)
+                            circuit['progress'] = 100
+                            add_log(db, "Conclusão", bath['id'], f"Teste C-{circuit['id']} finalizado automaticamente")
+                            alterado = True
+                except Exception as e:
+                    # Ignora erros de parse de data para não parar o servidor
+                    pass 
+    
+    if alterado:
+        save_db(db)
+
+# --- ROTAS ---
+
+@app.route('/')
+def home(): 
+    return "Servidor LabManager Ativo! 🚀 Use /api/data para acessar os dados."
 
 @app.route('/api/data', methods=['GET'])
 def get_data():
-    return jsonify(load_db())
+    db = load_db()
+    # Verifica datas antes de enviar para o site (Real-time update)
+    verificar_conclusao_testes(db)
+    return jsonify(db)
 
-# 1. Gestão de Banhos (Unidades)
 @app.route('/api/baths/add', methods=['POST'])
 def add_bath():
     data = request.json
     bath_id = data.get('bathId')
     temp = data.get('temp', 25)
-    
     db = load_db()
-    if any(b['id'] == bath_id for b in db['baths']):
-        return jsonify({'error': 'Esta unidade já existe!'}), 400
+    
+    # Verifica duplicidade
+    if any(b['id'] == bath_id for b in db['baths']): 
+        return jsonify({'error': 'Banho já existe!'}), 400
         
     db['baths'].append({"id": bath_id, "temp": temp, "circuits": []})
-    add_log(db, "Cadastro", bath_id, f"Unidade {bath_id} criada com setpoint {temp}ºC")
+    db['baths'].sort(key=lambda x: x['id'])
+    
+    add_log(db, "Configuração", bath_id, f"Unidade criada (Set: {temp}ºC)")
     save_db(db)
     return jsonify(db)
 
@@ -74,10 +136,8 @@ def add_bath():
 def delete_bath():
     data = request.json
     bath_id = data.get('bathId')
-    
     db = load_db()
     db['baths'] = [b for b in db['baths'] if b['id'] != bath_id]
-    add_log(db, "Remoção", bath_id, f"Unidade {bath_id} excluída do sistema")
     save_db(db)
     return jsonify(db)
 
@@ -86,32 +146,52 @@ def update_temp():
     data = request.json
     bath_id = data.get('bathId')
     new_temp = data.get('temp')
-    
     db = load_db()
     for bath in db['baths']:
         if bath['id'] == bath_id:
-            old_temp = bath['temp']
+            old = bath.get('temp', 0)
             bath['temp'] = new_temp
-            add_log(db, "Ajuste Temp", bath_id, f"Setpoint alterado de {old_temp}ºC para {new_temp}ºC")
+            add_log(db, "Temperatura", bath_id, f"{old}ºC -> {new_temp}ºC")
             break
     save_db(db)
     return jsonify(db)
 
-# 2. Gestão de Circuitos (Canais)
+@app.route('/api/protocols/add', methods=['POST'])
+def add_protocol():
+    data = request.json
+    name = str(data.get('name')).upper()
+    duration = int(data.get('duration'))
+    db = load_db()
+    # Remove se já existir (atualização/substituição)
+    db['protocols'] = [p for p in db['protocols'] if p['id'] != name]
+    db['protocols'].append({"id": name, "name": name, "duration": duration})
+    save_db(db)
+    return jsonify(db)
+
+@app.route('/api/protocols/delete', methods=['POST'])
+def delete_protocol():
+    data = request.json
+    pid = data.get('id')
+    db = load_db()
+    db['protocols'] = [p for p in db['protocols'] if p['id'] != pid]
+    save_db(db)
+    return jsonify(db)
+
 @app.route('/api/circuits/add', methods=['POST'])
 def add_circuit():
     data = request.json
     bath_id = data.get('bathId')
     user_id = data.get('circuitId')
     
+    # Padroniza ID do circuito
     final_id = f"C-{user_id}" if not str(user_id).startswith("C-") else user_id
     
     db = load_db()
     for bath in db['baths']:
         if bath['id'] == bath_id:
-            if any(c['id'] == final_id for c in bath['circuits']):
-                return jsonify({'error': f'O circuito {final_id} já existe nesta unidade!'}), 400
-            
+            if any(c['id'] == final_id for c in bath['circuits']): 
+                return jsonify({'error': 'Circuito já existe!'}), 400
+                
             bath['circuits'].append({
                 "id": final_id, 
                 "status": "free", 
@@ -121,27 +201,27 @@ def add_circuit():
                 "progress": 0, 
                 "previsao": "-"
             })
-            # Ordenação numérica básica para os IDs
-            try:
-                bath['circuits'].sort(key=lambda x: int(re.sub(r'\D', '', x['id'])) if re.sub(r'\D', '', x['id']) else 999)
-            except: pass
             
-            add_log(db, "Cadastro", bath_id, f"Circuito {final_id} alocado")
+            # Tenta ordenar numericamente se possível
+            try: 
+                bath['circuits'].sort(key=lambda x: int(apenas_numeros(x['id'])) if apenas_numeros(x['id']) else 999)
+            except: 
+                pass
+                
+            add_log(db, "Cadastro", bath_id, f"Canal {final_id} adicionado")
             break
+            
     save_db(db)
     return jsonify(db)
 
 @app.route('/api/circuits/delete', methods=['POST'])
 def delete_circuit():
     data = request.json
-    bath_id = data.get('bathId')
-    circuit_id = data.get('circuitId')
-    
     db = load_db()
     for bath in db['baths']:
-        if bath['id'] == bath_id:
-            bath['circuits'] = [c for c in bath['circuits'] if c['id'] != circuit_id]
-            add_log(db, "Remoção", bath_id, f"Circuito {circuit_id} removido")
+        if bath['id'] == data.get('bathId'):
+            bath['circuits'] = [c for c in bath['circuits'] if c['id'] != data.get('circuitId')]
+            add_log(db, "Remoção", data.get('bathId'), f"Canal {data.get('circuitId')} removido")
             break
     save_db(db)
     return jsonify(db)
@@ -151,66 +231,88 @@ def update_circuit_status():
     data = request.json
     bath_id = data.get('bathId')
     circuit_id = data.get('circuitId')
-    new_status = data.get('status') # 'maintenance' ou 'free'
+    new_status = data.get('status') # 'free', 'maintenance', 'running', etc.
     
     db = load_db()
     for bath in db['baths']:
         if bath['id'] == bath_id:
             for circuit in bath['circuits']:
                 if circuit['id'] == circuit_id:
-                    circuit['status'] = new_status
-                    msg = "Em Manutenção" if new_status == 'maintenance' else "Disponível"
-                    add_log(db, "Status", bath_id, f"Circuito {circuit_id} definido como {msg}")
+                    # Se for liberar (free), limpa os dados
+                    if new_status == 'free':
+                        circuit['status'] = 'free'
+                        circuit['batteryId'] = None
+                        circuit['protocol'] = None
+                        circuit['startTime'] = None
+                        circuit['previsao'] = "-"
+                        circuit['progress'] = 0
+                        circuit['error'] = None
+                        add_log(db, "Sistema", bath_id, f"Canal {circuit_id} liberado")
+                    else:
+                        circuit['status'] = new_status
+                        msg = "Em Manutenção" if new_status == 'maintenance' else "Status alterado"
+                        if new_status == 'maintenance': 
+                            circuit['error'] = 'Manutenção Manual'
+                        add_log(db, "Status", bath_id, f"{circuit_id}: {msg}")
                     break
     save_db(db)
     return jsonify(db)
 
-# 3. Importação de Dados Digatron
 @app.route('/api/import', methods=['POST'])
 def import_text():
     raw_text = request.json.get('text', '')
-    if not raw_text: return jsonify({'error': 'Buffer vazio'}), 400
-
     db = load_db()
     atualizados = []
-
-    # Regex para capturar: Circuit(ID) DataInicio Hora DataFim Hora
+    
+    if not raw_text: 
+        return jsonify({'error': 'Texto vazio'}), 400
+    
+    # Regex para capturar linhas do Digatron:
+    # Captura: (ID do Circuito) ... (Data Inicio) ... (Data Fim)
     pattern = r"Circuit(\d+)\s*(\d{2}/\d{2}/\d{4}\s\d{2}:\d{2})\s*(\d{2}/\d{2}/\d{4}\s\d{2}:\d{2})"
     matches = re.finditer(pattern, raw_text)
 
     for match in matches:
-        cid_num = match.group(1)
+        cid_num = match.group(1) # Ex: 01, 10
         start_dt = match.group(2)
         stop_dt = match.group(3)
         
-        # Pega a linha completa para tentar extrair o Serial da Bateria
+        # Pega a linha completa para buscar ID da Bateria e Protocolo
         start_pos = match.start()
         end_pos = raw_text.find('\n', match.end())
         if end_pos == -1: end_pos = len(raw_text)
         linha = raw_text[start_pos:end_pos]
         
-        # Procura o ID da Bateria (padrão longo com hífens)
-        id_bateria = "Não identificado"
-        battery_match = re.search(r"(\d{5,}-[\w-]+)", linha)
-        if battery_match: id_bateria = battery_match.group(1)
+        # Busca ID da Bateria na linha (ex: 12345-ABC)
+        id_bateria = "Desconhecido"
+        bat_match = re.search(r"(\d{5,}-[\w-]+)", linha)
+        if bat_match: id_bateria = bat_match.group(1)
+        
+        # Busca protocolo conhecido
+        protocolo_detectado = "Importado"
+        for p in db.get('protocols', []):
+            if p['name'] in linha: 
+                protocolo_detectado = p['name']
 
-        # Procura no banco para atualizar
+        # Atualiza o circuito correspondente no banco
         for bath in db['baths']:
             for circuit in bath['circuits']:
-                if re.sub(r'\D', '', circuit['id']) == cid_num:
+                # Compara apenas o número (Ex: C-01 vira 01)
+                if apenas_numeros(circuit['id']) == apenas_numeros(cid_num):
                     circuit['status'] = 'running'
                     circuit['startTime'] = start_dt
-                    circuit['previsao'] = stop_dt
+                    circuit['previsao'] = stop_dt # Digatron já dá a data fim calculada
                     circuit['batteryId'] = id_bateria
-                    circuit['progress'] = 5 # Início visual
+                    circuit['protocol'] = protocolo_detectado
+                    circuit['progress'] = 10 # Começa com um pouco de progresso visual
                     
-                    add_log(db, "Sincronismo", bath['id'], f"Circuito {circuit['id']} atualizado via Digatron")
+                    add_log(db, "Teste", bath['id'], f"Início {circuit['id']} | {id_bateria}")
                     atualizados.append(circuit['id'])
                     break
-
+                    
     save_db(db)
     return jsonify({"sucesso": True, "atualizados": atualizados, "db_atualizado": db})
 
 if __name__ == '__main__':
-    print("LabManager Server - Ativo em http://127.0.0.1:5000")
+    print("Iniciando servidor LabManager em http://127.0.0.1:5000")
     app.run(debug=True, port=5000)
