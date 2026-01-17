@@ -1,18 +1,17 @@
 {
     "baths": [
         {
-            "id": "BANHO - 01",
+            "id": "BANHO - 02",
             "temp": 25,
             "circuits": [
                 {
-                    "id": "C-090",
-                    "status": "running",
-                    "batteryId": "19022-E433-2025_Exaustive",
-                    "protocol": "Desconhecido",
-                    "startTime": "27/08/2025 09:44",
-                    "progress": 10,
-                    "previsao": "A calcular",
-                    "error": null
+                    "id": "C-102",
+                    "status": "free",
+                    "batteryId": null,
+                    "previsao": "-",
+                    "startTime": "28/08/2025 10:48",
+                    "protocol": null,
+                    "progress": 100
                 }
             ]
         },
@@ -20,6 +19,34 @@
             "id": "BANHO - 06",
             "temp": 75,
             "circuits": []
+        },
+        {
+            "id": "BANHO - 22",
+            "temp": 25,
+            "circuits": [
+                {
+                    "id": "C-090",
+                    "status": "running",
+                    "batteryId": "19022-E433-2025_Exaustive",
+                    "previsao": "22/01/2026 09:44",
+                    "startTime": "14/01/2026 09:44",
+                    "protocol": "SAE J2801",
+                    "progress": 10
+                },
+                {
+                    "id": "C-105",
+                    "status": "free",
+                    "batteryId": null,
+                    "previsao": "-",
+                    "protocol": null
+                },
+                {
+                    "id": "C-130",
+                    "status": "free",
+                    "batteryId": null,
+                    "previsao": "-"
+                }
+            ]
         }
     ],
     "protocols": [
@@ -42,9 +69,84 @@
             "id": "RC20R",
             "name": "RC20R",
             "duration": 72
+        },
+        {
+            "id": "VICTOR",
+            "name": "VICTOR",
+            "duration": 24
         }
     ],
     "logs": [
+        {
+            "id": 1768584099005,
+            "date": "16/01/2026 14:21",
+            "action": "Conclusão",
+            "bath": "BANHO - 02",
+            "details": "Teste C-C-102 finalizado"
+        },
+        {
+            "id": 1768584097363,
+            "date": "16/01/2026 14:21",
+            "action": "Teste",
+            "bath": "BANHO - 02",
+            "details": "Início C-102 (SAE J2801)"
+        },
+        {
+            "id": 1768583998997,
+            "date": "16/01/2026 14:19",
+            "action": "Conclusão",
+            "bath": "BANHO - 02",
+            "details": "Teste C-C-102 finalizado"
+        },
+        {
+            "id": 1768583998398,
+            "date": "16/01/2026 14:19",
+            "action": "Teste",
+            "bath": "BANHO - 02",
+            "details": "Início C-102 (SAE J2801)"
+        },
+        {
+            "id": 1768583926625,
+            "date": "16/01/2026 14:18",
+            "action": "Teste",
+            "bath": "BANHO - 22",
+            "details": "Início C-090 (SAE J2801)"
+        },
+        {
+            "id": 1768583208108,
+            "date": "16/01/2026 14:06",
+            "action": "Teste",
+            "bath": "BANHO - 01",
+            "details": "Início C-090 (SAE J2801)"
+        },
+        {
+            "id": 1768583180851,
+            "date": "16/01/2026 14:06",
+            "action": "Conclusão",
+            "bath": "BANHO - 01",
+            "details": "Teste C-C-090 finalizado"
+        },
+        {
+            "id": 1768583179601,
+            "date": "16/01/2026 14:06",
+            "action": "Teste",
+            "bath": "BANHO - 01",
+            "details": "Início C-090 (SAE J2801)"
+        },
+        {
+            "id": 1768582949001,
+            "date": "16/01/2026 14:02",
+            "action": "Conclusão",
+            "bath": "BANHO - 01",
+            "details": "Teste C-C-090 finalizado"
+        },
+        {
+            "id": 1768582947012,
+            "date": "16/01/2026 14:02",
+            "action": "Teste",
+            "bath": "BANHO - 01",
+            "details": "Início C-090 (SAE J2801)"
+        },
         {
             "id": 1768582577427,
             "date": "16/01/2026 13:56",

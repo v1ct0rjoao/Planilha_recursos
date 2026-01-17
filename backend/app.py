@@ -6,14 +6,11 @@ import re
 from datetime import datetime, timedelta
 
 # --- CONFIGURAÇÃO DE DIRETÓRIOS ---
-# Define onde o Flask vai procurar o "site" (pasta dist)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DIST_DIR = os.path.join(BASE_DIR, 'dist')
-# Tenta achar a pasta dist um nível acima se não estiver na raiz
 if not os.path.exists(DIST_DIR):
     DIST_DIR = os.path.join(os.path.dirname(BASE_DIR), 'dist')
 
-# Configura o Flask para servir a pasta estática
 app = Flask(__name__, static_folder=DIST_DIR, static_url_path='')
 CORS(app)
 
@@ -73,50 +70,66 @@ def apenas_numeros(texto):
     return re.sub(r'\D', '', str(texto))
 
 # --- INTELIGÊNCIA 1: RECONHECIMENTO DE NOME (CASCATA) ---
-def identificar_nome_padrao(nome_digatron):
+def identificar_nome_padrao(linha_ou_nome):
     """
-    Identifica o teste priorizando nomes mais longos/específicos.
-    Evita confundir RRCR com RC.
+    Procura padrões de nomes conhecidos dentro de qualquer texto.
     """
-    nome = str(nome_digatron).upper().replace('_', '').replace('-', '').replace(' ', '')
+    # Remove caracteres especiais para facilitar a busca
+    texto_limpo = str(linha_ou_nome).upper().replace('_', '').replace('-', '').replace(' ', '')
     
     # Nível 1: Testes Específicos (Prioridade Alta)
-    if "SAE" in nome or "2801" in nome: return "SAE J2801"
-    if "RRCR" in nome: return "RRCR"  # Verifica RRCR antes de RC
-    if "RC20" in nome: return "RC20"
+    # Se achar "2801" ou "SAE" em qualquer lugar da linha, é SAE J2801
+    if "SAE" in texto_limpo or "2801" in texto_limpo: return "SAE J2801"
+    
+    # RRCR ganha de RC
+    if "RRCR" in texto_limpo: return "RRCR"
+    if "RC20" in texto_limpo: return "RC20"
     
     # Nível 2: Testes Genéricos
-    if "C20" in nome: return "C20"
-    if "RC" in nome: return "RC"
-    if "CCA" in nome: return "CCA"
+    if "C20" in texto_limpo: return "C20"
+    if "RC" in texto_limpo: return "RC" # Só pega se não for RRCR ou RC20
+    if "CCA" in texto_limpo: return "CCA"
     
-    return nome_digatron[:12] # Retorna o original se não conhecer
+    # Se não achou padrão nenhum, retorna "Desconhecido" para não quebrar
+    return "Desconhecido"
 
 # --- INTELIGÊNCIA 2: CÁLCULO DE PREVISÃO ---
 def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
     """
-    Pega a data de início e soma a duração do protocolo cadastrado.
+    Pega a data de início e soma a duração.
     """
-    # 1. Acha a duração
+    print(f"   [CALC] Início: {start_str} | Protocolo Detectado: {nome_protocolo}")
+
+    # 1. Acha a duração no banco de dados (prioridade)
     duracao = 0
     for p in db_protocols:
-        if p['name'] == nome_protocolo:
+        # Verifica se o nome oficial é igual
+        if p['name'].upper() == nome_protocolo.upper():
             duracao = p['duration']
             break
             
-    # 2. Valores de segurança se não achar no banco
+    # 2. Valores de segurança (fallback) se não estiver no banco ou se o nome for padrão
     if duracao == 0:
-        if "RC20" in nome_protocolo: duracao = 68
-        elif "2801" in nome_protocolo: duracao = 192
+        if "SAE" in nome_protocolo or "2801" in nome_protocolo: duracao = 192
+        elif "RC20" in nome_protocolo: duracao = 68
         elif "RRCR" in nome_protocolo: duracao = 48
-        else: return "A calcular"
+        elif "C20" in nome_protocolo: duracao = 20
+        elif "RC" in nome_protocolo: duracao = 5
+        else: 
+            print("   [CALC] ERRO: Não sei a duração desse teste.")
+            return "A calcular"
+
+    print(f"   [CALC] Duração usada: {duracao} horas")
 
     # 3. Cálculo Matemático
     try:
         dt_start = datetime.strptime(start_str, "%d/%m/%Y %H:%M")
         dt_end = dt_start + timedelta(hours=duracao)
-        return dt_end.strftime("%d/%m/%Y %H:%M")
-    except:
+        resultado = dt_end.strftime("%d/%m/%Y %H:%M")
+        print(f"   [CALC] Sucesso! Data Fim: {resultado}")
+        return resultado
+    except Exception as e:
+        print(f"   [CALC] ERRO de Data: {e}")
         return "-"
 
 def verificar_conclusao_testes(db):
@@ -137,21 +150,19 @@ def verificar_conclusao_testes(db):
                 except: pass
     if alterado: save_db(db)
 
-# --- ROTAS SERVIDOR WEB ---
+# --- ROTAS ---
 
 @app.route('/')
 def serve_react():
     if os.path.exists(os.path.join(DIST_DIR, 'index.html')):
         return send_from_directory(DIST_DIR, 'index.html')
-    return "<h1>LabManager Backend Online</h1><p>Frontend não encontrado na pasta dist.</p>"
+    return "<h1>LabManager Backend</h1>"
 
 @app.route('/<path:path>')
 def serve_static(path):
     if os.path.exists(os.path.join(DIST_DIR, path)):
         return send_from_directory(DIST_DIR, path)
     return send_from_directory(DIST_DIR, 'index.html')
-
-# --- ROTAS API ---
 
 @app.route('/api/data', methods=['GET'])
 def get_data():
@@ -167,7 +178,10 @@ def import_text():
     
     if not raw_text: return jsonify({'error': 'Texto vazio'}), 400
     
-    # Regex Relaxado: Pega Circuito + Data Início (Ignora resto da linha se falhar)
+    print("\n--- INICIANDO IMPORTAÇÃO ---")
+    
+    # Regex flexível para pegar Circuito e Data
+    # Aceita espaços variados entre o ID e a Data
     pattern = r"Circuit(\d+)\s*(\d{2}/\d{2}/\d{4}\s\d{2}:\d{2})"
     matches = re.finditer(pattern, raw_text)
 
@@ -175,26 +189,33 @@ def import_text():
         cid_num = match.group(1)
         start_dt = match.group(2)
         
-        # Pega a linha completa para achar o nome do teste
+        # Pega a linha completa para análise
         start_pos = match.start()
         end_pos = raw_text.find('\n', match.end())
         linha = raw_text[start_pos:end_pos] if end_pos != -1 else raw_text[start_pos:]
         
+        print(f"-> Processando linha: {linha.strip()}")
+
         # 1. Identifica Bateria
         id_bateria = "Desconhecido"
+        # Tenta pegar código longo com traço (ex: 19022-E433)
         bat_match = re.search(r"(\d{5,}-[\w-]+)", linha)
-        if bat_match: id_bateria = bat_match.group(1)
+        if bat_match: 
+            id_bateria = bat_match.group(1)
+        else:
+            # Fallback: Tenta pegar códigos curtos tipo Z60D se não achar o longo
+            bat_match_short = re.search(r"\s([A-Z0-9]{3,6})\s", linha)
+            if bat_match_short and "SAE" not in bat_match_short.group(1):
+                 id_bateria = bat_match_short.group(1)
         
-        # 2. Identifica Nome do Teste (Com a nova função inteligente)
-        match_nome = re.search(r"Program:\s*([A-Za-z0-9_-]+)", linha)
-        nome_bruto = match_nome.group(1) if match_nome else "Desconhecido"
+        # 2. Identifica Nome do Teste (AGORA NA LINHA TODA)
+        # Não procura mais por "Program:", manda a linha toda pra função inteligente
+        protocolo_limpo = identificar_nome_padrao(linha)
         
-        protocolo_limpo = identificar_nome_padrao(nome_bruto)
-
-        # 3. Calcula Previsão (Data Início + Duração do Protocolo)
+        # 3. Calcula Previsão
         previsao_calculada = calcular_previsao_fim(start_dt, protocolo_limpo, db.get('protocols', []))
 
-        # 4. Atualiza no Banco
+        # 4. Salva no Banco
         for bath in db['baths']:
             for circuit in bath['circuits']:
                 if apenas_numeros(circuit['id']) == apenas_numeros(cid_num):
@@ -211,10 +232,10 @@ def import_text():
                     break
                     
     save_db(db)
+    print("--- IMPORTAÇÃO CONCLUÍDA ---\n")
     return jsonify({"sucesso": True, "atualizados": atualizados, "db_atualizado": db})
 
-# --- CRUD BÁSICO (Banhos, Circuitos, Protocolos) ---
-
+# --- CRUD BÁSICO ---
 @app.route('/api/baths/add', methods=['POST'])
 def add_bath():
     data = request.json; db = load_db()
@@ -287,4 +308,5 @@ def delete_protocol():
     save_db(db); return jsonify(db)
 
 if __name__ == '__main__':
+    print("Servidor LabManager com DEBUG Ativo.")
     app.run(debug=True, port=5000)
