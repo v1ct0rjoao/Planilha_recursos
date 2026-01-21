@@ -10,6 +10,17 @@ import {
 
 const API_URL = 'http://127.0.0.1:5000/api';
 
+// --- HELPERS (FORMATADORES) ---
+const formatDataCurta = (dataStr) => {
+  if (!dataStr || dataStr === '-' || dataStr === 'A calcular') return '--/-- --:--';
+  try {
+    // Espera formato "dd/mm/yyyy HH:MM"
+    const [data, hora] = dataStr.split(' ');
+    const [dia, mes] = data.split('/');
+    return `${dia}/${mes} ${hora}`;
+  } catch { return dataStr; }
+};
+
 // --- COMPONENTES AUXILIARES ---
 
 const Toast = ({ message, type, onClose }) => {
@@ -109,7 +120,7 @@ const StatusLegend = () => (
   </div>
 );
 
-// --- COMPONENTE DE LINHA VISUAL ---
+// --- COMPONENTE DE LINHA VISUAL (ATUALIZADO) ---
 const GridRow = ({ row, daysInMonth, onDelete, onRestore, onPreset, setToast }) => {
   const getColor = (status) => {
     switch (status) {
@@ -124,7 +135,7 @@ const GridRow = ({ row, daysInMonth, onDelete, onRestore, onPreset, setToast }) 
   const stats = row.stats || { pct_up: 0, pct_pq: 0, pct_pp: 0, pct_sd: 0, tempo_disponivel: 0, tempo_real: 0, disponibilidade: 0 };
   const isEmpty = (row.is_zero_up && !row.is_ignored) || row.is_ignored;
 
-  // Função para Copiar Linha (Mantida para uso individual)
+  // Função para Copiar Linha (Formato Excel: ID + Dias + Totais)
   const handleCopyRow = () => {
     const dayString = row.day_data ? row.day_data.join('\t') : Array(daysInMonth).fill('').join('\t');
     const textToCopy = `${row.id}\t${dayString}\t${row.UP}\t${row.PQ}\t${row.PP}\t${row.SD}`;
@@ -141,7 +152,8 @@ const GridRow = ({ row, daysInMonth, onDelete, onRestore, onPreset, setToast }) 
           <span className={`flex items-center gap-1 ${isEmpty ? 'text-slate-400' : 'text-blue-600 underline decoration-dotted decoration-blue-300'}`}>
             {row.id}
           </span>
-          {/* Tooltip */}
+          
+          {/* Tooltip só aparece se não estiver vazio */}
           {!isEmpty && (
             <div className="absolute left-full top-0 ml-2 w-48 bg-slate-800 text-white text-[10px] p-3 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
               <h4 className="font-bold border-b border-slate-600 pb-1 mb-2 text-emerald-400">Indicadores do Circuito</h4>
@@ -152,6 +164,7 @@ const GridRow = ({ row, daysInMonth, onDelete, onRestore, onPreset, setToast }) 
               </div>
             </div>
           )}
+
           {row.is_zero_up && !row.is_ignored && <span className="text-[9px] text-slate-300 italic font-normal mt-1">Inativo</span>}
           {row.is_ignored && <span className="text-[9px] text-rose-400 font-bold border border-rose-100 px-1 rounded w-fit bg-rose-50 mt-1">EXCLUÍDO</span>}
         </div>
@@ -160,9 +173,10 @@ const GridRow = ({ row, daysInMonth, onDelete, onRestore, onPreset, setToast }) 
       {/* GRID DE DIAS */}
       <td className="p-1 border-r border-slate-200 overflow-hidden">
         <div className="flex gap-[2px]">
+          {/* SE ESTIVER VAZIO (AUTO-OFF), MOSTRA CÉLULAS BRANCAS */}
           {isEmpty ? (
              Array.from({ length: daysInMonth }).map((_, i) => (
-                <div key={i} className="w-5 h-6 border border-slate-100 bg-white rounded-[2px]" title="Sem atividade"></div>
+                <div key={i} className="w-5 h-6 border border-slate-100 bg-white rounded-[2px]" title="Sem atividade neste mês"></div>
              ))
           ) : (
             row.day_data && row.day_data.map((status, i) => (
@@ -313,7 +327,7 @@ const OEEDashboardView = ({ setToast }) => {
 
   // --- FUNÇÕES DE CÓPIA ---
 
-  // 1. Copiar APENAS O GRID (O Miolo: UP, SD, PP...)
+  // Copiar APENAS O GRID (O Miolo: UP, SD, PP...)
   const handleCopyGridOnly = () => {
     if (!results.details || results.details.length === 0) return;
     const rows = results.details.map(row => {
@@ -400,7 +414,6 @@ const OEEDashboardView = ({ setToast }) => {
     );
   }
 
-  // 3. DASHBOARD (RESULTADO)
   if (step === 'dashboard') {
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -517,193 +530,149 @@ const OEEDashboardView = ({ setToast }) => {
   return null;
 };
 
-// --- MANTENHA O RESTANTE DO CÓDIGO (CircuitCard, BathContainer, MainApp...) ---
 
-// Função auxiliar de tempo
-const verificarFimTeste = (previsao) => {
-  if (!previsao || previsao === '-' || previsao === 'A calcular') return false;
-  try {
-    const [dataPart, horaPart] = previsao.split(' ');
-    const [dia, mes, ano] = dataPart.split('/');
-    const [hora, min] = horaPart.split(':');
-    const dataFim = new Date(ano, mes - 1, dia, hora, min);
-    return new Date() > dataFim;
-  } catch (e) { return false; }
-};
 
 const CircuitCard = ({ circuit, onDelete, onToggleMaintenance, onViewHistory }) => {
-  const normalizedStatus = circuit.status ? circuit.status.toString().toLowerCase().trim() : 'free';
-  const isFinished = normalizedStatus === 'finished' || (normalizedStatus === 'running' && verificarFimTeste(circuit.previsao));
-  const showActiveCard = normalizedStatus === 'running' || normalizedStatus === 'finished';
+  const rawStatus = circuit.status ? circuit.status.toString().toLowerCase().trim() : 'free';
+  
+  // Lógica de Prioridade (Blindagem)
+  const isFinished = rawStatus === 'finished' || (circuit.progress >= 100);
+  const isRunning = rawStatus === 'running' && !isFinished;
+  const isMaint = rawStatus === 'maintenance';
+  const isFree = rawStatus === 'free' && !isFinished && !isRunning && !isMaint;
 
   return (
     <div className={`
-      relative p-3 rounded-md border-l-4 shadow-sm bg-white transition-all hover:shadow-md group
-      ${isFinished ? 'border-blue-500' :
-        normalizedStatus === 'running' ? 'border-amber-400' :
-          normalizedStatus === 'free' ? 'border-emerald-400' : 'border-rose-500'}
+      relative p-3 rounded-lg border-l-4 shadow-sm bg-white transition-all hover:shadow-md group
+      ${isFinished ? 'border-blue-500' : isRunning ? 'border-amber-400' : isMaint ? 'border-rose-500' : 'border-emerald-400'}
     `}>
-      <div className="flex justify-between items-start mb-2">
-        <span className="text-xs font-bold text-slate-500 tracking-wider">CIRC. {circuit.id}</span>
+      {/* CABEÇALHO */}
+      <div className="flex justify-between items-center mb-2 h-5">
+        <span className="text-xs font-black text-slate-600 tracking-wider">CIRC. {circuit.id}</span>
         <div className="flex items-center gap-1">
-          {showActiveCard && (
-            <span className="text-xs font-mono text-slate-600 bg-slate-100 px-1 rounded">
-              {circuit.startTime ? (circuit.startTime.split(' ')[1] || circuit.startTime) : '--:--'}
-            </span>
-          )}
-          <button onClick={() => onViewHistory(circuit)} className="p-1 rounded hover:bg-slate-100 text-slate-300 hover:text-blue-500">
-            <Clock size={14} />
-          </button>
+          <button onClick={() => onViewHistory(circuit)} className="p-1 rounded text-slate-300 hover:text-blue-600 transition-colors" title="Histórico"><Clock size={13} /></button>
           <div className="flex opacity-0 group-hover:opacity-100 transition-opacity gap-1">
-            {showActiveCard && (
-              <button onClick={() => onToggleMaintenance(circuit.id, true)} className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-blue-500">
-                <CheckSquare size={14} />
-              </button>
-            )}
-            {!showActiveCard && (
-              <button onClick={() => onToggleMaintenance(circuit.id, normalizedStatus === 'maintenance')} className="p-1 rounded hover:bg-slate-100 text-slate-400">
-                <Wrench size={14} />
-              </button>
-            )}
-            {normalizedStatus === 'free' && (
-              <button onClick={() => onDelete(circuit.id)} className="text-slate-300 hover:text-rose-500 p-1 rounded"><Trash2 size={14} /></button>
-            )}
+            {(isRunning || isFinished) && (<button onClick={() => onToggleMaintenance(circuit.id, true)} className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-emerald-600" title="Liberar"><CheckSquare size={13} /></button>)}
+            {(isFree || isMaint) && (<button onClick={() => onToggleMaintenance(circuit.id, isMaint)} className={`p-1 rounded hover:bg-slate-100 ${isMaint ? 'text-rose-500' : 'text-slate-400 hover:text-amber-500'}`} title="Manutenção"><Wrench size={13} /></button>)}
+            {isFree && (<button onClick={() => onDelete(circuit.id)} className="text-slate-300 hover:text-rose-500 p-1 rounded" title="Excluir"><Trash2 size={13} /></button>)}
           </div>
         </div>
       </div>
 
-      {showActiveCard ? (
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <BatteryCharging size={16} className={isFinished ? "text-blue-500" : "text-amber-600"} />
-            <span className="font-mono text-sm font-bold text-slate-800 truncate block">{circuit.batteryId}</span>
+      {/* RENDERIZAÇÃO EXCLUSIVA */}
+      {(isRunning || isFinished) && (
+        <div className="animate-in fade-in duration-300">
+          
+          {/* 1. ID DA BATERIA (LIMPO) */}
+          <div className="flex items-center gap-2 mb-0.5">
+            <BatteryCharging size={16} className={isFinished ? "text-blue-500" : "text-amber-500"} />
+            {/* Aqui removi o "S/ ID". Se não tiver ID, mostra um traço discreto "-" ou fica vazio */}
+            <span className="font-mono text-[10px] font-bold text-slate-700 truncate" title={circuit.batteryId}>
+              {circuit.batteryId && circuit.batteryId !== "Desconhecido" ? circuit.batteryId : "-"}
+            </span>
           </div>
-          <div className="w-full bg-slate-100 rounded-full h-2 mb-1">
-            <div className={`${isFinished ? 'bg-blue-500' : 'bg-amber-500'} h-2 rounded-full`} style={{ width: isFinished ? '100%' : `${circuit.progress || 5}%` }}></div>
+
+          {/* 2. NOME DO TESTE (Protocolo) (LIMPO) */}
+          <div className="pl-6 mb-2">
+             <span className="text-[9px] font-black text-slate-400 uppercase tracking-wide truncate block" title="Protocolo do Teste">
+               {/* Removi o "S/ PROT" também */}
+               {circuit.protocol || ""}
+             </span>
+          </div>
+
+          {/* 3. BARRA DE PROGRESSO E STATUS */}
+          <div className="flex justify-between text-[9px] font-bold text-slate-500 mb-0.5">
+             <span>{isFinished ? "100%" : `${circuit.progress}%`}</span>
+             <span className={isFinished ? "text-blue-600" : "text-amber-600"}>{isFinished ? "CONCLUÍDO" : "RODANDO"}</span>
+          </div>
+          <div className="w-full bg-slate-100 rounded-full h-1.5 mb-2 overflow-hidden">
+            <div className={`h-full rounded-full transition-all duration-500 ${isFinished ? 'bg-blue-500' : 'bg-amber-500'}`} style={{ width: isFinished ? '100%' : `${circuit.progress}%` }}></div>
+          </div>
+
+          {/* 4. DATAS (Início e Fim) */}
+          <div className="flex justify-between items-center text-[8px] text-slate-400 font-mono border-t border-slate-50 pt-1">
+            <span title={`Início: ${circuit.startTime}`}>I: {formatDataCurta(circuit.startTime)}</span>
+            <span title={isFinished ? "Data Final" : "Previsão"} className={isFinished ? "text-blue-500 font-bold" : ""}>
+              {isFinished ? "F: " : "P: "}{formatDataCurta(circuit.previsao)}
+            </span>
           </div>
         </div>
-      ) : normalizedStatus === 'free' ? (
-        <div className="flex flex-col items-center justify-center py-4 text-emerald-600/50">
-          <span className="text-xs font-medium uppercase tracking-widest">Disponível</span>
+      )}
+
+      {/* MANUTENÇÃO */}
+      {isMaint && (
+        <div className="py-3 flex items-center justify-center gap-1 text-rose-500">
+          <AlertTriangle size={14} /><span className="text-[10px] font-bold uppercase tracking-tight">Manutenção</span>
         </div>
-      ) : (
-        <div className="flex flex-col gap-1 py-1">
-          <span className="text-xs font-bold text-rose-700 flex items-center gap-1 uppercase tracking-tight"><AlertTriangle size={12} /> Manutenção</span>
+      )}
+
+      {/* LIVRE */}
+      {isFree && (
+        <div className="py-3 flex flex-col items-center justify-center opacity-40">
+          <span className="text-[10px] font-medium uppercase tracking-widest text-emerald-600">Disponível</span>
         </div>
       )}
     </div>
   );
 };
-
+// --- CONTAINER DE BANHO ---
 const BathContainer = ({ bath, onAddCircuit, onUpdateTemp, onDeleteCircuit, onToggleMaintenance, onDeleteBath, onViewHistory }) => {
   const [isEditingTemp, setIsEditingTemp] = useState(false);
   const [tempValue, setTempValue] = useState(bath.temp);
 
-  useEffect(() => {
-    setTempValue(bath.temp);
-  }, [bath.temp]);
+  useEffect(() => { setTempValue(bath.temp); }, [bath.temp]);
 
   const runningCount = bath.circuits ? bath.circuits.filter(c => {
     const s = c.status ? c.status.toLowerCase().trim() : '';
     return s === 'running' || s === 'finished'; 
   }).length : 0;
-
+  
   const freeCount = bath.circuits ? bath.circuits.filter(c => (!c.status || c.status.toLowerCase().trim() === 'free')).length : 0;
-  const maintCount = bath.circuits ? bath.circuits.filter(c => c.status && c.status.toLowerCase().trim() === 'maintenance').length : 0;
+  const maintCount = bath.circuits ? bath.circuits.filter(c => c.status === 'maintenance').length : 0;
 
-  const handleSaveTemp = () => {
-    onUpdateTemp(bath.id, tempValue);
-    setIsEditingTemp(false);
-  };
+  const handleSaveTemp = () => { onUpdateTemp(bath.id, tempValue); setIsEditingTemp(false); };
 
   return (
-    <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden mb-6 transition-all hover:border-blue-200">
+    <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden mb-6 transition-all hover:border-blue-300 hover:shadow-sm">
       <div className="bg-white px-4 py-3 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="bg-blue-100 text-blue-700 p-2 rounded-md">
-            <Thermometer size={20} />
-          </div>
+          <div className="bg-blue-100 text-blue-700 p-2 rounded-md"><Thermometer size={20} /></div>
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-slate-800 text-lg">{bath.id}</h3>
-              <button
-                onClick={() => onDeleteBath(bath.id)}
-                className="text-slate-300 hover:text-rose-500 transition-opacity p-1"
-                title="Excluir Banho"
-              >
-                <Trash2 size={14} />
-              </button>
+              <button onClick={() => onDeleteBath(bath.id)} className="text-slate-300 hover:text-rose-500 transition-opacity p-1"><Trash2 size={14} /></button>
             </div>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 h-6">
               {isEditingTemp ? (
                 <div className="flex items-center gap-1 animate-in fade-in duration-200">
-                  <input
-                    type="number"
-                    value={tempValue}
-                    onChange={(e) => setTempValue(e.target.value)}
-                    className="w-16 px-1 py-0.5 text-sm border border-blue-400 rounded focus:outline-none"
-                    autoFocus
-                  />
-                  <span className="text-sm font-medium">ºC</span>
-                  <button onClick={handleSaveTemp} className="p-1 hover:bg-emerald-100 text-emerald-600 rounded">
-                    <Save size={14} />
-                  </button>
-                  <button onClick={() => { setIsEditingTemp(false); setTempValue(bath.temp); }} className="p-1 hover:bg-rose-100 text-rose-600 rounded">
-                    <XCircle size={14} />
-                  </button>
+                  <input type="number" value={tempValue} onChange={(e) => setTempValue(e.target.value)} className="w-12 px-1 py-0.5 text-xs border border-blue-400 rounded focus:outline-none" autoFocus />
+                  <span className="text-xs font-medium text-slate-500">ºC</span>
+                  <button onClick={handleSaveTemp} className="text-emerald-600 hover:bg-emerald-50 p-0.5 rounded"><Save size={14}/></button>
+                  <button onClick={() => setIsEditingTemp(false)} className="text-rose-500 hover:bg-rose-50 p-0.5 rounded"><XCircle size={14}/></button>
                 </div>
               ) : (
                 <div className="group flex items-center gap-2 cursor-pointer" onClick={() => setIsEditingTemp(true)}>
-                  <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                    SETPOINT: {bath.temp}ºC
-                  </span>
-                  <Edit2 size={12} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-transparent group-hover:border-blue-200 group-hover:text-blue-600 transition-all">SET: {bath.temp}ºC</span>
+                  <Edit2 size={10} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               )}
             </div>
           </div>
         </div>
-
-        <div className="flex items-center gap-4">
-          <div className="flex gap-2 text-xs mr-2">
-            <div className="flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-1 rounded">
-              <Activity size={12} /> {runningCount}
-            </div>
-            <div className="flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-1 rounded">
-              <CheckCircle size={12} /> {freeCount}
-            </div>
-            {maintCount > 0 && (
-              <div className="flex items-center gap-1 text-rose-700 bg-rose-50 px-2 py-1 rounded animate-pulse">
-                <Wrench size={12} /> {maintCount}
-              </div>
-            )}
+        <div className="flex items-center gap-3">
+          <div className="flex gap-2 text-[10px] font-bold">
+            <span className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-1 rounded border border-amber-100"><Activity size={10} /> {runningCount}</span>
+            <span className="flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-1 rounded border border-emerald-100"><CheckCircle size={10} /> {freeCount}</span>
+            {maintCount > 0 && <span className="flex items-center gap-1 bg-rose-50 text-rose-700 px-2 py-1 rounded border border-rose-100"><Wrench size={10} /> {maintCount}</span>}
           </div>
-
-          <button
-            onClick={() => onAddCircuit(bath.id)}
-            className="flex items-center gap-1 text-xs font-bold text-blue-600 border border-blue-200 bg-blue-50 px-3 py-1.5 rounded-md hover:bg-blue-100 transition-colors"
-          >
-            <Plus size={14} />
-            Add Circuito
-          </button>
+          <button onClick={() => onAddCircuit(bath.id)} className="flex items-center gap-1 text-xs font-bold text-blue-600 border border-blue-200 bg-white px-3 py-1.5 rounded-md hover:bg-blue-50 transition-colors shadow-sm"><Plus size={14} /> Add</button>
         </div>
       </div>
-
-      <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {bath.circuits && bath.circuits.map(circuit => (
-          <CircuitCard
-            key={circuit.id}
-            circuit={circuit}
-            onDelete={(cid) => onDeleteCircuit(bath.id, cid)}
-            onToggleMaintenance={(cid, isMaint) => onToggleMaintenance(bath.id, cid, isMaint)}
-            onViewHistory={onViewHistory}
-          />
+          <CircuitCard key={circuit.id} circuit={circuit} onDelete={(cid) => onDeleteCircuit(bath.id, cid)} onToggleMaintenance={(cid, isMaint) => onToggleMaintenance(bath.id, cid, isMaint)} onViewHistory={onViewHistory} />
         ))}
-        {(!bath.circuits || bath.circuits.length === 0) && (
-          <div className="col-span-full py-8 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">
-            <p className="text-sm">Vazio.</p>
-          </div>
-        )}
+        {(!bath.circuits || bath.circuits.length === 0) && (<div className="col-span-full py-6 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-lg text-xs italic">Nenhum circuito neste banho.</div>)}
       </div>
     </div>
   );
@@ -851,7 +820,7 @@ const CircuitHistoryModal = ({ isOpen, onClose, circuit, logs }) => {
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in slide-in-from-bottom-4">
         <div className="bg-white px-6 py-5 border-b border-slate-100 flex justify-between items-center">
           <div>
-            <h2 className="font-bold text-xl text-slate-800">Histórico C-{circuit.id}</h2>
+            <h2 className="font-bold text-xl text-slate-800">Histórico {circuit.id}</h2>
             <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Rastreabilidade Individual</p>
           </div>
           <button onClick={onClose} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200"><XCircle size={20} /></button>

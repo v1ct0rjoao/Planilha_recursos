@@ -5,46 +5,37 @@
             "temp": 25,
             "circuits": [
                 {
-                    "id": "C-102",
+                    "id": "C-002",
+                    "status": "running",
+                    "batteryId": "00000-E000-2025_yyy_xxx",
+                    "previsao": "27/01/2026 10:59",
+                    "startTime": "19/01/2026 10:59",
+                    "protocol": "SAE J2801",
+                    "progress": 14.5
+                },
+                {
+                    "id": "C-057",
                     "status": "free",
                     "batteryId": null,
                     "previsao": "-",
-                    "startTime": "28/08/2025 10:48",
+                    "startTime": null,
                     "protocol": null,
-                    "progress": 100
+                    "progress": 0
                 }
             ]
         },
         {
-            "id": "BANHO - 06",
-            "temp": 75,
-            "circuits": []
-        },
-        {
             "id": "BANHO - 22",
-            "temp": 25,
+            "temp": 75,
             "circuits": [
                 {
-                    "id": "C-090",
-                    "status": "running",
-                    "batteryId": "19022-E433-2025_Exaustive",
-                    "previsao": "22/01/2026 09:44",
-                    "startTime": "14/01/2026 09:44",
-                    "protocol": "SAE J2801",
-                    "progress": 10
-                },
-                {
-                    "id": "C-105",
+                    "id": "C-102",
                     "status": "free",
                     "batteryId": null,
                     "previsao": "-",
-                    "protocol": null
-                },
-                {
-                    "id": "C-130",
-                    "status": "free",
-                    "batteryId": null,
-                    "previsao": "-"
+                    "protocol": null,
+                    "startTime": null,
+                    "progress": 0
                 }
             ]
         }
@@ -74,9 +65,290 @@
             "id": "VICTOR",
             "name": "VICTOR",
             "duration": 24
+        },
+        {
+            "id": "TESTE",
+            "name": "TESTE",
+            "duration": 1000
+        },
+        {
+            "id": "TESTE  2",
+            "name": "TESTE  2",
+            "duration": 90
+        },
+        {
+            "id": "TESTE 3",
+            "name": "TESTE 3",
+            "duration": 100
         }
     ],
     "logs": [
+        {
+            "id": 1768924134681,
+            "date": "20/01/2026 12:48",
+            "action": "Conclusão",
+            "bath": "BANHO - 22",
+            "details": "Teste C-C-102 finalizado auto"
+        },
+        {
+            "id": 1768924134681,
+            "date": "20/01/2026 12:48",
+            "action": "Conclusão",
+            "bath": "BANHO - 02",
+            "details": "Teste C-C-057 finalizado auto"
+        },
+        {
+            "id": 1768924134679,
+            "date": "20/01/2026 12:48",
+            "action": "Importação",
+            "bath": "BANHO - 22",
+            "details": "Atualizado C-C-102"
+        },
+        {
+            "id": 1768924134679,
+            "date": "20/01/2026 12:48",
+            "action": "Importação",
+            "bath": "BANHO - 02",
+            "details": "Atualizado C-C-057"
+        },
+        {
+            "id": 1768924134679,
+            "date": "20/01/2026 12:48",
+            "action": "Importação",
+            "bath": "BANHO - 02",
+            "details": "Atualizado C-C-002"
+        },
+        {
+            "id": 1768923840483,
+            "date": "20/01/2026 12:44",
+            "action": "Conclusão",
+            "bath": "BANHO - 22",
+            "details": "Teste C-C-102 finalizado auto"
+        },
+        {
+            "id": 1768923840483,
+            "date": "20/01/2026 12:44",
+            "action": "Conclusão",
+            "bath": "BANHO - 02",
+            "details": "Teste C-C-057 finalizado auto"
+        },
+        {
+            "id": 1768923840481,
+            "date": "20/01/2026 12:44",
+            "action": "Importação",
+            "bath": "BANHO - 22",
+            "details": "Atualizado C-C-102"
+        },
+        {
+            "id": 1768923840481,
+            "date": "20/01/2026 12:44",
+            "action": "Importação",
+            "bath": "BANHO - 02",
+            "details": "Atualizado C-C-057"
+        },
+        {
+            "id": 1768923840481,
+            "date": "20/01/2026 12:44",
+            "action": "Importação",
+            "bath": "BANHO - 02",
+            "details": "Atualizado C-C-002"
+        },
+        {
+            "id": 1768923648363,
+            "date": "20/01/2026 12:40",
+            "action": "Conclusão",
+            "bath": "BANHO - 12",
+            "details": "Teste C-C-102 finalizado auto"
+        },
+        {
+            "id": 1768923648363,
+            "date": "20/01/2026 12:40",
+            "action": "Conclusão",
+            "bath": "BANHO - 02",
+            "details": "Teste C-C-057 finalizado auto"
+        },
+        {
+            "id": 1768923648360,
+            "date": "20/01/2026 12:40",
+            "action": "Importação",
+            "bath": "BANHO - 12",
+            "details": "Atualizado C-C-102"
+        },
+        {
+            "id": 1768923648360,
+            "date": "20/01/2026 12:40",
+            "action": "Importação",
+            "bath": "BANHO - 02",
+            "details": "Atualizado C-C-057"
+        },
+        {
+            "id": 1768923648360,
+            "date": "20/01/2026 12:40",
+            "action": "Importação",
+            "bath": "BANHO - 02",
+            "details": "Atualizado C-C-002"
+        },
+        {
+            "id": 1768923308776,
+            "date": "20/01/2026 12:35",
+            "action": "Conclusão",
+            "bath": "BANHO - 02",
+            "details": "Teste C-C-057 finalizado auto"
+        },
+        {
+            "id": 1768923308774,
+            "date": "20/01/2026 12:35",
+            "action": "Importação",
+            "bath": "BANHO - 02",
+            "details": "Atualizado C-C-057"
+        },
+        {
+            "id": 1768922978886,
+            "date": "20/01/2026 12:29",
+            "action": "Conclusão",
+            "bath": "BANHO - 02",
+            "details": "Teste C-C-057 finalizado auto"
+        },
+        {
+            "id": 1768922978882,
+            "date": "20/01/2026 12:29",
+            "action": "Importação",
+            "bath": "BANHO - 02",
+            "details": "Atualizado C-C-057"
+        },
+        {
+            "id": 1768922911797,
+            "date": "20/01/2026 12:28",
+            "action": "Importação",
+            "bath": "BANHO - 02",
+            "details": "Atualizado C-C-002"
+        },
+        {
+            "id": 1768922866319,
+            "date": "20/01/2026 12:27",
+            "action": "Conclusão",
+            "bath": "BANHO - 02",
+            "details": "Teste C-C-057 finalizado auto"
+        },
+        {
+            "id": 1768922866317,
+            "date": "20/01/2026 12:27",
+            "action": "Importação",
+            "bath": "BANHO - 02",
+            "details": "Atualizado C-C-057"
+        },
+        {
+            "id": 1768922702857,
+            "date": "20/01/2026 12:25",
+            "action": "Conclusão",
+            "bath": "BANHO - 02",
+            "details": "Teste C-C-057 finalizado auto"
+        },
+        {
+            "id": 1768922702854,
+            "date": "20/01/2026 12:25",
+            "action": "Importação",
+            "bath": "BANHO - 02",
+            "details": "Atualizado C-C-057"
+        },
+        {
+            "id": 1768922678260,
+            "date": "20/01/2026 12:24",
+            "action": "Importação",
+            "bath": "BANHO - 02",
+            "details": "Atualizado C-C-002"
+        },
+        {
+            "id": 1768921840848,
+            "date": "20/01/2026 12:10",
+            "action": "Teste",
+            "bath": "BANHO - 02",
+            "details": "Início C-002 (SAE J2801)"
+        },
+        {
+            "id": 1768919138366,
+            "date": "20/01/2026 11:25",
+            "action": "Teste",
+            "bath": "BANHO - 02",
+            "details": "Início C-002 (SAE J2801)"
+        },
+        {
+            "id": 1768919130428,
+            "date": "20/01/2026 11:25",
+            "action": "Teste",
+            "bath": "BANHO - 02",
+            "details": "Início C-002 (SAE J2801)"
+        },
+        {
+            "id": 1768919123718,
+            "date": "20/01/2026 11:25",
+            "action": "Teste",
+            "bath": "BANHO - 02",
+            "details": "Início C-002 (SAE J2801)"
+        },
+        {
+            "id": 1768918992216,
+            "date": "20/01/2026 11:23",
+            "action": "Teste",
+            "bath": "BANHO - 02",
+            "details": "Início C-090 (SAE J2801)"
+        },
+        {
+            "id": 1768918710062,
+            "date": "20/01/2026 11:18",
+            "action": "Conclusão",
+            "bath": "BANHO - 02",
+            "details": "Teste C-C-102 finalizado"
+        },
+        {
+            "id": 1768918707618,
+            "date": "20/01/2026 11:18",
+            "action": "Teste",
+            "bath": "BANHO - 02",
+            "details": "Início C-102 (SAE J2801)"
+        },
+        {
+            "id": 1768918700106,
+            "date": "20/01/2026 11:18",
+            "action": "Conclusão",
+            "bath": "BANHO - 02",
+            "details": "Teste C-C-002 finalizado"
+        },
+        {
+            "id": 1768918690261,
+            "date": "20/01/2026 11:18",
+            "action": "Teste",
+            "bath": "BANHO - 02",
+            "details": "Início C-002 (SAE J2801)"
+        },
+        {
+            "id": 1768918640107,
+            "date": "20/01/2026 11:17",
+            "action": "Conclusão",
+            "bath": "BANHO - 02",
+            "details": "Teste C-C-057 finalizado"
+        },
+        {
+            "id": 1768918631308,
+            "date": "20/01/2026 11:17",
+            "action": "Teste",
+            "bath": "BANHO - 02",
+            "details": "Início C-057 (RC)"
+        },
+        {
+            "id": 1768918600059,
+            "date": "20/01/2026 11:16",
+            "action": "Conclusão",
+            "bath": "BANHO - 02",
+            "details": "Teste C-C-002 finalizado"
+        },
+        {
+            "id": 1768918598647,
+            "date": "20/01/2026 11:16",
+            "action": "Teste",
+            "bath": "BANHO - 02",
+            "details": "Início C-002 (SAE J2801)"
+        },
         {
             "id": 1768584099005,
             "date": "16/01/2026 14:21",
