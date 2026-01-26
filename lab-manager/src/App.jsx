@@ -8,7 +8,7 @@ import {
   TrendingDown, CheckCircle2, ArrowRight, ArrowLeft, FileSpreadsheet, Filter, Info, Download, BarChart2, List, RefreshCw, Calendar, Calculator, Copy
 } from 'lucide-react';
 
-const API_URL = 'http://127.0.0.1:5000/api';
+const API_URL = 'https://planilha-recursos.onrender.com/api';
 
 // --- HELPERS (FORMATADORES) ---
 const formatDataCurta = (dataStr) => {
