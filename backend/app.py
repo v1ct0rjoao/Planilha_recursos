@@ -4,61 +4,53 @@ import os
 import json
 import re
 from datetime import datetime, timedelta
+import firebase_admin
+from firebase_admin import credentials, firestore
 
-# --- IMPORTAÇÃO ROBUSTA DO SERVIÇO OEE ---
+base_dir = os.path.dirname(os.path.abspath(__file__))
+cred_path = os.path.join(base_dir, 'firebase_credentials.json')
+
+db_firestore = None
+
+if os.path.exists(cred_path):
+    try:
+        cred = credentials.Certificate(cred_path)
+        if not firebase_admin._apps:
+            firebase_admin.initialize_app(cred)
+        db_firestore = firestore.client()
+        print("Firebase conectado com sucesso.")
+    except Exception as e:
+        print(f"Erro ao conectar Firebase: {e}")
+else:
+    print(f"AVISO: Arquivo de credenciais não encontrado em: {cred_path}")
+
 try:
     from backend import oee_service
 except ImportError:
     try:
         import oee_service
     except ImportError:
-        print("AVISO CRÍTICO: 'oee_service.py' não encontrado.")
+        print("AVISO: 'oee_service.py' não encontrado.")
         oee_service = None
 
-# --- CONFIGURAÇÃO DE DIRETÓRIOS ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DIST_DIR = os.path.join(BASE_DIR, 'dist')
-
+DIST_DIR = os.path.join(base_dir, 'dist')
 if not os.path.exists(DIST_DIR):
-    DIST_DIR = os.path.join(os.path.dirname(BASE_DIR), 'dist')
+    DIST_DIR = os.path.join(os.path.dirname(base_dir), 'dist')
 
 app = Flask(__name__, static_folder=DIST_DIR, static_url_path='')
 CORS(app)
 
-# Pastas
-BACKEND_DIR = os.path.join(BASE_DIR, 'backend') if os.path.exists(os.path.join(BASE_DIR, 'backend')) else BASE_DIR
-UPLOAD_FOLDER = os.path.join(BACKEND_DIR, 'uploads')
-OEE_UPLOAD_FOLDER = os.path.join(BACKEND_DIR, 'oee_uploads')
-DB_FILE = os.path.join(BACKEND_DIR, 'database.json')
-
-for d in [UPLOAD_FOLDER, OEE_UPLOAD_FOLDER]:
-    os.makedirs(d, exist_ok=True)
-
-# ==============================================================================
-# 1. FUNÇÕES AUXILIARES DE BANCO DE DADOS
-# ==============================================================================
-
-def load_db():
-    if not os.path.exists(DB_FILE):
-        default = { "baths": [], "protocols": [], "logs": [] }
-        save_db(default)
-        return default
-    try:
-        with open(DB_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            if "protocols" not in data: data["protocols"] = []
-            if "logs" not in data: data["logs"] = []
-            if "baths" not in data: data["baths"] = []
-            return data
-    except Exception as e:
-        return {"baths": [], "protocols": [], "logs": []}
+OEE_UPLOAD_FOLDER = os.path.join(base_dir, 'oee_uploads')
+if not os.path.exists(OEE_UPLOAD_FOLDER):
+    os.makedirs(OEE_UPLOAD_FOLDER, exist_ok=True)
 
 def save_db(data):
+    if not db_firestore:
+        return
     try:
-        with open(DB_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
+        db_firestore.collection('lab_data').document('main').set(data)
     except Exception as e:
-        print(f"Erro ao salvar DB: {e}")
+        print(f"Erro ao salvar no Firebase: {e}")
 
 def add_log(db, action, bath_id, details):
     new_log = {
@@ -72,12 +64,27 @@ def add_log(db, action, bath_id, details):
     db['logs'].insert(0, new_log)
     db['logs'] = db['logs'][:200]
 
+def load_db():
+    empty_structure = {"baths": [], "protocols": [], "logs": []}
+    if not db_firestore:
+        return empty_structure
+    try:
+        doc = db_firestore.collection('lab_data').document('main').get()
+        if doc.exists:
+            data = doc.to_dict()
+            if "protocols" not in data: data["protocols"] = []
+            if "logs" not in data: data["logs"] = []
+            if "baths" not in data: data["baths"] = []
+            return data
+        else:
+            save_db(empty_structure)
+            return empty_structure
+    except Exception as e:
+        print(f"Erro Firebase ao ler: {e}")
+        return empty_structure
+
 def apenas_numeros(texto):
     return re.sub(r'\D', '', str(texto))
-
-# ==============================================================================
-# 2. LÓGICA DE PREVISÃO E PROGRESSO
-# ==============================================================================
 
 def identificar_nome_padrao(linha_ou_nome):
     texto_limpo = str(linha_ou_nome).upper().replace('_', '').replace('-', '').replace(' ', '')
@@ -95,9 +102,8 @@ def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
         if p['name'].upper() == nome_protocolo.upper():
             duracao = p['duration']
             break
-    
     if duracao == 0:
-        if "SAE" in nome_protocolo or "2801" in nome_protocolo: duracao = 192 
+        if "SAE" in nome_protocolo or "2801" in nome_protocolo: duracao = 192
         elif "RC20" in nome_protocolo: duracao = 68
         elif "RRCR" in nome_protocolo: duracao = 48
         elif "C20" in nome_protocolo: duracao = 20
@@ -113,31 +119,25 @@ def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
 def atualizar_progresso_em_tempo_real(db):
     agora = datetime.now()
     alterado = False
-    
     for bath in db['baths']:
         for circuit in bath['circuits']:
             status_atual = str(circuit.get('status', '')).lower().strip()
-            
             if status_atual == 'running':
                 try:
                     start_str = circuit.get('startTime')
                     end_str = circuit.get('previsao')
-                    
                     if start_str and end_str and end_str != '-' and end_str != 'A calcular':
                         dt_start = datetime.strptime(start_str, "%d/%m/%Y %H:%M")
                         dt_end = datetime.strptime(end_str, "%d/%m/%Y %H:%M")
-                        
                         total_seconds = (dt_end - dt_start).total_seconds()
                         elapsed_seconds = (agora - dt_start).total_seconds()
-                        
                         if total_seconds > 0: percent = (elapsed_seconds / total_seconds) * 100
                         else: percent = 100
-
                         if agora >= dt_end:
                             if status_atual != 'finished':
                                 circuit['status'] = 'finished'
                                 circuit['progress'] = 100
-                                add_log(db, "Conclusão", bath['id'], f"Teste C-{circuit['id']} finalizado auto")
+                                add_log(db, "Conclusão Auto", bath['id'], f"{circuit['id']} finalizado")
                                 alterado = True
                         else:
                             new_prog = round(max(0, min(99, percent)), 1)
@@ -149,17 +149,12 @@ def atualizar_progresso_em_tempo_real(db):
                 if circuit.get('progress') != 100:
                     circuit['progress'] = 100
                     alterado = True
-
     if alterado: save_db(db)
-
-# ==============================================================================
-# 3. ROTAS GERAIS
-# ==============================================================================
 
 @app.route('/')
 def serve_react():
     if os.path.exists(os.path.join(DIST_DIR, 'index.html')): return send_from_directory(DIST_DIR, 'index.html')
-    return "<h1>LabManager Backend Ativo.</h1>"
+    return "Backend Ativo"
 
 @app.route('/<path:path>')
 def serve_static(path):
@@ -177,35 +172,31 @@ def import_text():
     raw_text = request.json.get('text', '')
     db = load_db()
     atualizados = []
-    
     if not raw_text: return jsonify({'error': 'Texto vazio'}), 400
-    
+    print("\n--- IMPORTAÇÃO ---")
     pattern = r"Circuit\s*0*(\d+).*?(\d{2}/\d{2}/\d{4}\s\d{2}:\d{2})"
     matches = re.finditer(pattern, raw_text, re.IGNORECASE)
-
     for match in matches:
         cid_num_str = match.group(1)
         start_dt = match.group(2)
         start_pos = match.start()
         end_pos = raw_text.find('\n', match.end())
         linha = raw_text[start_pos:end_pos] if end_pos != -1 else raw_text[start_pos:]
-        
         id_bateria = "Desconhecido"
         bat_match = re.search(r"(\d{5,}-[\w-]+)", linha)
         if bat_match: id_bateria = bat_match.group(1)
         else:
             bat_match_short = re.search(r"\s([A-Z0-9]{3,6})\s", linha)
             if bat_match_short and "SAE" not in bat_match_short.group(1): id_bateria = bat_match_short.group(1)
-        
         protocolo_limpo = identificar_nome_padrao(linha)
         previsao_calculada = calcular_previsao_fim(start_dt, protocolo_limpo, db.get('protocols', []))
-
         found = False
         for bath in db['baths']:
             for circuit in bath['circuits']:
                 try:
                     db_id_num = apenas_numeros(circuit['id'])
                     if db_id_num and int(db_id_num) == int(cid_num_str):
+                        print(f" -> ATUALIZANDO: {bath['id']} | {circuit['id']}")
                         circuit.update({
                             'status': 'running',
                             'startTime': start_dt,
@@ -214,19 +205,17 @@ def import_text():
                             'protocol': protocolo_limpo,
                             'progress': 0
                         })
-                        add_log(db, "Importação", bath['id'], f"Atualizado C-{circuit['id']}")
+                        add_log(db, "Importação", bath['id'], f"Atualizado {circuit['id']}")
                         atualizados.append(circuit['id'])
-                        found = True; break
+                        found = True
+                        break
                 except: continue
             if found: break
-                    
+        if not found:
+            print(f" [AVISO] Circuito {cid_num_str} não encontrado.")
     save_db(db)
     atualizar_progresso_em_tempo_real(db)
     return jsonify({"sucesso": True, "atualizados": atualizados, "db_atualizado": db})
-
-# ==============================================================================
-# ROTAS OEE
-# ==============================================================================
 
 @app.route('/api/oee/upload', methods=['POST'])
 def upload_oee_excel():
@@ -267,14 +256,11 @@ def save_oee_history():
     if oee_service: return jsonify({"sucesso": oee_service.salvar_historico(data.get('kpi'), data.get('mes'), data.get('ano'))})
     return jsonify({"sucesso": False, "erro": "Serviço indisponível"})
 
-# ==============================================================================
-# CRUD BANHOS/CIRCUITOS (COM CORREÇÃO DE ZERAR PROGRESSO)
-# ==============================================================================
-
 @app.route('/api/baths/add', methods=['POST'])
 def add_bath():
     data = request.json; db = load_db()
-    if any(b['id'] == data['bathId'] for b in db['baths']): return jsonify({'error': 'Existe!'}), 400
+    if any(b['id'] == data['bathId'] for b in db['baths']):
+        return jsonify({'error': 'Banho já existe!'}), 400
     db['baths'].append({"id": data['bathId'], "temp": data.get('temp', 25), "circuits": []})
     db['baths'].sort(key=lambda x: x['id'])
     save_db(db); return jsonify(db)
@@ -288,17 +274,18 @@ def delete_bath():
 @app.route('/api/baths/temp', methods=['POST'])
 def update_temp():
     data = request.json; db = load_db()
-    for b in db['baths']: 
+    for b in db['baths']:
         if b['id'] == data['bathId']: b['temp'] = data['temp']; break
     save_db(db); return jsonify(db)
 
 @app.route('/api/circuits/add', methods=['POST'])
 def add_circuit():
     data = request.json; db = load_db()
-    cid = f"C-{data['circuitId']}" if not str(data['circuitId']).startswith("C-") else data['circuitId']
+    raw_id = str(data['circuitId'])
+    cid = f"C-{raw_id}" if not raw_id.startswith("C-") else raw_id
     for b in db['baths']:
         if b['id'] == data['bathId']:
-            if any(c['id'] == cid for c in b['circuits']): return jsonify({'error': 'Existe!'}), 400
+            if any(c['id'] == cid for c in b['circuits']): return jsonify({'error': 'Circuito já existe!'}), 400
             b['circuits'].append({"id": cid, "status": "free", "batteryId": None, "previsao": "-"})
             try: b['circuits'].sort(key=lambda x: int(apenas_numeros(x['id'])) if apenas_numeros(x['id']) else 999)
             except: pass
@@ -321,18 +308,16 @@ def update_circuit_status():
         if b['id'] == data['bathId']:
             for c in b['circuits']:
                 if c['id'] == data['circuitId']:
-                    if data['status'] == 'free': 
-                        # --- CORREÇÃO: ZERAR TUDO AO LIBERAR ---
+                    if data['status'] == 'free':
                         c.update({
-                            'status': 'free', 
-                            'batteryId': None, 
-                            'protocol': None, 
-                            'previsao': '-',
-                            'startTime': None, 
-                            'progress': 0
+                            'status': 'free', 'batteryId': None, 'protocol': None,
+                            'previsao': '-', 'startTime': None, 'progress': 0
                         })
-                    else: 
+                        add_log(db, "Liberação", b['id'], f"{c['id']} liberado")
+                    else:
                         c['status'] = data['status']
+                        if data['status'] == 'maintenance':
+                            add_log(db, "Manutenção", b['id'], f"{c['id']} em manutenção")
                     break
     save_db(db); return jsonify(db)
 

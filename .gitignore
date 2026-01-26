@@ -8,5 +8,10 @@ __pycache__/
 venv/
 .env
 
+firebase_credentials.json
+__pycache__/
+venv/
+.env
+
 # Ignorar uploads de teste
 backend/uploads/
