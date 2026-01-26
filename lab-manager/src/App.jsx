@@ -1215,7 +1215,7 @@ export default function LabManagerApp() {
         <p className="text-xs text-slate-400 font-medium">
           Desenvolvido por <span className="font-bold text-slate-600">João Victor</span> © 2026
           <br />
-          LabManager System v2.0 (Integrated OEE)
+          LabManager System v2.0 
         </p>
       </footer>
     </div>
