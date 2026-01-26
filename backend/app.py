@@ -7,44 +7,19 @@ from datetime import datetime, timedelta
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-# ==============================================================================
-# 🕵️‍♂️ ÁREA DE DEBUG (DETECTOR DE PROBLEMAS)
-# ==============================================================================
-print("\n" + "="*50)
-print(">>> INICIANDO DIAGNÓSTICO DO SERVIDOR")
-print(f">>> Diretório Atual: {os.getcwd()}")
-
-# 1. Tenta pegar a variável do Render
-firebase_env = os.getenv("FIREBASE_CREDENTIALS")
-
-if firebase_env is None:
-    print(">>> [ERRO] A variável 'FIREBASE_CREDENTIALS' é None (Não existe).")
-elif firebase_env == "":
-    print(">>> [ERRO] A variável existe, mas está VAZIA.")
-else:
-    print(f">>> [SUCESSO] Variável encontrada!")
-    print(f">>> Tamanho: {len(firebase_env)} caracteres")
-    print(f">>> Início: {firebase_env[:20]}...")
-
-print("="*50 + "\n")
-# ==============================================================================
-
-# --- CONFIGURAÇÃO DO APP ---
 base_dir = os.path.dirname(os.path.abspath(__file__))
 db_firestore = None
 
-# --- LÓGICA DE CONEXÃO HÍBRIDA (NUVEM vs LOCAL) ---
+firebase_env = os.getenv("FIREBASE_CREDENTIALS")
+
 try:
-    # TENTATIVA 1: Usar a variável de ambiente (Para o Render)
     if firebase_env:
         cred_dict = json.loads(firebase_env)
         cred = credentials.Certificate(cred_dict)
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
         db_firestore = firestore.client()
-        print(">>> CONEXÃO FIREBASE: SUCESSO via Variável de Ambiente (Nuvem).")
-
-    # TENTATIVA 2: Usar arquivo local (Para o seu PC)
+        print("Firebase conectado via Variável de Ambiente.")
     else:
         cred_path = os.path.join(base_dir, 'firebase_credentials.json')
         if os.path.exists(cred_path):
@@ -52,15 +27,12 @@ try:
             if not firebase_admin._apps:
                 firebase_admin.initialize_app(cred)
             db_firestore = firestore.client()
-            print(">>> CONEXÃO FIREBASE: SUCESSO via Arquivo Local.")
+            print("Firebase conectado via Arquivo Local.")
         else:
-            print(f">>> AVISO: Nenhuma credencial encontrada (Nem Variável, Nem Arquivo em {cred_path}).")
-            print(">>> O sistema rodará em modo memória (dados serão perdidos ao reiniciar).")
+            print("AVISO: Nenhuma credencial encontrada.")
 
 except Exception as e:
-    print(f">>> ERRO CRÍTICO AO CONECTAR FIREBASE: {e}")
-
-# --- RESTANTE DO CÓDIGO (Igual ao anterior) ---
+    print(f"Erro ao conectar Firebase: {e}")
 
 try:
     from backend import oee_service
@@ -68,7 +40,6 @@ except ImportError:
     try:
         import oee_service
     except ImportError:
-        print("AVISO: 'oee_service.py' não encontrado.")
         oee_service = None
 
 DIST_DIR = os.path.join(base_dir, 'dist')
@@ -118,7 +89,6 @@ def load_db():
             save_db(empty_structure)
             return empty_structure
     except Exception as e:
-        print(f"Erro Firebase ao ler: {e}")
         return empty_structure
 
 def apenas_numeros(texto):
@@ -211,7 +181,6 @@ def import_text():
     db = load_db()
     atualizados = []
     if not raw_text: return jsonify({'error': 'Texto vazio'}), 400
-    print("\n--- IMPORTAÇÃO ---")
     pattern = r"Circuit\s*0*(\d+).*?(\d{2}/\d{2}/\d{4}\s\d{2}:\d{2})"
     matches = re.finditer(pattern, raw_text, re.IGNORECASE)
     for match in matches:
@@ -234,7 +203,6 @@ def import_text():
                 try:
                     db_id_num = apenas_numeros(circuit['id'])
                     if db_id_num and int(db_id_num) == int(cid_num_str):
-                        print(f" -> ATUALIZANDO: {bath['id']} | {circuit['id']}")
                         circuit.update({
                             'status': 'running',
                             'startTime': start_dt,
@@ -249,8 +217,6 @@ def import_text():
                         break
                 except: continue
             if found: break
-        if not found:
-            print(f" [AVISO] Circuito {cid_num_str} não encontrado.")
     save_db(db)
     atualizar_progresso_em_tempo_real(db)
     return jsonify({"sucesso": True, "atualizados": atualizados, "db_atualizado": db})
@@ -374,5 +340,4 @@ def delete_protocol():
     save_db(db); return jsonify(db)
 
 if __name__ == '__main__':
-    print("\n--- SERVIDOR LABMANAGER INICIADO ---")
     app.run(debug=True, port=5000)
