@@ -7,22 +7,60 @@ from datetime import datetime, timedelta
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-base_dir = os.path.dirname(os.path.abspath(__file__))
-cred_path = os.path.join(base_dir, 'firebase_credentials.json')
+# ==============================================================================
+# 🕵️‍♂️ ÁREA DE DEBUG (DETECTOR DE PROBLEMAS)
+# ==============================================================================
+print("\n" + "="*50)
+print(">>> INICIANDO DIAGNÓSTICO DO SERVIDOR")
+print(f">>> Diretório Atual: {os.getcwd()}")
 
+# 1. Tenta pegar a variável do Render
+firebase_env = os.getenv("FIREBASE_CREDENTIALS")
+
+if firebase_env is None:
+    print(">>> [ERRO] A variável 'FIREBASE_CREDENTIALS' é None (Não existe).")
+elif firebase_env == "":
+    print(">>> [ERRO] A variável existe, mas está VAZIA.")
+else:
+    print(f">>> [SUCESSO] Variável encontrada!")
+    print(f">>> Tamanho: {len(firebase_env)} caracteres")
+    print(f">>> Início: {firebase_env[:20]}...")
+
+print("="*50 + "\n")
+# ==============================================================================
+
+# --- CONFIGURAÇÃO DO APP ---
+base_dir = os.path.dirname(os.path.abspath(__file__))
 db_firestore = None
 
-if os.path.exists(cred_path):
-    try:
-        cred = credentials.Certificate(cred_path)
+# --- LÓGICA DE CONEXÃO HÍBRIDA (NUVEM vs LOCAL) ---
+try:
+    # TENTATIVA 1: Usar a variável de ambiente (Para o Render)
+    if firebase_env:
+        cred_dict = json.loads(firebase_env)
+        cred = credentials.Certificate(cred_dict)
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
         db_firestore = firestore.client()
-        print("Firebase conectado com sucesso.")
-    except Exception as e:
-        print(f"Erro ao conectar Firebase: {e}")
-else:
-    print(f"AVISO: Arquivo de credenciais não encontrado em: {cred_path}")
+        print(">>> CONEXÃO FIREBASE: SUCESSO via Variável de Ambiente (Nuvem).")
+
+    # TENTATIVA 2: Usar arquivo local (Para o seu PC)
+    else:
+        cred_path = os.path.join(base_dir, 'firebase_credentials.json')
+        if os.path.exists(cred_path):
+            cred = credentials.Certificate(cred_path)
+            if not firebase_admin._apps:
+                firebase_admin.initialize_app(cred)
+            db_firestore = firestore.client()
+            print(">>> CONEXÃO FIREBASE: SUCESSO via Arquivo Local.")
+        else:
+            print(f">>> AVISO: Nenhuma credencial encontrada (Nem Variável, Nem Arquivo em {cred_path}).")
+            print(">>> O sistema rodará em modo memória (dados serão perdidos ao reiniciar).")
+
+except Exception as e:
+    print(f">>> ERRO CRÍTICO AO CONECTAR FIREBASE: {e}")
+
+# --- RESTANTE DO CÓDIGO (Igual ao anterior) ---
 
 try:
     from backend import oee_service
