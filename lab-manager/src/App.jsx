@@ -1115,7 +1115,7 @@ export default function LabManagerApp() {
           <div className="flex items-center gap-3">
             <div className="bg-blue-900 text-white p-1.5 rounded-md"><Zap size={24} fill="currentColor" /></div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">LabManager</h1>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">LabFísico</h1>
               <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Controle de Recursos</span>
             </div>
           </div>
@@ -1215,7 +1215,7 @@ export default function LabManagerApp() {
         <p className="text-xs text-slate-400 font-medium">
           Desenvolvido por <span className="font-bold text-slate-600">João Victor</span> © 2026
           <br />
-          LabManager System v2.0 
+          LabFísico Sistema v2.0 
         </p>
       </footer>
     </div>
