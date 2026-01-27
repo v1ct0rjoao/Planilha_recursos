@@ -102,12 +102,6 @@ def identificar_nome_padrao(linha_ou_nome, db_protocols=[]):
         if nome_db and nome_db in texto_limpo:
             return p['name']
 
-    if "SAE" in texto_limpo or "2801" in texto_limpo: return "SAE J2801"
-    if "RRCR" in texto_limpo: return "RRCR"
-    if "RC20" in texto_limpo: return "RC20"
-    if "C20" in texto_limpo: return "C20"
-    if "RC" in texto_limpo: return "RC"
-    if "CCA" in texto_limpo: return "CCA"
     return "Desconhecido"
 
 def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
@@ -116,13 +110,9 @@ def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
         if p['name'].upper() == nome_protocolo.upper():
             duracao = p['duration']
             break
+            
     if duracao == 0:
-        if "SAE" in nome_protocolo or "2801" in nome_protocolo: duracao = 192
-        elif "RC20" in nome_protocolo: duracao = 68
-        elif "RRCR" in nome_protocolo: duracao = 48
-        elif "C20" in nome_protocolo: duracao = 20
-        elif "RC" in nome_protocolo: duracao = 5
-        else: return "A calcular"
+        return "A calcular"
 
     try:
         dt_start = datetime.strptime(start_str, "%d/%m/%Y %H:%M")
