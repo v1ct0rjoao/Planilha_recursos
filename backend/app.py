@@ -94,8 +94,14 @@ def load_db():
 def apenas_numeros(texto):
     return re.sub(r'\D', '', str(texto))
 
-def identificar_nome_padrao(linha_ou_nome):
+def identificar_nome_padrao(linha_ou_nome, db_protocols=[]):
     texto_limpo = str(linha_ou_nome).upper().replace('_', '').replace('-', '').replace(' ', '')
+    
+    for p in db_protocols:
+        nome_db = str(p['name']).upper().replace('_', '').replace('-', '').replace(' ', '')
+        if nome_db and nome_db in texto_limpo:
+            return p['name']
+
     if "SAE" in texto_limpo or "2801" in texto_limpo: return "SAE J2801"
     if "RRCR" in texto_limpo: return "RRCR"
     if "RC20" in texto_limpo: return "RC20"
@@ -179,6 +185,7 @@ def get_data():
 def import_text():
     raw_text = request.json.get('text', '')
     db = load_db()
+    protocols_list = db.get('protocols', [])
     atualizados = []
     if not raw_text: return jsonify({'error': 'Texto vazio'}), 400
     pattern = r"Circuit\s*0*(\d+).*?(\d{2}/\d{2}/\d{4}\s\d{2}:\d{2})"
@@ -195,8 +202,10 @@ def import_text():
         else:
             bat_match_short = re.search(r"\s([A-Z0-9]{3,6})\s", linha)
             if bat_match_short and "SAE" not in bat_match_short.group(1): id_bateria = bat_match_short.group(1)
-        protocolo_limpo = identificar_nome_padrao(linha)
-        previsao_calculada = calcular_previsao_fim(start_dt, protocolo_limpo, db.get('protocols', []))
+        
+        protocolo_limpo = identificar_nome_padrao(linha, protocols_list)
+        previsao_calculada = calcular_previsao_fim(start_dt, protocolo_limpo, protocols_list)
+        
         found = False
         for bath in db['baths']:
             for circuit in bath['circuits']:
