@@ -295,6 +295,97 @@ def add_circuit():
             break
     save_db(db); return jsonify(db)
 
+@app.route('/api/circuits/move', methods=['POST'])
+def move_circuit():
+    data = request.json
+    db = load_db()
+    source_id = data.get('sourceBathId')
+    target_id = data.get('targetBathId')
+    
+    raw_circuit_id = data.get('circuitId')
+    if raw_circuit_id is None or str(raw_circuit_id).lower() == 'none':
+        return jsonify({'error': 'ID do circuito inválido'}), 400
+        
+    circuit_id_str = str(raw_circuit_id) 
+
+    def normalize_id(cid):
+        return re.sub(r'\D', '', str(cid)) 
+
+    target_id_clean = normalize_id(circuit_id_str)
+
+    if not source_id or not target_id:
+        return jsonify({'error': 'Dados incompletos'}), 400
+
+    source_bath = None
+    target_bath = None
+
+    for b in db['baths']:
+        if b['id'] == source_id: source_bath = b
+        if b['id'] == target_id: target_bath = b
+
+    if not source_bath or not target_bath:
+        return jsonify({'error': 'Banho não encontrado'}), 404
+
+    circuit_obj = None
+    for c in source_bath['circuits']:
+        if normalize_id(c['id']) == target_id_clean:
+            circuit_obj = c
+            break
+    
+    if not circuit_obj:
+        return jsonify({'error': f'Circuito {circuit_id_str} não encontrado na origem {source_id}'}), 404
+
+    for c in target_bath['circuits']:
+        if normalize_id(c['id']) == target_id_clean:
+             return jsonify({'error': f'Circuito {circuit_id_str} já existe no destino'}), 400
+
+    source_bath['circuits'].remove(circuit_obj)
+    target_bath['circuits'].append(circuit_obj)
+
+    try: 
+        target_bath['circuits'].sort(key=lambda x: int(normalize_id(x['id'])) if normalize_id(x['id']) else 999)
+    except: pass
+
+    add_log(db, "Movimentação", target_id, f"Circuito {circuit_obj['id']} movido de {source_id}")
+    save_db(db)
+
+    return jsonify(db)
+
+@app.route('/api/circuits/link', methods=['POST'])
+def link_circuits():
+    data = request.json
+    db = load_db()
+    bath_id = data.get('bathId')
+    source_id_raw = str(data.get('sourceId'))
+    target_id_raw = str(data.get('targetId'))
+
+    def normalize_id(cid): return re.sub(r'\D', '', str(cid))
+
+    bath = next((b for b in db['baths'] if b['id'] == bath_id), None)
+    if not bath: return jsonify({'error': 'Banho não encontrado'}), 404
+
+    source_circuit = next((c for c in bath['circuits'] if normalize_id(c['id']) == normalize_id(source_id_raw)), None)
+    target_circuit = next((c for c in bath['circuits'] if normalize_id(c['id']) == normalize_id(target_id_raw)), None)
+
+    if not source_circuit or not target_circuit:
+        return jsonify({'error': 'Circuitos não encontrados'}), 404
+
+    target_circuit.update({
+        'status': source_circuit.get('status'),
+        'batteryId': source_circuit.get('batteryId'),
+        'protocol': source_circuit.get('protocol'),
+        'startTime': source_circuit.get('startTime'),
+        'previsao': source_circuit.get('previsao'),
+        'progress': source_circuit.get('progress'),
+        'isParallel': True,
+        'linkedTo': source_circuit['id']
+    })
+
+    add_log(db, "Paralelo", bath_id, f"{target_circuit['id']} vinculado ao {source_circuit['id']}")
+    save_db(db)
+    
+    return jsonify(db)
+
 @app.route('/api/circuits/delete', methods=['POST'])
 def delete_circuit():
     data = request.json; db = load_db()
@@ -314,7 +405,8 @@ def update_circuit_status():
                     if data['status'] == 'free':
                         c.update({
                             'status': 'free', 'batteryId': None, 'protocol': None,
-                            'previsao': '-', 'startTime': None, 'progress': 0
+                            'previsao': '-', 'startTime': None, 'progress': 0,
+                            'isParallel': False, 'linkedTo': None
                         })
                         add_log(db, "Liberação", b['id'], f"{c['id']} liberado")
                     else:
