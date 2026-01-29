@@ -27,7 +27,7 @@ const getLocationType = (id) => {
   const upperId = id.toUpperCase();
   if (upperId.includes('SALA')) return 'SALA';
   if (upperId.includes('THERMOTRON') || upperId.includes('TERMO')) return 'THERMOTRON';
-  if (upperId.includes('ESTUFA')) return 'ESTUFA';
+
   return 'BANHO';
 };
 
@@ -36,7 +36,7 @@ const LocationIcon = ({ id, size = 20, className }) => {
   switch (type) {
     case 'SALA': return <Warehouse size={size} className={className} />;
     case 'THERMOTRON': return <Cpu size={size} className={className} />;
-    case 'ESTUFA': return <Flame size={size} className={className} />;
+
     default: return <Thermometer size={size} className={className} />;
   }
 };
@@ -694,7 +694,7 @@ const BathCardMicro = ({ bath, onClick, onDelete }) => {
       <div className="flex justify-between items-start z-10">
         <div className="flex flex-col">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{getLocationType(bath.id)}</span>
-            <span className="text-sm font-black text-slate-800 leading-tight break-all max-w-[120px]">{bath.id.replace(/^(BANHO|SALA|THERMOTRON|ESTUFA) - /, '')}</span>
+            <span className="text-sm font-black text-slate-800 leading-tight break-all max-w-[120px]">{bath.id.replace(/^(BANHO|SALA|THERMOTRON) - /, '')}</span>
         </div>
         <button onClick={(e) => { e.stopPropagation(); onDelete(bath.id); }} className="text-slate-300 hover:text-rose-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
       </div>
@@ -1162,7 +1162,7 @@ const AddBathModal = ({ isOpen, onClose, onConfirm }) => {
         <div className="p-6">
           <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-widest">Tipo de Instalação</label>
           <div className="grid grid-cols-2 gap-2 mb-4">
-             {['BANHO', 'SALA', 'THERMOTRON', 'ESTUFA'].map(t => (
+             {['BANHO', 'SALA', 'THERMOTRON'].map(t => (
                  <button key={t} onClick={() => setType(t)} className={`p-2 rounded border text-[10px] font-bold transition-all ${type === t ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
                     {t}
                  </button>
@@ -1231,7 +1231,7 @@ const MoveCircuitModal = ({ isOpen, onClose, onConfirm, baths, sourceBathId, cir
                      <button key={b.id} onClick={() => setTargetBath(b.id)} className={`p-4 rounded-xl border-2 text-left transition-all relative overflow-hidden group ${targetBath === b.id ? 'border-blue-500 bg-white ring-2 ring-blue-500/20 shadow-md' : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm'}`}>
                          {targetBath === b.id && <div className="absolute top-0 right-0 bg-blue-500 text-white p-1 rounded-bl-lg"><Check size={12}/></div>}
                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{getLocationType(b.id)}</div>
-                         <div className="font-black text-slate-700 text-lg leading-none">{b.id.replace(/^(BANHO|SALA|THERMOTRON|ESTUFA) - /, '')}</div>
+                         <div className="font-black text-slate-700 text-lg leading-none">{b.id.replace(/^(BANHO|SALA|THERMOTRON) - /, '')}</div>
                          <div className="mt-2 flex gap-2">
                              <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{b.circuits ? b.circuits.length : 0} Circ.</span>
                          </div>
@@ -1264,9 +1264,9 @@ const LinkCircuitModal = ({ isOpen, onClose, onConfirm, bath, sourceCircuitId })
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100 relative z-[102]">
         <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white px-6 py-5 flex justify-between items-center relative overflow-hidden"><div className="relative z-10 flex items-center gap-2"><div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm"><Link2 size={20} className="text-white" /></div><div><h2 className="font-bold text-lg leading-tight">Criar Paralelo</h2><p className="text-purple-100 text-xs font-medium">Vincular circuitos na mesma bateria</p></div></div><Link2 size={80} className="absolute -right-4 -bottom-4 text-white/10 rotate-12" /></div>
         <div className="p-6">
-          <p className="text-sm text-slate-600 mb-6 bg-purple-50 p-3 rounded-lg border border-purple-100">Você está vinculando o circuito <strong>{sourceCircuitId}</strong> (Mestre).<br/>Selecione o circuito vizinho para replicar os dados:</p>
+          <p className="text-sm text-slate-600 mb-6 bg-purple-50 p-3 rounded-lg border border-purple-100">Você está vinculando o circuito <strong>{sourceCircuitId}</strong> .<br/>Selecione o circuito vizinho para replicar os dados:</p>
           <div className="relative mb-8">
-            <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className={`w-full p-3 pl-4 pr-10 bg-white border-2 rounded-xl text-sm font-bold text-left flex items-center justify-between transition-all ${isDropdownOpen ? 'border-purple-500 ring-4 ring-purple-500/10' : 'border-slate-200 hover:border-slate-300'}`}><span className={targetCircuit ? 'text-slate-800' : 'text-slate-400'}>{targetCircuit || "Selecione o circuito Escravo..."}</span><ChevronDown size={18} className={`text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180 text-purple-500' : ''}`} /></button>
+            <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className={`w-full p-3 pl-4 pr-10 bg-white border-2 rounded-xl text-sm font-bold text-left flex items-center justify-between transition-all ${isDropdownOpen ? 'border-purple-500 ring-4 ring-purple-500/10' : 'border-slate-200 hover:border-slate-300'}`}><span className={targetCircuit ? 'text-slate-800' : 'text-slate-400'}>{targetCircuit || "Selecione o circuito em paralelo..."}</span><ChevronDown size={18} className={`text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180 text-purple-500' : ''}`} /></button>
             {isDropdownOpen && (<div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-xl shadow-xl max-h-60 overflow-y-auto z-[110] animate-in slide-in-from-top-2 fade-in duration-200 custom-scrollbar">{availableCircuits.map(c => (<div key={c.id} onClick={() => { setTargetCircuit(c.id); setIsDropdownOpen(false); }} className={`p-3 px-4 cursor-pointer flex items-center justify-between group transition-colors ${targetCircuit === c.id ? 'bg-purple-50 text-purple-700' : 'hover:bg-slate-50 text-slate-600'}`}><span className="font-bold text-sm">{c.id} - <span className="text-[10px] font-normal uppercase opacity-70">{c.status || 'Livre'}</span></span>{targetCircuit === c.id && <Check size={16} className="text-purple-600" />}</div>))}</div>)}
           </div>
           <div className="flex gap-3"><button onClick={onClose} className="flex-1 py-3 border-2 border-slate-100 rounded-xl text-slate-500 font-bold text-sm hover:bg-slate-50">Cancelar</button><button onClick={() => { if(targetCircuit) onConfirm(bath.id, sourceCircuitId, targetCircuit); }} disabled={!targetCircuit} className={`flex-1 py-3 rounded-xl font-bold text-sm shadow-lg text-white flex items-center justify-center gap-2 transition-all active:scale-95 ${!targetCircuit ? 'bg-slate-300 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 hover:shadow-purple-500/30'}`}>Vincular <Link2 size={16} /></button></div>
