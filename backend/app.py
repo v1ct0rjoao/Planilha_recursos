@@ -19,7 +19,7 @@ try:
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
         db_firestore = firestore.client()
-        print("Firebase conectado via Variável de Ambiente.")
+        print("Firebase conectado via Variavel de Ambiente.")
     else:
         cred_path = os.path.join(base_dir, 'firebase_credentials.json')
         if os.path.exists(cred_path):
@@ -283,17 +283,45 @@ def update_temp():
 
 @app.route('/api/circuits/add', methods=['POST'])
 def add_circuit():
-    data = request.json; db = load_db()
-    raw_id = str(data['circuitId'])
-    cid = f"C-{raw_id}" if not raw_id.startswith("C-") else raw_id
+    data = request.json
+    db = load_db()
+    raw_input = str(data['circuitId'])
+    
+    def get_clean_int(val):
+        nums = re.sub(r'\D', '', str(val))
+        return int(nums) if nums else None
+
+    target_num = get_clean_int(raw_input)
+
+    if target_num is not None:
+        for bath in db['baths']:
+            for circuit in bath['circuits']:
+                existing_num = get_clean_int(circuit['id'])
+                if existing_num is not None and existing_num == target_num:
+                    return jsonify({'error': f'Circuito {target_num} já existe em {bath["id"]}!'}), 400
+
+    final_id = f"C-{raw_input}" if not raw_input.upper().startswith("C-") else raw_input.upper()
+
+    bath_found = False
     for b in db['baths']:
         if b['id'] == data['bathId']:
-            if any(c['id'] == cid for c in b['circuits']): return jsonify({'error': 'Circuito já existe!'}), 400
-            b['circuits'].append({"id": cid, "status": "free", "batteryId": None, "previsao": "-"})
-            try: b['circuits'].sort(key=lambda x: int(apenas_numeros(x['id'])) if apenas_numeros(x['id']) else 999)
+            b['circuits'].append({
+                "id": final_id, 
+                "status": "free", 
+                "batteryId": None, 
+                "previsao": "-"
+            })
+            try: 
+                b['circuits'].sort(key=lambda x: get_clean_int(x['id']) or 999999)
             except: pass
+            bath_found = True
             break
-    save_db(db); return jsonify(db)
+    
+    if not bath_found:
+        return jsonify({'error': 'Banho não encontrado'}), 404
+
+    save_db(db)
+    return jsonify(db)
 
 @app.route('/api/circuits/move', methods=['POST'])
 def move_circuit():
@@ -301,54 +329,47 @@ def move_circuit():
     db = load_db()
     source_id = data.get('sourceBathId')
     target_id = data.get('targetBathId')
-    
     raw_circuit_id = data.get('circuitId')
+
     if raw_circuit_id is None or str(raw_circuit_id).lower() == 'none':
         return jsonify({'error': 'ID do circuito inválido'}), 400
         
-    circuit_id_str = str(raw_circuit_id) 
+    def get_clean_int(val):
+        nums = re.sub(r'\D', '', str(val))
+        return int(nums) if nums else None
 
-    def normalize_id(cid):
-        return re.sub(r'\D', '', str(cid)) 
-
-    target_id_clean = normalize_id(circuit_id_str)
-
+    target_num = get_clean_int(raw_circuit_id)
     if not source_id or not target_id:
         return jsonify({'error': 'Dados incompletos'}), 400
 
-    source_bath = None
-    target_bath = None
-
-    for b in db['baths']:
-        if b['id'] == source_id: source_bath = b
-        if b['id'] == target_id: target_bath = b
+    source_bath = next((b for b in db['baths'] if b['id'] == source_id), None)
+    target_bath = next((b for b in db['baths'] if b['id'] == target_id), None)
 
     if not source_bath or not target_bath:
         return jsonify({'error': 'Banho não encontrado'}), 404
 
     circuit_obj = None
     for c in source_bath['circuits']:
-        if normalize_id(c['id']) == target_id_clean:
+        if get_clean_int(c['id']) == target_num:
             circuit_obj = c
             break
     
     if not circuit_obj:
-        return jsonify({'error': f'Circuito {circuit_id_str} não encontrado na origem {source_id}'}), 404
+        return jsonify({'error': 'Circuito não encontrado na origem'}), 404
 
     for c in target_bath['circuits']:
-        if normalize_id(c['id']) == target_id_clean:
-             return jsonify({'error': f'Circuito {circuit_id_str} já existe no destino'}), 400
+        if get_clean_int(c['id']) == target_num:
+             return jsonify({'error': 'Circuito já existe no destino'}), 400
 
     source_bath['circuits'].remove(circuit_obj)
     target_bath['circuits'].append(circuit_obj)
 
     try: 
-        target_bath['circuits'].sort(key=lambda x: int(normalize_id(x['id'])) if normalize_id(x['id']) else 999)
+        target_bath['circuits'].sort(key=lambda x: get_clean_int(x['id']) or 999999)
     except: pass
 
     add_log(db, "Movimentação", target_id, f"Circuito {circuit_obj['id']} movido de {source_id}")
     save_db(db)
-
     return jsonify(db)
 
 @app.route('/api/circuits/link', methods=['POST'])
@@ -383,7 +404,6 @@ def link_circuits():
 
     add_log(db, "Paralelo", bath_id, f"{target_circuit['id']} vinculado ao {source_circuit['id']}")
     save_db(db)
-    
     return jsonify(db)
 
 @app.route('/api/circuits/delete', methods=['POST'])
@@ -429,6 +449,32 @@ def delete_protocol():
     data = request.json; db = load_db()
     db['protocols'] = [p for p in db['protocols'] if p['id'] != data['id']]
     save_db(db); return jsonify(db)
+
+@app.route('/api/baths/rename', methods=['POST'])
+def rename_bath():
+    data = request.json
+    db = load_db()
+    old_id = data.get('oldId')
+    new_id = data.get('newId')
+  
+    if any(b['id'] == new_id for b in db['baths']):
+        return jsonify({'error': f'O local {new_id} já existe!'}), 400
+
+    found = False
+    for b in db['baths']:
+        if b['id'] == old_id:
+            b['id'] = new_id
+            found = True
+            break
+    
+    if found:
+        add_log(db, "Edição", new_id, f"Renomeado de {old_id} para {new_id}")
+        try: db['baths'].sort(key=lambda x: x['id'])
+        except: pass
+        save_db(db)
+        return jsonify(db)
+    
+    return jsonify({'error': 'Local original não encontrado'}), 404
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
