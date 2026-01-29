@@ -27,7 +27,7 @@ const getLocationType = (id) => {
   const upperId = id.toUpperCase();
   if (upperId.includes('SALA')) return 'SALA';
   if (upperId.includes('THERMOTRON') || upperId.includes('TERMO')) return 'THERMOTRON';
-
+ 
   return 'BANHO';
 };
 
@@ -36,7 +36,7 @@ const LocationIcon = ({ id, size = 20, className }) => {
   switch (type) {
     case 'SALA': return <Warehouse size={size} className={className} />;
     case 'THERMOTRON': return <Cpu size={size} className={className} />;
-
+   
     default: return <Thermometer size={size} className={className} />;
   }
 };
@@ -748,7 +748,7 @@ const AllCircuitsView = ({ baths, onToggleMaintenance, onDeleteCircuit, onViewHi
   );
 };
 
-const BathContainer = ({ bath, onAddCircuit, onUpdateTemp, onDeleteCircuit, onToggleMaintenance, onDeleteBath, onViewHistory, onMoveCircuit, onLinkCircuit }) => {
+const BathContainer = ({ bath, onAddCircuit, onUpdateTemp, onDeleteCircuit, onToggleMaintenance, onDeleteBath, onViewHistory, onMoveCircuit, onLinkCircuit, onEditBath }) => {
   const [isEditingTemp, setIsEditingTemp] = useState(false);
   const [tempValue, setTempValue] = useState(bath.temp);
   useEffect(() => { setTempValue(bath.temp); }, [bath.temp]);
@@ -765,6 +765,9 @@ const BathContainer = ({ bath, onAddCircuit, onUpdateTemp, onDeleteCircuit, onTo
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-slate-800 text-lg">{bath.id}</h3>
+              <button onClick={() => onEditBath(bath.id)} className="text-slate-300 hover:text-blue-500 transition-opacity p-1" title="Editar Nome/Tipo">
+                <Edit2 size={14} />
+              </button>
               <button onClick={() => onDeleteBath(bath.id)} className="text-slate-300 hover:text-rose-500 transition-opacity p-1"><Trash2 size={14} /></button>
             </div>
             <div className="flex items-center gap-2 mt-1 h-6">
@@ -1185,6 +1188,62 @@ const AddBathModal = ({ isOpen, onClose, onConfirm }) => {
   );
 };
 
+const EditBathModal = ({ isOpen, onClose, onConfirm, currentBathId }) => {
+  const [name, setName] = useState('');
+  const [type, setType] = useState('BANHO');
+
+  useEffect(() => {
+    if (isOpen && currentBathId) {
+      const parts = currentBathId.split(' - ');
+      if (parts.length > 1) {
+        setType(parts[0]);
+        setName(parts[1]);
+      } else {
+        setName(currentBathId);
+      }
+    }
+  }, [isOpen, currentBathId]);
+
+  const handleSave = () => {
+    onConfirm(currentBathId, `${type} - ${name}`);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[160] flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in">
+        <div className="bg-blue-600 text-white px-4 py-3 flex justify-between items-center">
+          <h2 className="font-bold uppercase text-xs tracking-widest flex items-center gap-2">
+            <Edit2 size={16} /> Editar Local
+          </h2>
+        </div>
+        <div className="p-6">
+          <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-widest">Tipo de Instalação</label>
+          <div className="grid grid-cols-2 gap-2 mb-4">
+             {['BANHO', 'SALA', 'THERMOTRON'].map(t => (
+                 <button key={t} onClick={() => setType(t)} className={`p-2 rounded border text-[10px] font-bold transition-all ${type === t ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}>
+                    {t}
+                 </button>
+             ))}
+          </div>
+
+          <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-widest">Identificação (Sufixo)</label>
+          <div className="flex items-center gap-2 mb-6 border-b-2 border-slate-200 pb-1">
+             <span className="font-black text-slate-400 text-xs">{type} - </span>
+             <input type="text" className="flex-1 font-black uppercase outline-none text-slate-800" value={name} onChange={(e) => setName(e.target.value.toUpperCase())} autoFocus />
+          </div>
+           
+          <div className="flex gap-2">
+            <button onClick={onClose} className="flex-1 py-2 border rounded-lg text-xs font-bold uppercase text-slate-500">Cancelar</button>
+            <button onClick={handleSave} className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs uppercase shadow-lg">Salvar Alteração</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const CircuitHistoryModal = ({ isOpen, onClose, circuit, logs }) => {
   if (!isOpen || !circuit) return null;
   const circuitLogs = logs.filter(l => (l.details && l.details.includes(`C-${circuit.id}`)) || (circuit.batteryId && l.details && l.details.includes(circuit.batteryId)));
@@ -1291,6 +1350,9 @@ export default function LabManagerApp() {
   const [isAddBathOpen, setIsAddBathOpen] = useState(false);
   const [isProtocolsOpen, setIsProtocolsOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  
+  const [isEditBathOpen, setIsEditBathOpen] = useState(false);
+  const [bathToEdit, setBathToEdit] = useState(null);
    
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [moveData, setMoveData] = useState({ sourceBathId: null, circuitId: null });
@@ -1376,6 +1438,29 @@ export default function LabManagerApp() {
       askConfirm("Excluir Unidade", `Você vai excluir a unidade ${bathId} e todos os seus circuitos. Tem certeza?`, async () => {
         try { const res = await fetch(`${API_URL}/baths/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bathId }) }); const d = await res.json(); setBaths(d.baths); setLogs(d.logs); } catch (e) { setToast({ message: "Erro ao excluir banho.", type: 'error' }); } 
       });
+  };
+
+  const handleRenameBath = async (oldId, newId) => {
+    if (oldId === newId) { setIsEditBathOpen(false); return; }
+    try {
+      const res = await fetch(`${API_URL}/baths/rename`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldId, newId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBaths(data.baths);
+        setLogs(data.logs);
+        setIsEditBathOpen(false);
+        setExpandedBathId(newId); 
+        setToast({ message: "Local renomeado com sucesso!", type: 'success' });
+      } else {
+        setToast({ message: `Erro: ${data.error}`, type: 'error' });
+      }
+    } catch (e) {
+      setToast({ message: "Erro de conexão.", type: 'error' });
+    }
   };
 
   const handleAddProtocol = async (name, duration) => { 
@@ -1477,7 +1562,7 @@ export default function LabManagerApp() {
               {expandedBathId && (
                   <div className="animate-in zoom-in duration-200">
                     <button onClick={() => setExpandedBathId(null)} className="mb-4 text-sm font-bold text-slate-500 hover:text-blue-600 flex items-center gap-1"><ArrowLeft size={16} /> Voltar para lista</button>
-                    {baths.filter(b => b.id === expandedBathId).map(bath => (<BathContainer key={bath.id} bath={bath} onAddCircuit={(bid) => { setTargetBath(bid); setIsAddOpen(true); }} onUpdateTemp={updateTemp} onDeleteCircuit={deleteCircuit} onToggleMaintenance={toggleMaintenance} onDeleteBath={deleteBath} onViewHistory={(c) => { setTargetCircuit(c); setIsHistoryOpen(true); }} onMoveCircuit={openMoveModal} onLinkCircuit={openLinkModal} />))}
+                    {baths.filter(b => b.id === expandedBathId).map(bath => (<BathContainer key={bath.id} bath={bath} onAddCircuit={(bid) => { setTargetBath(bid); setIsAddOpen(true); }} onUpdateTemp={updateTemp} onDeleteCircuit={deleteCircuit} onToggleMaintenance={toggleMaintenance} onDeleteBath={deleteBath} onViewHistory={(c) => { setTargetCircuit(c); setIsHistoryOpen(true); }} onMoveCircuit={openMoveModal} onLinkCircuit={openLinkModal} onEditBath={(id) => { setBathToEdit(id); setIsEditBathOpen(true); }} />))}
                   </div>
               )}
             </div>
@@ -1495,6 +1580,7 @@ export default function LabManagerApp() {
       <MoveCircuitModal isOpen={isMoveOpen} onClose={() => setIsMoveOpen(false)} onConfirm={handleMoveCircuit} baths={baths} sourceBathId={moveData.sourceBathId} circuitId={moveData.circuitId} />
       <LinkCircuitModal isOpen={isLinkOpen} onClose={() => setIsLinkOpen(false)} onConfirm={handleLinkCircuit} bath={linkData.bath} sourceCircuitId={linkData.sourceId} />
       <TemperatureStatsModal isOpen={isTempStatsOpen} onClose={() => setIsTempStatsOpen(false)} baths={baths} />
+      <EditBathModal isOpen={isEditBathOpen} onClose={() => setIsEditBathOpen(false)} onConfirm={handleRenameBath} currentBathId={bathToEdit} />
     </div>
   );
 }
