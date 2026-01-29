@@ -97,17 +97,31 @@ def apenas_numeros(texto):
 def identificar_nome_padrao(linha_ou_nome, db_protocols=[]):
     texto_limpo = str(linha_ou_nome).upper().replace('_', '').replace('-', '').replace(' ', '')
     
+    # 1. Tenta achar na lista oficial
     for p in db_protocols:
         nome_db = str(p['name']).upper().replace('_', '').replace('-', '').replace(' ', '')
         if nome_db and nome_db in texto_limpo:
             return p['name']
 
+    # 2. Se não achou, tenta extrair o nome bruto (após o último underscore)
+    try:
+        if '_' in str(linha_ou_nome):
+            partes = str(linha_ou_nome).split('_')
+            candidato = partes[-1].strip()
+            # Remove caracteres estranhos do fim se houver
+            candidato = re.sub(r'[\r\n\t]', '', candidato)
+            if len(candidato) > 2:
+                return candidato
+    except:
+        pass
+
     return "Desconhecido"
 
 def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
     duracao = 0
+    # Procura a duração cadastrada para o protocolo
     for p in db_protocols:
-        if p['name'].upper() == nome_protocolo.upper():
+        if p['name'].upper() in nome_protocolo.upper():
             duracao = p['duration']
             break
             
@@ -177,21 +191,31 @@ def import_text():
     db = load_db()
     protocols_list = db.get('protocols', [])
     atualizados = []
+    
     if not raw_text: return jsonify({'error': 'Texto vazio'}), 400
+    
+    # Regex para capturar Circuit, ID e Data
     pattern = r"Circuit\s*0*(\d+).*?(\d{2}/\d{2}/\d{4}\s\d{2}:\d{2})"
     matches = re.finditer(pattern, raw_text, re.IGNORECASE)
+    
     for match in matches:
         cid_num_str = match.group(1)
         start_dt = match.group(2)
         start_pos = match.start()
         end_pos = raw_text.find('\n', match.end())
         linha = raw_text[start_pos:end_pos] if end_pos != -1 else raw_text[start_pos:]
+        
+        # Lógica de extração de Bateria melhorada
         id_bateria = "Desconhecido"
-        bat_match = re.search(r"(\d{5,}-[\w-]+)", linha)
-        if bat_match: id_bateria = bat_match.group(1)
+        # 1. Tenta formato longo (19022-E433...)
+        bat_match_long = re.search(r"(\d{5,}-[\w-]+)", linha)
+        if bat_match_long: 
+            id_bateria = bat_match_long.group(1)
         else:
+            # 2. Tenta formato curto (Z60D, etc)
             bat_match_short = re.search(r"\s([A-Z0-9]{3,6})\s", linha)
-            if bat_match_short and "SAE" not in bat_match_short.group(1): id_bateria = bat_match_short.group(1)
+            if bat_match_short and "SAE" not in bat_match_short.group(1) and "CIRCUIT" not in bat_match_short.group(1).upper(): 
+                id_bateria = bat_match_short.group(1)
         
         protocolo_limpo = identificar_nome_padrao(linha, protocols_list)
         previsao_calculada = calcular_previsao_fim(start_dt, protocolo_limpo, protocols_list)
@@ -201,6 +225,7 @@ def import_text():
             for circuit in bath['circuits']:
                 try:
                     db_id_num = apenas_numeros(circuit['id'])
+                    # Compara IDs numéricos
                     if db_id_num and int(db_id_num) == int(cid_num_str):
                         circuit.update({
                             'status': 'running',
@@ -216,6 +241,7 @@ def import_text():
                         break
                 except: continue
             if found: break
+            
     save_db(db)
     atualizar_progresso_em_tempo_real(db)
     return jsonify({"sucesso": True, "atualizados": atualizados, "db_atualizado": db})
