@@ -148,11 +148,28 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && line) {
       setTimeout(() => inputRef.current?.focus(), 100);
-      setName('');
+ 
+      let candidateName = '';
+      try {
+      
+        const parts = line.trim().split(/\s+/);
+        
+      
+        if (parts.length >= 4) {
+        
+          candidateName = parts[3];
+        }
+      } catch (e) {
+    
+        console.log("Falha ao extrair nome automático", e);
+      }
+
+   
+      setName(candidateName.toUpperCase());
     }
-  }, [isOpen]);
+  }, [isOpen, line]); 
 
   if (!isOpen) return null;
 
@@ -176,11 +193,11 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
           <h3 className="font-bold text-slate-800 text-sm mb-3">Deseja cadastrar este teste agora?</h3>
           <div className="flex gap-3 mb-4">
             <div className="flex-1">
-              <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Nome do Teste</label>
+              <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Nome do Teste (Sugerido)</label>
               <input
                 ref={inputRef}
                 type="text"
-                className="w-full p-2 border-2 border-slate-200 rounded-lg font-bold text-slate-700 focus:border-amber-500 outline-none uppercase"
+                className="w-full p-2 border-2 border-slate-200 rounded-lg font-bold text-slate-700 focus:border-amber-500 outline-none uppercase bg-amber-50"
                 placeholder="Ex: DIN43539"
                 value={name}
                 onChange={e => setName(e.target.value.toUpperCase())}
@@ -199,7 +216,7 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
             </div>
           </div>
           <div className="flex gap-3">
-            <button onClick={onClose} className="flex-1 py-3 border border-slate-200 rounded-lg text-slate-500 font-bold text-sm">Ignorar (Não Adicionar)</button>
+            <button onClick={onClose} className="flex-1 py-3 border border-slate-200 rounded-lg text-slate-500 font-bold text-sm">Não Adicionar</button>
             <button onClick={handleRegister} className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-sm shadow-md">Cadastrar e Continuar</button>
           </div>
         </div>
