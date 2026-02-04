@@ -7,9 +7,16 @@ from datetime import datetime, timedelta
 import firebase_admin
 from firebase_admin import credentials, firestore
 
+# --- CONFIGURAÇÃO INICIAL ---
 base_dir = os.path.dirname(os.path.abspath(__file__))
 db_firestore = None
 
+# --- OTIMIZAÇÃO: VARIÁVEIS GLOBAIS DE CACHE ---
+# DATA_CACHE guarda o banco de dados na memória RAM (super rápido).
+# O servidor lê daqui ao invés de ir na internet toda vez.
+DATA_CACHE = None 
+
+# Configuração do Firebase
 firebase_env = os.getenv("FIREBASE_CREDENTIALS")
 
 try:
@@ -29,11 +36,12 @@ try:
             db_firestore = firestore.client()
             print("Firebase conectado via Arquivo Local.")
         else:
-            print("AVISO: Nenhuma credencial encontrada.")
+            print("AVISO: Nenhuma credencial encontrada. O App vai funcionar apenas em memória.")
 
 except Exception as e:
     print(f"Erro ao conectar Firebase: {e}")
 
+# Tenta importar o serviço de OEE (se existir)
 try:
     from backend import oee_service
 except ImportError:
@@ -53,7 +61,20 @@ OEE_UPLOAD_FOLDER = os.path.join(base_dir, 'oee_uploads')
 if not os.path.exists(OEE_UPLOAD_FOLDER):
     os.makedirs(OEE_UPLOAD_FOLDER, exist_ok=True)
 
+# --- FUNÇÕES DE BANCO DE DADOS INTELIGENTE ---
+
 def save_db(data):
+    """
+    Salva os dados.
+    1. Atualiza a memória RAM instantaneamente (Cache).
+    2. Envia para o Firebase (Persistência) em segundo plano (se conectado).
+    """
+    global DATA_CACHE
+    
+    # Atualiza o Cache IMEDIATAMENTE
+    DATA_CACHE = data
+    
+    # Se tiver conexão, salva no banco real
     if not db_firestore:
         return
     try:
@@ -61,7 +82,44 @@ def save_db(data):
     except Exception as e:
         print(f"Erro ao salvar no Firebase: {e}")
 
+def load_db():
+    """
+    Carrega os dados.
+    1. Se tiver no Cache (RAM), retorna de lá (0 delay).
+    2. Se não, busca no Firebase.
+    """
+    global DATA_CACHE
+    
+    # OTIMIZAÇÃO: Retorno imediato se já carregou antes
+    if DATA_CACHE is not None:
+        return DATA_CACHE
+
+    empty_structure = {"baths": [], "protocols": [], "logs": []}
+    
+    if not db_firestore:
+        return empty_structure
+        
+    try:
+        doc = db_firestore.collection('lab_data').document('main').get()
+        if doc.exists:
+            data = doc.to_dict()
+            # Garante a estrutura mínima
+            if "protocols" not in data: data["protocols"] = []
+            if "logs" not in data: data["logs"] = []
+            if "baths" not in data: data["baths"] = []
+            
+            # Salva no Cache para a próxima requisição ser rápida
+            DATA_CACHE = data
+            return data
+        else:
+            save_db(empty_structure)
+            return empty_structure
+    except Exception as e:
+        print(f"Erro no load_db: {e}")
+        return empty_structure
+
 def add_log(db, action, bath_id, details):
+    """Adiciona um log ao histórico"""
     new_log = {
         "id": int(datetime.now().timestamp() * 1000),
         "date": datetime.now().strftime("%d/%m/%Y %H:%M"),
@@ -71,63 +129,38 @@ def add_log(db, action, bath_id, details):
     }
     if 'logs' not in db: db['logs'] = []
     db['logs'].insert(0, new_log)
-    db['logs'] = db['logs'][:200]
+    db['logs'] = db['logs'][:200] # Mantém apenas os últimos 200
 
-def load_db():
-    empty_structure = {"baths": [], "protocols": [], "logs": []}
-    if not db_firestore:
-        return empty_structure
-    try:
-        doc = db_firestore.collection('lab_data').document('main').get()
-        if doc.exists:
-            data = doc.to_dict()
-            if "protocols" not in data: data["protocols"] = []
-            if "logs" not in data: data["logs"] = []
-            if "baths" not in data: data["baths"] = []
-            return data
-        else:
-            save_db(empty_structure)
-            return empty_structure
-    except Exception as e:
-        return empty_structure
+# --- FUNÇÕES UTILITÁRIAS ---
 
 def apenas_numeros(texto):
     return re.sub(r'\D', '', str(texto))
 
 def identificar_nome_padrao(linha_ou_nome, db_protocols=[]):
     texto_limpo = str(linha_ou_nome).upper().replace('_', '').replace('-', '').replace(' ', '')
-    
-    # 1. Tenta achar na lista oficial
     for p in db_protocols:
         nome_db = str(p['name']).upper().replace('_', '').replace('-', '').replace(' ', '')
         if nome_db and nome_db in texto_limpo:
             return p['name']
-
-    # 2. Se não achou, tenta extrair o nome bruto (após o último underscore)
     try:
         if '_' in str(linha_ou_nome):
             partes = str(linha_ou_nome).split('_')
             candidato = partes[-1].strip()
-            # Remove caracteres estranhos do fim se houver
             candidato = re.sub(r'[\r\n\t]', '', candidato)
             if len(candidato) > 2:
                 return candidato
     except:
         pass
-
     return "Desconhecido"
 
 def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
     duracao = 0
-    # Procura a duração cadastrada para o protocolo
     for p in db_protocols:
         if p['name'].upper() in nome_protocolo.upper():
             duracao = p['duration']
             break
-            
     if duracao == 0:
         return "A calcular"
-
     try:
         dt_start = datetime.strptime(start_str, "%d/%m/%Y %H:%M")
         dt_end = dt_start + timedelta(hours=duracao)
@@ -135,39 +168,70 @@ def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
     except: return "-"
 
 def atualizar_progresso_em_tempo_real(db):
+    """
+    Calcula % de progresso.
+    OTIMIZAÇÃO: Atualiza apenas o Cache (RAM) se for só mudança de %.
+    Salva no Firebase APENAS se o status mudar (ex: terminou).
+    """
+    global DATA_CACHE
     agora = datetime.now()
-    alterado = False
+    
+    precisa_salvar_firebase = False
+    houve_mudanca_visual = False # Se mudou só %, salvamos só na RAM
+
     for bath in db['baths']:
         for circuit in bath['circuits']:
             status_atual = str(circuit.get('status', '')).lower().strip()
+            
             if status_atual == 'running':
                 try:
                     start_str = circuit.get('startTime')
                     end_str = circuit.get('previsao')
-                    if start_str and end_str and end_str != '-' and end_str != 'A calcular':
+                    
+                    if start_str and end_str and end_str not in ['-', 'A calcular']:
                         dt_start = datetime.strptime(start_str, "%d/%m/%Y %H:%M")
                         dt_end = datetime.strptime(end_str, "%d/%m/%Y %H:%M")
+                        
                         total_seconds = (dt_end - dt_start).total_seconds()
                         elapsed_seconds = (agora - dt_start).total_seconds()
-                        if total_seconds > 0: percent = (elapsed_seconds / total_seconds) * 100
-                        else: percent = 100
+                        
+                        if total_seconds > 0: 
+                            percent = (elapsed_seconds / total_seconds) * 100
+                        else: 
+                            percent = 100
+                        
+                        # Se acabou o tempo: Finaliza e Salva no Firebase
                         if agora >= dt_end:
                             if status_atual != 'finished':
                                 circuit['status'] = 'finished'
                                 circuit['progress'] = 100
                                 add_log(db, "Conclusão Auto", bath['id'], f"{circuit['id']} finalizado")
-                                alterado = True
+                                precisa_salvar_firebase = True
+                                houve_mudanca_visual = True
                         else:
+                            # Se ainda está rodando: Atualiza só a RAM
                             new_prog = round(max(0, min(99, percent)), 1)
                             if circuit.get('progress') != new_prog:
                                 circuit['progress'] = new_prog
-                                alterado = True
-                except: pass
+                                houve_mudanca_visual = True 
+                                # Nota: Não ativamos 'precisa_salvar_firebase' aqui para não causar delay
+                                
+                except Exception as e:
+                    pass
+                    
             elif status_atual == 'finished':
                 if circuit.get('progress') != 100:
                     circuit['progress'] = 100
-                    alterado = True
-    if alterado: save_db(db)
+                    precisa_salvar_firebase = True
+                    houve_mudanca_visual = True
+
+    # Decisão de Salvamento
+    if precisa_salvar_firebase:
+        save_db(db) # Lento (Rede), mas necessário para persistência
+    elif houve_mudanca_visual:
+        DATA_CACHE = db # Rápido (Memória), apenas para visualização instantânea
+
+# --- ROTAS DA API ---
 
 @app.route('/')
 def serve_react():
@@ -194,10 +258,10 @@ def import_text():
     
     if not raw_text: return jsonify({'error': 'Texto vazio'}), 400
     
-    # Regex para capturar Circuit, ID e Data
     pattern = r"Circuit\s*0*(\d+).*?(\d{2}/\d{2}/\d{4}\s\d{2}:\d{2})"
     matches = re.finditer(pattern, raw_text, re.IGNORECASE)
     
+    found_any = False
     for match in matches:
         cid_num_str = match.group(1)
         start_dt = match.group(2)
@@ -205,14 +269,11 @@ def import_text():
         end_pos = raw_text.find('\n', match.end())
         linha = raw_text[start_pos:end_pos] if end_pos != -1 else raw_text[start_pos:]
         
-        # Lógica de extração de Bateria melhorada
         id_bateria = "Desconhecido"
-        # 1. Tenta formato longo (19022-E433...)
         bat_match_long = re.search(r"(\d{5,}-[\w-]+)", linha)
         if bat_match_long: 
             id_bateria = bat_match_long.group(1)
         else:
-            # 2. Tenta formato curto (Z60D, etc)
             bat_match_short = re.search(r"\s([A-Z0-9]{3,6})\s", linha)
             if bat_match_short and "SAE" not in bat_match_short.group(1) and "CIRCUIT" not in bat_match_short.group(1).upper(): 
                 id_bateria = bat_match_short.group(1)
@@ -220,12 +281,10 @@ def import_text():
         protocolo_limpo = identificar_nome_padrao(linha, protocols_list)
         previsao_calculada = calcular_previsao_fim(start_dt, protocolo_limpo, protocols_list)
         
-        found = False
         for bath in db['baths']:
             for circuit in bath['circuits']:
                 try:
                     db_id_num = apenas_numeros(circuit['id'])
-                    # Compara IDs numéricos
                     if db_id_num and int(db_id_num) == int(cid_num_str):
                         circuit.update({
                             'status': 'running',
@@ -237,10 +296,11 @@ def import_text():
                         })
                         add_log(db, "Importação", bath['id'], f"Atualizado {circuit['id']}")
                         atualizados.append(circuit['id'])
-                        found = True
+                        found_any = True
                         break
                 except: continue
-            if found: break
+            if found_any: break # Sai do loop de banhos para ir para o próximo match
+        found_any = False # Reseta para o próximo
             
     save_db(db)
     atualizar_progresso_em_tempo_real(db)
