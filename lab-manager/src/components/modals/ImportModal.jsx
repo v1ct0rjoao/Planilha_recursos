@@ -85,23 +85,34 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
 
   // Chamado quando o usuário cadastra um teste novo no modal filho
   const handleRegisterUnknown = async (name, duration) => {
+    // 1. Cadastra o novo teste no sistema
     await onRegisterProtocol(name, duration);
     
-    // Remove a linha atual da lista de pendências
-    const remaining = unknownLines.slice(1);
+    // 2. LÓGICA DE INTELIGÊNCIA:
+    // Pega o nome que acabamos de aprender e normaliza
+    const newProtoClean = normalizeStr(name);
+
+    // Filtra a lista de pendências:
+    // Removemos todas as linhas que contenham o nome do teste que acabamos de cadastrar.
+    // Isso evita que o modal pergunte a mesma coisa de novo.
+    const nextUnknowns = unknownLines.slice(1).filter(line => {
+      const lineClean = normalizeStr(line);
+      // Se a linha NÃO contém o nome do novo teste, ela continua na lista de desconhecidos
+      return !lineClean.includes(newProtoClean);
+    });
     
-    if (remaining.length > 0) {
-      // Se ainda tem mais, mostra o próximo
-      setUnknownLines(remaining);
-      setCurrentUnknownLine(remaining[0]);
+    if (nextUnknowns.length > 0) {
+      // Se ainda tem linhas desconhecidas (de OUTROS testes), mostra o próximo
+      setUnknownLines(nextUnknowns);
+      setCurrentUnknownLine(nextUnknowns[0]);
     } else {
-      // Se acabou, fecha o modal de cadastro e termina a importação
+      // Se a lista zerou, fecha o modal e termina a importação
       setShowUnknownModal(false);
       await executeImport();
     }
   };
 
-  // Chamado quando o usuário clica em "Não Adicionar"
+  // Chamado quando o usuário clica em "Não Adicionar" (Pular)
   const skipUnknown = () => {
     const remaining = unknownLines.slice(1);
     if (remaining.length > 0) {

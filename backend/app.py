@@ -169,15 +169,15 @@ def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
 
 def atualizar_progresso_em_tempo_real(db):
     """
-    Calcula % de progresso.
-    OTIMIZAÇÃO: Atualiza apenas o Cache (RAM) se for só mudança de %.
-    Salva no Firebase APENAS se o status mudar (ex: terminou).
+    Calcula % de progresso sincronizado com o horário de Recife/PE.
     """
     global DATA_CACHE
-    agora = datetime.now()
+    
+    agora_utc = datetime.utcnow()
+    agora_pe = agora_utc - timedelta(hours=3) 
     
     precisa_salvar_firebase = False
-    houve_mudanca_visual = False # Se mudou só %, salvamos só na RAM
+    houve_mudanca_visual = False 
 
     for bath in db['baths']:
         for circuit in bath['circuits']:
@@ -189,19 +189,24 @@ def atualizar_progresso_em_tempo_real(db):
                     end_str = circuit.get('previsao')
                     
                     if start_str and end_str and end_str not in ['-', 'A calcular']:
+                        # Converte as strings (Ex: "04/02/2026 09:00") para data matemática
                         dt_start = datetime.strptime(start_str, "%d/%m/%Y %H:%M")
                         dt_end = datetime.strptime(end_str, "%d/%m/%Y %H:%M")
                         
+                        # Calcula a duração total do teste em segundos
                         total_seconds = (dt_end - dt_start).total_seconds()
-                        elapsed_seconds = (agora - dt_start).total_seconds()
                         
+                        # Calcula quanto tempo passou AGORA (usando o relógio de PE)
+                        elapsed_seconds = (agora_pe - dt_start).total_seconds()
+                        
+                        # Proteção para não dividir por zero
                         if total_seconds > 0: 
                             percent = (elapsed_seconds / total_seconds) * 100
                         else: 
                             percent = 100
                         
-                        # Se acabou o tempo: Finaliza e Salva no Firebase
-                        if agora >= dt_end:
+                        # Verifica se o teste acabou
+                        if agora_pe >= dt_end:
                             if status_atual != 'finished':
                                 circuit['status'] = 'finished'
                                 circuit['progress'] = 100
@@ -209,28 +214,33 @@ def atualizar_progresso_em_tempo_real(db):
                                 precisa_salvar_firebase = True
                                 houve_mudanca_visual = True
                         else:
-                            # Se ainda está rodando: Atualiza só a RAM
+                            # Teste em andamento
+                            # max(0, ...) garante que a barra não fique negativa se o relógio atrasar um pouco
+                            # min(99, ...) garante que não mostre 100% antes da hora
                             new_prog = round(max(0, min(99, percent)), 1)
+                            
                             if circuit.get('progress') != new_prog:
                                 circuit['progress'] = new_prog
                                 houve_mudanca_visual = True 
-                                # Nota: Não ativamos 'precisa_salvar_firebase' aqui para não causar delay
                                 
                 except Exception as e:
+                    # Se tiver erro na data, ignora para não parar o servidor
                     pass
                     
             elif status_atual == 'finished':
+                # Garante que testes finalizados mostrem 100% cheios
                 if circuit.get('progress') != 100:
                     circuit['progress'] = 100
                     precisa_salvar_firebase = True
                     houve_mudanca_visual = True
 
-    # Decisão de Salvamento
+    # Salva no disco apenas se algo crítico mudou (status finalizado)
     if precisa_salvar_firebase:
-        save_db(db) # Lento (Rede), mas necessário para persistência
+        save_db(db)
+    # Atualiza a memória se apenas a porcentagem mudou (para o front ver rápido)
     elif houve_mudanca_visual:
-        DATA_CACHE = db # Rápido (Memória), apenas para visualização instantânea
-
+        DATA_CACHE = db
+        
 # --- ROTAS DA API ---
 
 @app.route('/')
