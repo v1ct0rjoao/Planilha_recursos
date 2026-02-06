@@ -25,7 +25,7 @@ if not os.path.exists(OEE_UPLOAD_FOLDER):
 
 app = Flask(__name__, static_folder=DIST_DIR, static_url_path='')
 
-# CORS Reforçado: Permite a comunicação estável Vercel -> Render
+# CORS Reforçado: Permite a comunicação do Frontend com o Backend
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 # ==============================================================================
@@ -62,7 +62,7 @@ except Exception as e:
     print(f"[ERROR] Falha na ligação ao Firebase: {e}")
 
 # ==============================================================================
-# 3. IMPORTAÇÃO DO MÓDULO OEE
+# 3. IMPORTAÇÃO DO MÓDULO OEE (OPCIONAL)
 # ==============================================================================
 
 oee_service = None
@@ -80,7 +80,7 @@ def handle_exception(e):
     return jsonify({"sucesso": False, "erro": str(e)}), 500
 
 # ==============================================================================
-# 4. FUNÇÕES DE SUPORTE (BLINDAGEM DE DADOS)
+# 4. FUNÇÕES DE SUPORTE
 # ==============================================================================
 
 def save_db(data):
@@ -96,7 +96,7 @@ def save_db(data):
         return False
 
 def load_db():
-    """Carrega o estado. Garante que chaves obrigatórias não sejam nulas (Evita tela branca)."""
+    """Carrega o estado. Garante que chaves obrigatórias não sejam nulas."""
     global DATA_CACHE
     if DATA_CACHE is not None: return DATA_CACHE
     
@@ -107,7 +107,6 @@ def load_db():
         doc = db_firestore.collection('lab_data').document('main').get()
         if doc.exists:
             data = doc.to_dict()
-            # Garante que chaves novas ou corrompidas virem listas vazias e não 'None'
             for key in empty_schema:
                 if key not in data or data[key] is None: 
                     data[key] = []
@@ -166,7 +165,7 @@ def atualizar_progresso_realtime(db):
     if mudou: save_db(db)
 
 # ==============================================================================
-# 5. ROTAS DA API (NORMALIZADAS PARA REACT)
+# 5. ROTAS DA API
 # ==============================================================================
 
 @app.route('/api', methods=['GET'])
@@ -178,6 +177,8 @@ def get_main_data():
     db = load_db()
     atualizar_progresso_realtime(db)
     return jsonify(db)
+
+# --- IMPORTAÇÃO ---
 
 @app.route('/api/import', methods=['POST', 'OPTIONS'])
 def import_digatron_data():
@@ -218,6 +219,93 @@ def import_digatron_data():
     except Exception as e:
         return jsonify({"sucesso": False, "erro": str(e)}), 500
 
+# --- BANHOS (BATHS) ---
+
+@app.route('/api/baths/add', methods=['POST'])
+def bath_add():
+    d = request.json
+    db = load_db()
+    db['baths'].append({"id": d['bathId'], "temp": d.get('temp', 25), "circuits": []})
+    db['baths'].sort(key=lambda x: x['id'])
+    save_db(db)
+    return jsonify({"sucesso": True, "db_atualizado": db})
+
+@app.route('/api/baths/delete', methods=['POST'])
+def bath_delete():
+    d = request.json
+    db = load_db()
+    db['baths'] = [b for b in db['baths'] if str(b['id']) != str(d['bathId'])]
+    save_db(db)
+    return jsonify({"sucesso": True, "db_atualizado": db})
+
+@app.route('/api/baths/rename', methods=['POST'])
+def bath_rename():
+    try:
+        d = request.json
+        db = load_db()
+        old_id = str(d['oldId'])
+        new_id = str(d['newId'])
+        found = False
+        for b in db['baths']:
+            if str(b['id']) == old_id:
+                b['id'] = new_id
+                found = True
+                break
+        if found:
+            save_db(db)
+            return jsonify({"sucesso": True, "db_atualizado": db})
+        return jsonify({"sucesso": False, "erro": "Banho não encontrado"}), 404
+    except Exception as e:
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
+
+@app.route('/api/baths/temp', methods=['POST'])
+def bath_update_temp():
+    try:
+        d = request.json
+        db = load_db()
+        bath_id = str(d['bathId'])
+        new_temp = d['temp']
+        for b in db['baths']:
+            if str(b['id']) == bath_id:
+                b['temp'] = new_temp
+                break
+        save_db(db)
+        return jsonify({"sucesso": True, "db_atualizado": db})
+    except Exception as e:
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
+
+# --- CIRCUITOS ---
+
+@app.route('/api/circuits/add', methods=['POST'])
+def circuit_add():
+    d = request.json
+    db = load_db()
+    cid = f"C-{d['circuitId']}" if not str(d['circuitId']).startswith("C-") else d['circuitId']
+    for b in db['baths']:
+        if str(b['id']) == str(d['bathId']):
+            b['circuits'].append({"id": cid, "status": "free", "batteryId": None, "previsao": "-"})
+            break
+    save_db(db)
+    return jsonify({"sucesso": True, "db_atualizado": db})
+
+@app.route('/api/circuits/delete', methods=['POST'])
+def circuit_delete():
+    try:
+        d = request.json
+        db = load_db()
+        bath_id = str(d['bathId'])
+        circuit_id = str(d['circuitId'])
+        ckt_clean = apenas_numeros(circuit_id)
+        
+        for b in db['baths']:
+            if str(b['id']) == bath_id:
+                b['circuits'] = [c for c in b['circuits'] if apenas_numeros(c['id']) != ckt_clean]
+                break
+        save_db(db)
+        return jsonify({"sucesso": True, "db_atualizado": db})
+    except Exception as e:
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
+
 @app.route('/api/circuits/status', methods=['POST'])
 def update_circuit_status():
     try:
@@ -245,36 +333,53 @@ def update_circuit_status():
     except Exception as e:
         return jsonify({"sucesso": False, "erro": str(e)}), 500
 
-# --- Gestão de Estrutura (Agora com retorno correto para o React) ---
+@app.route('/api/circuits/move', methods=['POST'])
+def circuit_move():
+    try:
+        d = request.json
+        db = load_db()
+        src_bath_id = str(d['sourceBathId'])
+        tgt_bath_id = str(d['targetBathId'])
+        circuit_id = str(d['circuitId'])
+        
+        circuit_obj = None
+        ckt_clean = apenas_numeros(circuit_id)
 
-@app.route('/api/baths/add', methods=['POST'])
-def bath_add():
-    d = request.json
-    db = load_db()
-    db['baths'].append({"id": d['bathId'], "temp": d.get('temp', 25), "circuits": []})
-    db['baths'].sort(key=lambda x: x['id'])
-    save_db(db)
-    return jsonify({"sucesso": True, "db_atualizado": db})
+        # 1. Remover da origem
+        for b in db['baths']:
+            if str(b['id']) == src_bath_id:
+                for idx, c in enumerate(b['circuits']):
+                    if apenas_numeros(c['id']) == ckt_clean:
+                        circuit_obj = b['circuits'].pop(idx)
+                        break
+            if circuit_obj: break
+        
+        # 2. Adicionar no destino
+        if circuit_obj:
+            target_found = False
+            for b in db['baths']:
+                if str(b['id']) == tgt_bath_id:
+                    b['circuits'].append(circuit_obj)
+                    target_found = True
+                    break
+            # Segurança: se destino não existe, devolve para origem
+            if not target_found:
+                for b in db['baths']:
+                    if str(b['id']) == src_bath_id:
+                        b['circuits'].append(circuit_obj)
 
-@app.route('/api/baths/delete', methods=['POST'])
-def bath_delete():
-    d = request.json
-    db = load_db()
-    db['baths'] = [b for b in db['baths'] if str(b['id']) != str(d['bathId'])]
-    save_db(db)
-    return jsonify({"sucesso": True, "db_atualizado": db})
+        save_db(db)
+        return jsonify({"sucesso": True, "db_atualizado": db})
+    except Exception as e:
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
+    
+@app.route('/api/circuits/link', methods=['POST'])
+def circuit_link():
+    # Placeholder para evitar erro 404 se o botão for clicado
+    # Implemente a lógica real se necessário
+    return jsonify({"sucesso": True, "mensagem": "Link simulado com sucesso"})
 
-@app.route('/api/circuits/add', methods=['POST'])
-def circuit_add():
-    d = request.json
-    db = load_db()
-    cid = f"C-{d['circuitId']}" if not str(d['circuitId']).startswith("C-") else d['circuitId']
-    for b in db['baths']:
-        if str(b['id']) == str(d['bathId']):
-            b['circuits'].append({"id": cid, "status": "free", "batteryId": None, "previsao": "-"})
-            break
-    save_db(db)
-    return jsonify({"sucesso": True, "db_atualizado": db})
+# --- PROTOCOLOS ---
 
 @app.route('/api/protocols/add', methods=['POST'])
 def protocol_add():
@@ -285,7 +390,19 @@ def protocol_add():
     save_db(db)
     return jsonify({"sucesso": True, "db_atualizado": db})
 
-# --- Rotas do Módulo OEE ---
+@app.route('/api/protocols/delete', methods=['POST'])
+def protocol_delete():
+    try:
+        d = request.json
+        db = load_db()
+        p_id = d.get('id')
+        db['protocols'] = [p for p in db['protocols'] if p['id'] != p_id]
+        save_db(db)
+        return jsonify({"sucesso": True, "db_atualizado": db})
+    except Exception as e:
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
+
+# --- MÓDULO OEE ---
 @app.route('/api/oee/upload', methods=['POST'])
 def oee_upload():
     if not oee_service: return jsonify({"sucesso": False, "erro": "Serviço OEE Offline"}), 503
@@ -300,29 +417,34 @@ def oee_upload():
 
 @app.route('/api/oee/calculate', methods=['POST'])
 def oee_calculate():
+    if not oee_service: return jsonify({})
     return jsonify(oee_service.calcular_indicadores_oee(request.json))
 
 @app.route('/api/oee/update_circuit', methods=['POST'])
 def oee_update_ckt():
+    if not oee_service: return jsonify({})
     d = request.json
     return jsonify(oee_service.atualizar_circuito(d.get('id'), d.get('action')))
 
 @app.route('/api/oee/save_history', methods=['POST'])
 def oee_save():
+    if not oee_service: return jsonify({})
     d = request.json
     return jsonify(oee_service.save_history(d.get('kpi'), d.get('mes'), d.get('ano')))
 
 @app.route('/api/oee/history', methods=['GET'])
 def oee_history_list():
+    if not oee_service: return []
     return jsonify(oee_service.listar_historico())
 
 @app.route('/api/oee/history/delete', methods=['POST'])
 def oee_history_delete():
+    if not oee_service: return jsonify({})
     d = request.json
     return jsonify(oee_service.delete_history_record(d.get('mes'), d.get('ano')))
 
 # ==============================================================================
-# 6. INICIALIZAÇÃO
+# 6. INICIALIZAÇÃO DO SERVIDOR
 # ==============================================================================
 
 @app.route('/')
@@ -339,4 +461,5 @@ def serve_assets(path):
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
+    # use_reloader=False para evitar problemas com threads do Firebase em alguns ambientes
     app.run(debug=True, host='0.0.0.0', port=port, use_reloader=False)
