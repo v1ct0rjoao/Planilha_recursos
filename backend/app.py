@@ -17,15 +17,17 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 DIST_DIR = os.path.join(base_dir, 'dist')
 OEE_UPLOAD_FOLDER = os.path.join(base_dir, 'oee_uploads')
 
+# Garante que a pasta dist é localizada corretamente para servir o frontend
 if not os.path.exists(DIST_DIR):
     DIST_DIR = os.path.join(os.path.dirname(base_dir), 'dist')
 
+# Garante a existência da pasta para processamento temporário de ficheiros Excel
 if not os.path.exists(OEE_UPLOAD_FOLDER):
     os.makedirs(OEE_UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__, static_folder=DIST_DIR, static_url_path='')
 
-# CORS configurado para aceitar requisições de qualquer origem (Vercel/Local)
+# CORS Reforçado: Essencial para evitar erros de ligação entre domínios (Vercel -> Render)
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 # ==============================================================================
@@ -33,16 +35,18 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 # ==============================================================================
 
 db_firestore = None
-DATA_CACHE = None 
+DATA_CACHE = None # Cache em memória para resposta instantânea e economia de cota
 
 firebase_env = os.getenv("FIREBASE_CREDENTIALS")
 
 try:
     cred = None
     if firebase_env:
+        # Modo Produção: Credenciais via variável de ambiente
         cred_dict = json.loads(firebase_env)
         cred = credentials.Certificate(cred_dict)
     else:
+        # Modo Desenvolvimento: Procura ficheiros de chave locais
         possible_keys = ['firebase_credentials.json', 'serviceAccountKey.json']
         for key_file in possible_keys:
             key_path = os.path.join(base_dir, key_file)
@@ -54,15 +58,15 @@ try:
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
         db_firestore = firestore.client()
-        print("[INFO] Ligação ao Firestore estabelecida.")
+        print("[INFO] Ligação ao Firebase estabelecida.")
     else:
-        print("[WARN] Firestore não configurado. O sistema usará cache em RAM.")
+        print("[WARN] Credenciais não encontradas. O sistema rodará apenas em memória RAM.")
 
 except Exception as e:
-    print(f"[ERROR] Falha na conexão Firebase: {e}")
+    print(f"[ERROR] Falha na ligação ao Firebase: {e}")
 
 # ==============================================================================
-# 3. MÓDULO OEE (LÓGICA EXTERNA)
+# 3. IMPORTAÇÃO DO MÓDULO OEE
 # ==============================================================================
 
 oee_service = None
@@ -76,45 +80,52 @@ except ImportError:
 
 @app.errorhandler(Exception)
 def handle_exception(e):
+    """Captura e reporta erros globais para evitar queda do serviço."""
     traceback.print_exc()
     return jsonify({"sucesso": False, "erro": str(e)}), 500
 
 # ==============================================================================
-# 4. FUNÇÕES DE SUPORTE
+# 4. LÓGICA DE NEGÓCIO E PERSISTÊNCIA (MONITORIZAÇÃO)
 # ==============================================================================
 
 def save_db(data):
+    """Persiste o estado atual no Firestore e atualiza o cache local."""
     global DATA_CACHE
     DATA_CACHE = data
-    if not db_firestore: return
+    if not db_firestore: return True
     try:
         db_firestore.collection('lab_data').document('main').set(data)
+        return True
     except Exception as e:
-        print(f"Erro ao persistir: {e}")
+        print(f"Erro ao guardar no Firebase: {e}")
+        return False
 
 def load_db():
+    """Carrega o estado do laboratório (Prioridade: Cache > Firebase)."""
     global DATA_CACHE
     if DATA_CACHE is not None: return DATA_CACHE
     
-    empty_structure = {"baths": [], "protocols": [], "logs": []}
-    if not db_firestore: return empty_structure
+    empty_schema = {"baths": [], "protocols": [], "logs": []}
+    if not db_firestore: return empty_schema
     
     try:
         doc = db_firestore.collection('lab_data').document('main').get()
         if doc.exists:
             data = doc.to_dict()
-            for key in empty_structure:
+            for key in empty_schema:
                 if key not in data: data[key] = []
             DATA_CACHE = data
             return data
-        return empty_structure
+        return empty_schema
     except:
-        return empty_structure
+        return empty_schema
 
 def apenas_numeros(texto):
+    """Extrai apenas algarismos para comparação robusta de IDs."""
     return re.sub(r'\D', '', str(texto))
 
 def identificar_nome_padrao(linha, db_protocols=[]):
+    """Tenta associar o texto do Digatron a um protocolo registado no sistema."""
     texto_limpo = str(linha).upper().replace('_', '').replace('-', '').replace(' ', '')
     for p in db_protocols:
         nome_db = str(p['name']).upper().replace('_', '').replace('-', '').replace(' ', '')
@@ -123,6 +134,7 @@ def identificar_nome_padrao(linha, db_protocols=[]):
     return "Desconhecido"
 
 def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
+    """Calcula a data final estimada com base na duração do protocolo."""
     duracao = next((p['duration'] for p in db_protocols if p['name'].upper() in nome_protocolo.upper()), 0)
     if duracao == 0: return "A calcular"
     try:
@@ -132,7 +144,9 @@ def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
     except: return "-"
 
 def atualizar_progresso_realtime(db):
+    """Calcula percentagem de conclusão e encerra testes expirados."""
     global DATA_CACHE
+    # Offset de 3 horas para fuso horário de Brasília
     agora = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
     mudou = False
     
@@ -165,16 +179,20 @@ def atualizar_progresso_realtime(db):
 
 @app.route('/api', methods=['GET'])
 def api_ping():
-    return jsonify({"status": "online", "message": "API do LabManager em funcionamento"})
+    """Validação de vitalidade da API para evitar erros 404."""
+    return jsonify({"status": "online", "message": "LabManager API v2.0"})
 
 @app.route('/api/data', methods=['GET'])
 def get_main_data():
+    """Retorna o estado completo de todos os banhos e circuitos."""
     db = load_db()
     atualizar_progresso_realtime(db)
     return jsonify(db)
 
-@app.route('/api/import', methods=['POST'])
+@app.route('/api/import', methods=['POST', 'OPTIONS'])
 def import_digatron_data():
+    """Processa texto copiado do software Digatron e atualiza os circuitos em lote."""
+    if request.method == 'OPTIONS': return '', 200
     try:
         data = request.json
         text = data.get('text', '')
@@ -201,12 +219,8 @@ def import_digatron_data():
                 for c in bath['circuits']:
                     if apenas_numeros(c['id']) == apenas_numeros(cid_num):
                         c.update({
-                            'status': 'running',
-                            'startTime': t_start,
-                            'previsao': t_prev,
-                            'batteryId': bat_id,
-                            'protocol': proto_name,
-                            'progress': 0
+                            'status': 'running', 'startTime': t_start, 'previsao': t_prev,
+                            'batteryId': bat_id, 'protocol': proto_name, 'progress': 0
                         })
                         atualizados.append(c['id'])
         
@@ -216,8 +230,8 @@ def import_digatron_data():
         return jsonify({"sucesso": False, "erro": str(e)}), 500
 
 @app.route('/api/circuits/status', methods=['POST'])
-def update_status():
-    """ Rota corrigida para garantir retorno consistente e busca flexível de IDs """
+def update_circuit_status():
+    """Atualiza manualmente o estado de um circuito específico."""
     try:
         d = request.json
         db = load_db()
@@ -225,11 +239,9 @@ def update_status():
         target_circuit = str(d.get('circuitId'))
         new_status = d.get('status')
 
-        found = False
         for b in db.get('baths', []):
             if str(b['id']) == str(target_bath):
                 for c in b.get('circuits', []):
-                    # Compara usando 'apenas_numeros' para evitar erros de C-01 vs 1
                     if apenas_numeros(c['id']) == apenas_numeros(target_circuit):
                         if new_status == 'free':
                             c.update({
@@ -238,19 +250,17 @@ def update_status():
                             })
                         else:
                             c['status'] = new_status
-                        found = True
                         break
-                if found: break
         
         save_db(db)
         return jsonify({"sucesso": True, "db_atualizado": db})
     except Exception as e:
         return jsonify({"sucesso": False, "erro": str(e)}), 500
 
-# --- Rotas OEE ---
+# --- Rotas do Módulo OEE ---
 @app.route('/api/oee/upload', methods=['POST'])
 def oee_upload():
-    if not oee_service: return jsonify({"sucesso": False, "erro": "Módulo OEE Offline"}), 503
+    if not oee_service: return jsonify({"sucesso": False, "erro": "Serviço OEE Offline"}), 503
     f = request.files['file']
     mes, ano = request.form.get('mes'), request.form.get('ano')
     path = os.path.join(OEE_UPLOAD_FOLDER, f"up_{int(datetime.now().timestamp())}.xlsx")
@@ -283,7 +293,7 @@ def oee_history_delete():
     d = request.json
     return jsonify(oee_service.delete_history_record(d.get('mes'), d.get('ano')))
 
-# --- Rotas Gestão de Banhos ---
+# --- Rotas de Gestão de Estrutura ---
 @app.route('/api/baths/add', methods=['POST'])
 def bath_add():
     d = request.json
@@ -297,7 +307,7 @@ def bath_add():
 def bath_delete():
     d = request.json
     db = load_db()
-    db['baths'] = [b for b in db['baths'] if b['id'] != d['bathId']]
+    db['baths'] = [b for b in db['baths'] if str(b['id']) != str(d['bathId'])]
     save_db(db)
     return jsonify(db)
 
@@ -307,7 +317,7 @@ def circuit_add():
     db = load_db()
     cid = f"C-{d['circuitId']}" if not str(d['circuitId']).startswith("C-") else d['circuitId']
     for b in db['baths']:
-        if b['id'] == d['bathId']:
+        if str(b['id']) == str(d['bathId']):
             b['circuits'].append({"id": cid, "status": "free", "batteryId": None, "previsao": "-"})
             break
     save_db(db)
@@ -323,14 +333,12 @@ def protocol_add():
     return jsonify(db)
 
 # ==============================================================================
-# 6. SERVIÇO DE FICHEIROS ESTÁTICOS E INICIALIZAÇÃO
+# 6. SERVIÇO DE FICHEIROS ESTÁTICOS (DEPLOY MONOLÍTICO)
 # ==============================================================================
 
 @app.route('/')
 def serve_index():
-    if os.path.exists(os.path.join(DIST_DIR, 'index.html')):
-        return send_from_directory(DIST_DIR, 'index.html')
-    return "API Online. Frontend não localizado."
+    return send_from_directory(DIST_DIR, 'index.html') if os.path.exists(os.path.join(DIST_DIR, 'index.html')) else "API Ativa"
 
 @app.route('/<path:path>')
 def serve_assets(path):
@@ -338,6 +346,12 @@ def serve_assets(path):
         return send_from_directory(DIST_DIR, path)
     return send_from_directory(DIST_DIR, 'index.html')
 
+# ==============================================================================
+# 7. INICIALIZAÇÃO DO SERVIDOR
+# ==============================================================================
+
 if __name__ == '__main__':
+    # Configuração necessária para o Render (atribuição dinâmica de porta)
     port = int(os.environ.get("PORT", 5000))
+    # use_reloader=False é vital para manter os dados no cache RAM GLOBAL_DB
     app.run(debug=True, host='0.0.0.0', port=port, use_reloader=False)
