@@ -1,5 +1,3 @@
-//Essa é a tela que mostra todos os cartões soltos, sem agrupar por banho.
-
 
 import React, { useState } from 'react';
 import { Activity, Search } from 'lucide-react';

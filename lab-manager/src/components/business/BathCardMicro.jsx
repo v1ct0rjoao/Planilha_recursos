@@ -45,7 +45,7 @@ const BathCardMicro = ({ bath, onClick, onDelete }) => {
           </span>
         </div>
         
-        {/* O stopPropagation impede que clicar no lixo abra o banho */}
+        {/*impede que clicar no lixo abra o banho */}
         <button 
           onClick={(e) => { e.stopPropagation(); onDelete(bath.id); }} 
           className="text-slate-300 hover:text-rose-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"

@@ -29,7 +29,7 @@ const KPICard = ({ title, value, icon: Icon, color, suffix = '%' }) => {
         <div>
           <span className="text-3xl font-bold text-slate-800">{numValue}{suffix}</span>
           <div className="flex items-center mt-1 space-x-1">
-            {numValue >= 85 ? (
+            {numValue >= 70 ? (
               <TrendingUp size={14} className="text-green-500" />
             ) : (
               <TrendingDown size={14} className="text-red-500" />

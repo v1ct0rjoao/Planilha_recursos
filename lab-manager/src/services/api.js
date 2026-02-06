@@ -1,9 +1,5 @@
 import { API_URL } from '../utils/constants';
 
-/**
- * Função genérica para chamadas API.
- * Evita repetição de headers e tratamento de JSON.
- */
 export const apiRequest = async (endpoint, method = 'GET', body = null, isFileUpload = false) => {
   const options = {
     method,

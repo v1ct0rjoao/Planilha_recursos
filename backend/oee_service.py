@@ -1,36 +1,47 @@
 import pandas as pd
 import numpy as np
 from calendar import monthrange
-from datetime import datetime, timedelta
+from datetime import datetime
 import re
-import os
 import traceback
 import math
+import firebase_admin
+from firebase_admin import firestore
 
-# Caminho do histórico
-HISTORY_FILE = os.path.join(os.path.dirname(__file__), 'historico_oee.csv')
+GLOBAL_DB = {
+    "processed_data": {}, 
+    "overrides": {},        
+    "meta": {}              
+}
 
-# ==============================================================================
-# 1. LEITURA ROBUSTA
-# ==============================================================================
-
-def ler_excel_estruturado(arquivo_excel, fim_do_mes_referencia=None):
+def get_firebase():
     try:
-        dict_dfs = pd.read_excel(arquivo_excel, sheet_name=None)
+        return firestore.client()
+    except:
+        return None
+
+def processar_upload_oee(file_path, target_mes, target_ano):
+    try:
+        GLOBAL_DB["processed_data"] = {}
+        GLOBAL_DB["overrides"] = {}
+        
+        target_mes = int(target_mes)
+        target_ano = int(target_ano)
+        
+        dict_dfs = pd.read_excel(file_path, sheet_name=None)
         dfs_validos = []
 
         alias_map = {
-            'circuito': ['circuito', 'circuitos', 'circuit', 'ckt'],
-            'datastart': ['datastart', 'start time', 'starttime', 'inicio', 'início', 'data inicial', 'start_time'],
-            'datastop': ['datastop', 'stop time', 'stoptime', 'fim', 'data final', 'stop_time']
+            'circuito': ['circuito', 'circuit', 'ckt', 'id'],
+            'start': ['start time', 'starttime', 'inicio', 'início', 'data inicial'],
+            'stop': ['stop time', 'stoptime', 'fim', 'data final']
         }
-        
-        colunas_necessarias = ['circuito', 'datastart']
 
         for nome_aba, df in dict_dfs.items():
+            if not str(nome_aba).lower().startswith('dig'): continue
             if df.empty: continue
 
-            cols_originais = {col: str(col).lower().replace(' ', '').replace('_', '') for col in df.columns}
+            cols_originais = {col: str(col).lower().strip().replace('_', '') for col in df.columns}
             rename_dict = {}
 
             for original, limpo in cols_originais.items():
@@ -38,314 +49,302 @@ def ler_excel_estruturado(arquivo_excel, fim_do_mes_referencia=None):
                     if limpo in aliases:
                         rename_dict[original] = padrao
                         break
-            
             df.rename(columns=rename_dict, inplace=True)
 
-            if all(col in df.columns for col in colunas_necessarias):
-                if 'datastop' not in df.columns:
-                    df['datastop'] = pd.NaT
-                dfs_validos.append(df[['circuito', 'datastart', 'datastop']])
+            if 'circuito' in df.columns and 'start' in df.columns:
+                if 'stop' not in df.columns: df['stop'] = pd.NaT
+                dfs_validos.append(df[['circuito', 'start', 'stop']])
 
         if not dfs_validos:
-            return pd.DataFrame() 
+            return {"sucesso": False, "erro": "Nenhuma aba válida."}
 
         df_final = pd.concat(dfs_validos, ignore_index=True)
-        
-        df_final['datastart'] = pd.to_datetime(df_final['datastart'], errors='coerce')
-        df_final['datastop'] = pd.to_datetime(df_final['datastop'], errors='coerce')
-        df_final.dropna(subset=['datastart'], inplace=True)
-        
-        if fim_do_mes_referencia:
-            df_final['datastop'] = df_final['datastop'].fillna(fim_do_mes_referencia)
-        else:
-            df_final['datastop'] = df_final['datastop'].fillna(datetime.now())
+        df_final['start'] = pd.to_datetime(df_final['start'], dayfirst=True, errors='coerce')
+        df_final['stop'] = pd.to_datetime(df_final['stop'], dayfirst=True, errors='coerce')
+        df_final.dropna(subset=['start'], inplace=True)
 
-        df_final['circuito'] = df_final['circuito'].astype(str).str.extract(r'(\d+)').fillna(0).astype(int).astype(str)
+        _, dias_no_mes = monthrange(target_ano, target_mes)
         
-        return df_final
+        def limpar_id(val):
+            nums = re.findall(r'\d+', str(val))
+            return str(int(nums[0])) if nums else str(val).strip()
 
-    except Exception as e:
-        print(f"Erro na leitura estruturada: {e}")
-        traceback.print_exc()
-        return pd.DataFrame()
+        df_final['clean_id'] = df_final['circuito'].apply(limpar_id)
+        
+        circuitos_eventos = {}
+        circuitos_encontrados = set()
 
-# ==============================================================================
-# LÓGICA PRINCIPAL (CÁLCULO OEE)
-# ==============================================================================
-
-def processar_upload_oee(file_path):
-    try:
-        df = ler_excel_estruturado(file_path)
-        if df.empty:
-            return {"sucesso": False, "erro": "Colunas 'Circuit' e 'Start Time' não encontradas."}
-        
-        circuitos_unicos = sorted(df['circuito'].astype(int).unique())
-        return { "sucesso": True, "circuitos": [str(c) for c in circuitos_unicos] }
-    except Exception as e:
-        return {"sucesso": False, "erro": str(e)}
-
-def calcular_indicadores_oee(file_path, params):
-    try:
-        # 1. PARÂMETROS
-        ano = int(params.get('ano', datetime.now().year))
-        mes = int(params.get('mes', datetime.now().month))
-        capacidade_total = int(params.get('capacidade_total', 450)) 
-        _, dias_no_mes = monthrange(ano, mes)
-        
-        fim_mes_referencia = datetime(ano, mes, dias_no_mes, 23, 59, 59)
-        
-        # Inputs Manuais
-        perf_exec = float(params.get('ensaios_executados', 0))
-        perf_solic = float(params.get('ensaios_solicitados', 0))
-        qual_emit = float(params.get('relatorios_emitidos', 0))
-        qual_prazo = float(params.get('relatorios_no_prazo', 0))
-        
-        # Listas de Controle
-        force_up = [str(int(x)) for x in params.get('force_up', [])]
-        force_pq = [str(int(x)) for x in params.get('force_pq', [])]
-        force_pp = [str(int(x)) for x in params.get('force_pp', [])]      
-        force_std = [str(int(x)) for x in params.get('force_std', [])]    
-        ignored_list = [str(int(x)) for x in params.get('ignored_list', [])] 
-        overrides = params.get('overrides', {}) 
-
-        # 2. LEITURA DOS DADOS
-        df_dados = ler_excel_estruturado(file_path, fim_do_mes_referencia=fim_mes_referencia)
-        
-        eventos_estruturados = []
-        if not df_dados.empty:
-            for _, row in df_dados.iterrows():
-                cid = row['circuito']
-                inicio = row['datastart']
-                fim = row['datastop']
-                if pd.isna(fim) or fim < inicio: fim = fim_mes_referencia
-                eventos_estruturados.append({'id': cid, 'inicio': inicio, 'fim': fim})
-        
-        # 3. PROCESSAMENTO DIA A DIA
-        tabela_visualizacao = []
-        kpi_up, kpi_sd, kpi_pq, kpi_pp = [], [], [], []
-        circuitos_ativos_count = 0
-
-        # ---------------------------------------------------------
-        # --- LÓGICA ESPECIAL: iDEVICE (Inserido ANTES do loop) ---
-        # ---------------------------------------------------------
-        
-        # O iDevice não é numérico, então tratamos ele manualmente aqui
-        idevice_daily = []
-        idevice_counts = {'UP': 0, 'SD': 0, 'PQ': 0, 'PP': 0}
-        
-        # Verifica se o usuário não excluiu manualmente o iDevice
-        # Usamos um ID fixo '9999' ou string 'iDevice' para controle de lista, 
-        # mas como o ID visual é string, vamos checar se 'iDevice' está na lista de ignorados? 
-        # Como o ignored_list do frontend geralmente manda numeros, assumimos que iDevice é fixo.
-        
-        for dia in range(1, dias_no_mes + 1):
-            dt = datetime(ano, mes, dia)
-            # Regra Fixa: Sábado(5) e Domingo(6) = PP, Resto = UP
-            status = 'PP' if dt.weekday() >= 5 else 'UP'
-            idevice_daily.append(status)
-            idevice_counts[status] += 1
-        
-        # Adiciona aos KPIs globais (ele conta na média)
-        kpi_up.append(idevice_counts['UP'])
-        kpi_pq.append(0)
-        kpi_pp.append(idevice_counts['PP'])
-        kpi_sd.append(0)
-        circuitos_ativos_count += 1
-
-        # Cálculos de Stats Individuais do iDevice
-        t_disp_idev = max(0, dias_no_mes - idevice_counts['PP']) # SD é 0
-        t_real_idev = idevice_counts['UP']
-        disp_idev = (t_real_idev / t_disp_idev * 100) if t_disp_idev > 0 else 0.0
-
-        tabela_visualizacao.append({
-            'id': 'iDevice', # Nome visual
-            'raw_id': 'iDevice', # ID para ações (pode não funcionar filtros numéricos, mas ok)
-            'UP': idevice_counts['UP'], 'SD': 0, 'PQ': 0, 'PP': idevice_counts['PP'],
-            'day_data': idevice_daily,
-            'is_ignored': False,
-            'is_zero_up': False, # Nunca é zero UP pois tem seg-sex
-            'stats': {
-                'pct_up': round((idevice_counts['UP'] / dias_no_mes) * 100, 1),
-                'pct_pq': 0.0,
-                'pct_pp': round((idevice_counts['PP'] / dias_no_mes) * 100, 1),
-                'pct_sd': 0.0,
-                'tempo_disponivel': round(t_disp_idev, 1),
-                'tempo_real': round(t_real_idev, 1),
-                'disponibilidade': round(disp_idev, 1)
-            }
-        })
-        # ---------------------------------------------------------
-
-        
-        # Loop normal dos Circuitos Numéricos (1 a 450)
-        for i in range(1, capacidade_total + 1):
-            cid = str(i)
-            cid_formatado = f"C-{cid.zfill(3)}"
-            is_ignored_manually = cid in ignored_list
+        for _, row in df_final.iterrows():
+            cid = row['clean_id']
+            circuitos_encontrados.add(cid)
+            if cid not in circuitos_eventos: circuitos_eventos[cid] = []
             
-            daily_statuses = [] 
-            contagem = {'UP': 0, 'SD': 0, 'PQ': 0, 'PP': 0}
+            start = row['start']
+            stop = row['stop'] if not pd.isna(row['stop']) else datetime(target_ano + 1, 1, 1)
+            circuitos_eventos[cid].append((start, stop))
+
+        mapa_final = {}
+        lista_ids = ['iDevice'] + [str(i) for i in range(1, 451)]
+
+        for cid in lista_ids:
+            status_array = []
+            eventos = circuitos_eventos.get(cid, [])
             
-            is_preset_pp = cid in force_pp
-            is_preset_std = cid in force_std
-            is_preset_up = cid in force_up
-            is_preset_pq = cid in force_pq
-
-            eventos_circ = [e for e in eventos_estruturados if e['id'] == cid] if not (is_preset_pp or is_preset_std) else []
-
             for dia in range(1, dias_no_mes + 1):
-                status = 'SD'
-                if is_preset_pp: status = 'PP'
-                elif is_preset_std:
-                    dt = datetime(ano, mes, dia)
-                    status = 'PP' if dt.weekday() >= 5 else 'UP'
-                elif is_preset_up: status = 'UP'
-                elif is_preset_pq: status = 'PQ'
-                else:
-                    data_dia = datetime(ano, mes, dia, 12, 0, 0)
-                    dt_check = data_dia.date()
-                    has_event = False
-                    for evento in eventos_circ:
-                        if evento['inicio'].date() <= dt_check <= evento['fim'].date():
-                            status = 'UP'
-                            has_event = True
-                            break
-                    if not has_event:
-                        status = 'PP' if data_dia.weekday() >= 5 else 'SD'
+                dia_inicio = datetime(target_ano, target_mes, dia, 0, 0, 0)
+                dia_fim = datetime(target_ano, target_mes, dia, 23, 59, 59)
+                is_weekend = dia_inicio.weekday() >= 5
                 
-                daily_statuses.append(status) 
-                contagem[status] += 1
-
-            if cid_formatado in overrides:
-                vals = overrides[cid_formatado]
-                contagem = { 'UP': int(vals.get('UP', 0)), 'SD': int(vals.get('SD', 0)), 'PQ': int(vals.get('PQ', 0)), 'PP': int(vals.get('PP', 0)) }
-
-            should_count = True
-            if is_ignored_manually: should_count = False
-            elif contagem['UP'] == 0 and contagem['PQ'] == 0: should_count = False
-
-            if should_count:
-                kpi_up.append(contagem['UP'])
-                kpi_sd.append(contagem['SD'])
-                kpi_pq.append(contagem['PQ'])
-                kpi_pp.append(contagem['PP'])
-                circuitos_ativos_count += 1
+                status_dia = 'PP' if is_weekend else 'SD'
+                
+                for start, stop in eventos:
+                    if start <= dia_fim and stop >= dia_inicio:
+                        status_dia = 'UP'
+                        break
+                
+                status_array.append(status_dia)
             
-            tempo_disponivel_row = max(0, dias_no_mes - contagem['PP'] - contagem['SD'])
-            tempo_real_row = contagem['UP']
-            disp_row = (tempo_real_row / tempo_disponivel_row * 100) if tempo_disponivel_row > 0 else 0.0
+            mapa_final[cid] = status_array
 
-            tabela_visualizacao.append({
-                'id': cid_formatado,
-                'raw_id': cid,
-                'UP': contagem['UP'], 'SD': contagem['SD'], 'PQ': contagem['PQ'], 'PP': contagem['PP'],
-                'day_data': daily_statuses, 
-                'is_ignored': is_ignored_manually,
-                'is_zero_up': (contagem['UP'] == 0 and contagem['PQ'] == 0),
-                'stats': {
-                    'pct_up': round((contagem['UP'] / dias_no_mes) * 100, 1),
-                    'pct_pq': round((contagem['PQ'] / dias_no_mes) * 100, 1),
-                    'pct_pp': round((contagem['PP'] / dias_no_mes) * 100, 1),
-                    'pct_sd': round((contagem['SD'] / dias_no_mes) * 100, 1),
-                    'tempo_disponivel': round(tempo_disponivel_row, 1),
-                    'tempo_real': round(tempo_real_row, 1),
-                    'disponibilidade': round(disp_row, 1)
-                }
-            })
-
-        # 4. CÁLCULO GERAL (KPI)
-        if circuitos_ativos_count == 0: 
-            media_up, media_sd, media_pp, media_pq = 0, 0, 0, 0
-        else:
-            media_up = sum(kpi_up) / circuitos_ativos_count
-            media_sd = sum(kpi_sd) / circuitos_ativos_count
-            media_pp = sum(kpi_pp) / circuitos_ativos_count
-            media_pq = sum(kpi_pq) / circuitos_ativos_count
-        
-        tempo_disponivel_global = dias_no_mes - media_pp - media_sd
-        tempo_real_global = max(0, media_up - media_pq - media_sd)
-        
-        disp_global = (tempo_real_global / tempo_disponivel_global * 100) if tempo_disponivel_global > 0.01 else 0.0
-        disp_global = min(100, max(0, disp_global))
-        
-        perf_global = min(100, max(0, (perf_exec / perf_solic * 100) if perf_solic > 0 else 100.0))
-        qual_global = min(100, max(0, (qual_prazo / qual_emit * 100) if qual_emit > 0 else 100.0))
-        
-        oee_final = (disp_global/100) * (perf_global/100) * (qual_global/100) * 100
-        
-        # 5. HISTÓRICO
-        historico = ler_historico()
-        trend_chart = [{"name": h['name'], "oee": h['OEE'], "target": 85} for h in historico]
-        
-        label_atual = f"{int(mes)}/{int(ano)}"
-        if not any(d['name'] == label_atual for d in trend_chart):
-             trend_chart.append({"name": label_atual, "oee": round(oee_final, 1), "target": 85})
+        GLOBAL_DB["processed_data"] = mapa_final
+        GLOBAL_DB["meta"] = {
+            "detected_month": int(target_mes),
+            "detected_year": int(target_ano)
+        }
 
         return {
-            "sucesso": True,
-            "kpi": { 
-                "oee": round(oee_final, 1), 
-                "availability": round(disp_global, 1), 
-                "performance": round(perf_global, 1), 
-                "quality": round(qual_global, 1) 
-            },
-            "medias": {
-                "up_dias": math.ceil(media_up),   # UP -> Teto
-                "pq_dias": math.ceil(media_pq),   # PQ -> Teto
-                "pp_dias": math.floor(media_pp),  # PP -> Piso
-                "sd_dias": math.floor(media_sd),  # SD -> Piso
-                "total_dias": dias_no_mes,
-                "circuitos_considerados": circuitos_ativos_count
-            },
-            "trendData": trend_chart,
-            "details": tabela_visualizacao, 
-            "meta": { 
-                "ano": ano, 
-                "mes": mes, 
-                "circuitos_ativos": circuitos_ativos_count, 
-                "total_instalado": capacidade_total, 
-                "dias_no_mes": dias_no_mes 
-            }
+            "sucesso": True, 
+            "circuitos": list(circuitos_encontrados),
+            "mes_processado": f"{target_mes}/{target_ano}",
+            "mensagem": "Processado com sucesso (RAM)."
         }
 
     except Exception as e:
         traceback.print_exc()
         return {"sucesso": False, "erro": str(e)}
 
-# ==============================================================================
-# GESTÃO DE CSV (HISTÓRICO)
-# ==============================================================================
-
-def salvar_historico(dados_kpi, mes, ano):
+def atualizar_circuito(circuit_id, action):
     try:
-        nova = pd.DataFrame([{ 
-            'periodo': f"{ano}-{mes:02d}-01", 
-            'mes': mes, 
-            'ano': ano, 
-            'oee': dados_kpi['oee'], 
-            'disponibilidade': dados_kpi['availability'], 
-            'performance': dados_kpi['performance'], 
-            'qualidade': dados_kpi['quality'] 
-        }])
-        
-        if os.path.exists(HISTORY_FILE):
-            antigo = pd.read_csv(HISTORY_FILE)
-            antigo = antigo[~((antigo['mes'] == mes) & (antigo['ano'] == ano))]
-            nova = pd.concat([antigo, nova])
-        
-        nova.to_csv(HISTORY_FILE, index=False)
-        return True
-    except: return False
+        if action == 'RESTORE':
+            if circuit_id in GLOBAL_DB["overrides"]:
+                del GLOBAL_DB["overrides"][circuit_id]
+        else:
+            GLOBAL_DB["overrides"][circuit_id] = action
+        return {"sucesso": True}
+    except Exception as e:
+        return {"sucesso": False}
 
-def ler_historico():
-    if not os.path.exists(HISTORY_FILE): return []
+def calcular_indicadores_oee(params):
     try:
-        df = pd.read_csv(HISTORY_FILE).sort_values('periodo')
-        return [{
-            "name": f"{int(r.mes)}/{int(r.ano)}", 
-            "OEE": r.oee, 
-            "Disponibilidade": r.disponibilidade, 
-            "Performance": r.performance, 
-            "Qualidade": r.qualidade
-        } for _, r in df.iterrows()]
-    except: return []
+        db_data = GLOBAL_DB.get("processed_data", {})
+        overrides = GLOBAL_DB.get("overrides", {})
+        meta = GLOBAL_DB.get("meta", {})
+        
+        if not db_data: 
+            return {"sucesso": False, "erro": "Sem dados na memória."}
+        
+        mes_salvo = meta.get('detected_month', int(params.get('mes')))
+        ano_salvo = meta.get('detected_year', int(params.get('ano')))
+        
+        _, dias_no_mes = monthrange(ano_salvo, mes_salvo)
+
+        kpi_inputs = {
+            'exec': float(params.get('ensaios_executados', 0)),
+            'solic': float(params.get('ensaios_solicitados', 0)),
+            'emit': float(params.get('relatorios_emitidos', 0)),
+            'prazo': float(params.get('relatorios_no_prazo', 0))
+        }
+
+        details = []
+        soma_medias = {'UP': 0, 'SD': 0, 'PQ': 0, 'PP': 0}
+        circuitos_validos_count = 0
+        capacidade_total = int(params.get('capacidade_total', 450))
+
+        lista_ids = ['iDevice'] + [str(i) for i in range(1, capacidade_total + 1)]
+
+        for cid in lista_ids:
+            override_action = overrides.get(cid)
+            is_ignored = (override_action == 'SET_IGNORE')
+            is_bonus = (override_action == 'SET_BONUS')
+            
+            raw_days = db_data.get(cid, [])
+            day_data = []
+            c_counts = {'UP': 0, 'SD': 0, 'PQ': 0, 'PP': 0, '': 0}
+            display_name = "iDevice" if cid == 'iDevice' else f"Circuit{cid.zfill(3)}"
+
+            for dia_idx in range(dias_no_mes):
+                dt = datetime(ano_salvo, mes_salvo, dia_idx + 1)
+                is_weekend = dt.weekday() >= 5
+                
+                if cid == 'iDevice':
+                    status = 'PP' if is_weekend else 'UP'
+                else:
+                    if raw_days and len(raw_days) == dias_no_mes:
+                        status = raw_days[dia_idx]
+                    else:
+                        status = 'PP' if is_weekend else 'SD'
+
+                    if override_action == 'SET_UP': 
+                        status = 'UP'
+                    elif override_action == 'force_std': 
+                        status = 'PP' if is_weekend else 'UP'
+                    elif override_action == 'SET_BONUS': 
+                        if status == 'SD' or status == 'PP':
+                            status = '' 
+
+                day_data.append(status)
+                if status in c_counts: c_counts[status] += 1
+                else: c_counts[''] += 1
+
+            if not is_ignored:
+                is_inactive = (c_counts['UP'] == 0 and c_counts['PQ'] == 0 and not is_bonus)
+                if not is_inactive or is_bonus or cid == 'iDevice':
+                    circuitos_validos_count += 1
+                    soma_medias['UP'] += c_counts['UP']
+                    soma_medias['SD'] += c_counts['SD']
+                    soma_medias['PQ'] += c_counts['PQ']
+                    soma_medias['PP'] += c_counts['PP']
+
+            tempo_off = c_counts['PP'] + c_counts['SD'] + c_counts['']
+            t_disp = max(0, dias_no_mes - tempo_off)
+            t_real = c_counts['UP']
+            disp_ind = (t_real / t_disp * 100) if t_disp > 0 else 0
+
+            details.append({
+                'id': display_name,
+                'raw_id': cid,
+                'UP': c_counts['UP'], 'SD': c_counts['SD'], 'PQ': c_counts['PQ'], 'PP': c_counts['PP'],
+                'day_data': day_data,
+                'is_ignored': is_ignored,
+                'is_bonus': is_bonus,
+                'is_zero_up': (c_counts['UP'] == 0),
+                'stats': {
+                    'pct_up': round(c_counts['UP']/dias_no_mes*100, 1),
+                    'disponibilidade': round(disp_ind, 1)
+                }
+            })
+
+        if circuitos_validos_count > 0:
+            media_up = math.ceil(soma_medias['UP'] / circuitos_validos_count)
+            media_sd = math.floor(soma_medias['SD'] / circuitos_validos_count)
+            media_pp = math.floor(soma_medias['PP'] / circuitos_validos_count)
+            media_pq = math.ceil(soma_medias['PQ'] / circuitos_validos_count)
+        else:
+            media_up = media_sd = media_pp = media_pq = 0
+
+        tempo_disp_global = dias_no_mes - media_pp - media_sd
+        tempo_real_global = max(0, media_up - media_pq - media_sd)
+
+        disp_global = (tempo_real_global / tempo_disp_global) if tempo_disp_global > 0 else 0
+        perf_global = (kpi_inputs['exec'] / kpi_inputs['solic']) if kpi_inputs['solic'] > 0 else 0
+        qual_global = (kpi_inputs['prazo'] / kpi_inputs['emit']) if kpi_inputs['emit'] > 0 else 0
+
+        oee_final = disp_global * perf_global * qual_global
+
+        return {
+            "sucesso": True,
+            "kpi": {
+                "oee": round(oee_final * 100, 2),
+                "availability": round(disp_global * 100, 2),
+                "performance": round(perf_global * 100, 2),
+                "quality": round(qual_global * 100, 2)
+            },
+            "medias": {
+                "up_dias": media_up, "sd_dias": media_sd, "pp_dias": media_pp, "pq_dias": media_pq,
+                "total_dias": dias_no_mes, "circuitos_considerados": circuitos_validos_count
+            },
+            "details": details,
+            "meta": {"dias_no_mes": dias_no_mes}
+        }
+
+    except Exception as e:
+        traceback.print_exc()
+        return {"sucesso": False, "erro": str(e)}
+
+def save_history(kpi, mes, ano):
+    db = get_firebase()
+    if not db: return {"sucesso": False, "erro": "Firebase Off"}
+    
+    try:
+        db_data = GLOBAL_DB.get("processed_data", {})
+        overrides = GLOBAL_DB.get("overrides", {})
+        
+        if not db_data: return {"sucesso": False, "erro": "Memória vazia"}
+
+        _, dias_no_mes = monthrange(int(ano), int(mes))
+        
+        grid_snapshot = []
+        ids = list(db_data.keys())
+        ids_numericos = sorted([x for x in ids if x != 'iDevice'], key=lambda x: int(x) if x.isdigit() else 9999)
+        ids_final = ['iDevice'] + ids_numericos
+
+        for cid in ids_final:
+            override_action = overrides.get(cid)
+            raw_days = db_data.get(cid, [])
+            day_data = []
+
+            if not raw_days: raw_days = ['SD'] * dias_no_mes
+
+            if len(raw_days) == dias_no_mes:
+                for dia_idx, status_original in enumerate(raw_days):
+                    status = status_original
+                    dt = datetime(int(ano), int(mes), dia_idx + 1)
+                    is_weekend = dt.weekday() >= 5
+                    
+                    if cid == 'iDevice':
+                        status = 'PP' if is_weekend else 'UP'
+                    else:
+                        if override_action == 'SET_UP': status = 'UP'
+                        elif override_action == 'force_std': status = 'PP' if is_weekend else 'UP'
+                        elif override_action == 'SET_BONUS': 
+                            if status == 'SD' or status == 'PP': status = ''
+                        elif override_action == 'SET_IGNORE': status = 'IGNORE'
+
+                    day_data.append(status)
+
+            grid_snapshot.append({
+                "id": cid,
+                "days": day_data,
+                "status": "ignored" if override_action == 'SET_IGNORE' else "active"
+            })
+
+        doc_id = f"{mes}_{ano}"
+        history_ref = db.collection('lab_data').document('history').collection('oee_monthly')
+        
+        history_ref.document(doc_id).set({
+            "mes": int(mes),
+            "ano": int(ano),
+            "kpi": kpi,
+            "grid": grid_snapshot,
+            "saved_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }, merge=True)
+        
+        return {"sucesso": True}
+
+    except Exception as e:
+        traceback.print_exc()
+        return {"sucesso": False, "erro": str(e)}
+
+def listar_historico():
+    db = get_firebase()
+    if not db: return {"sucesso": False, "erro": "Firebase Off"}
+    try:
+        docs = db.collection('lab_data').document('history').collection('oee_monthly').stream()
+        lista = []
+        for doc in docs:
+            dado = doc.to_dict()
+            dado['id_doc'] = doc.id
+            lista.append(dado)
+        return {"sucesso": True, "historico": lista}
+    except Exception as e:
+        return {"sucesso": False, "erro": str(e)}
+
+def delete_history_record(mes, ano):
+    db = get_firebase()
+    if not db: return {"sucesso": False, "erro": "Firebase Off"}
+    try:
+        doc_id = f"{mes}_{ano}"
+        db.collection('lab_data').document('history').collection('oee_monthly').document(doc_id).delete()
+        return {"sucesso": True}
+    except Exception as e:
+        return {"sucesso": False, "erro": str(e)}
