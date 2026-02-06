@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Grid, Maximize2, Thermometer, Search, ArrowLeft, Plus, 
-  Activity, CheckCircle, Wrench 
+  Grid, Maximize2, Thermometer, Search, ArrowLeft, Plus 
 } from 'lucide-react';
 
-// Import dos componentes de Negócio que já criamos
-import BathCardMicro from '../../components/business/BathCardMicro';
-import BathContainer from '../../components/business/BathContainer';
-import AllCircuitsView from '../../components/business/AllCircuitsView';
-import TemperatureStatsModal from '../../components/ui/TemperatureStatsModal'; // Vamos mover esse modal já já, mas importe assim por enquanto
+import BathCardMicro from "../../components/business/BathCardMicro";
+import BathContainer from "../../components/business/BathContainer";
+import AllCircuitsView from "../../components/business/AllCircuitsView";
 
+
+import TemperatureStatsModal from "../../components/ui/TemperatureStatsModal";
 const DashboardView = ({ 
-  baths, 
+  baths = [], // 
   onAddCircuit, 
   onDeleteCircuit, 
   onToggleMaintenance, 
@@ -21,18 +20,21 @@ const DashboardView = ({
   onMoveCircuit, 
   onLinkCircuit, 
   onEditBath,
-  onOpenAddBathModal // Função que vem do App para abrir o modal de criar banho
+  onOpenAddBathModal 
 }) => {
   const [dashViewMode, setDashViewMode] = useState('baths');
   const [expandedBathId, setExpandedBathId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isTempStatsOpen, setIsTempStatsOpen] = useState(false);
 
-  // Lógica de Busca Automática (Expande se encontrar match exato)
+  // Garante que baths é sempre um array para evitar o erro do .reduce
+  const safeBaths = baths || [];
+
+  // Lógica de Busca Automática
   useEffect(() => {
     if (searchTerm.length >= 4) {
-      for (const bath of baths) {
-        const hasExactMatch = bath.circuits.some(c =>
+      for (const bath of safeBaths) {
+        const hasExactMatch = bath.circuits && bath.circuits.some(c =>
           (c.batteryId && c.batteryId.toUpperCase() === searchTerm) ||
           (c.id && c.id.toUpperCase() === searchTerm) ||
           (c.id && c.id.toUpperCase() === `C-${searchTerm}`)
@@ -44,27 +46,27 @@ const DashboardView = ({
         }
       }
     }
-  }, [searchTerm, baths]);
+  }, [searchTerm, safeBaths]);
 
-  // Contadores Globais
-  const totalRunning = baths.reduce((acc, bath) => acc + (bath.circuits ? bath.circuits.filter(c => { const s = c.status ? c.status.toLowerCase().trim() : ''; return s === 'running' && c.progress < 100; }).length : 0), 0);
-  const totalFree = baths.reduce((acc, bath) => acc + (bath.circuits ? bath.circuits.filter(c => { const s = c.status ? c.status.toLowerCase().trim() : 'free'; return (s === 'free' || s === 'finished' || c.progress >= 100) && s !== 'maintenance'; }).length : 0), 0);
-  const totalMaint = baths.reduce((acc, bath) => acc + (bath.circuits ? bath.circuits.filter(c => c.status === 'maintenance').length : 0), 0);
+  // --- AQUI ESTAVA O ERRO ---
+  // Adicionei (safeBaths) e verificação de (bath.circuits || [])
+  const totalRunning = safeBaths.reduce((acc, bath) => acc + ((bath.circuits || []).filter(c => { const s = c.status ? c.status.toLowerCase().trim() : ''; return s === 'running' && c.progress < 100; }).length), 0);
+  const totalFree = safeBaths.reduce((acc, bath) => acc + ((bath.circuits || []).filter(c => { const s = c.status ? c.status.toLowerCase().trim() : 'free'; return (s === 'free' || s === 'finished' || c.progress >= 100) && s !== 'maintenance'; }).length), 0);
+  const totalMaint = safeBaths.reduce((acc, bath) => acc + ((bath.circuits || []).filter(c => c.status === 'maintenance').length), 0);
 
-  // Filtros de busca para a lista de banhos
-  const filteredBaths = baths.filter(b =>
+  // Filtros de busca
+  const filteredBaths = safeBaths.filter(b =>
     b.id.toUpperCase().includes(searchTerm) ||
-    b.circuits.some(c => (c.id && c.id.toUpperCase().includes(searchTerm)) || (c.batteryId && c.batteryId.toUpperCase().includes(searchTerm)))
+    (b.circuits || []).some(c => (c.id && c.id.toUpperCase().includes(searchTerm)) || (c.batteryId && c.batteryId.toUpperCase().includes(searchTerm)))
   );
   
-  // Divisão em duas colunas para visual
   const half = Math.ceil(filteredBaths.length / 2);
   const leftBaths = filteredBaths.slice(0, half);
   const rightBaths = filteredBaths.slice(half);
 
   return (
     <div className="h-full flex flex-col">
-      {/* Barra de Topo do Dashboard */}
+      {/* Barra de Topo */}
       <div className="mb-4 flex flex-col sm:flex-row gap-4 justify-between items-center shrink-0">
         <div className="flex gap-4 items-center w-full sm:w-auto">
           <h2 className="text-2xl font-bold text-slate-800">Visão Geral</h2>
@@ -134,7 +136,6 @@ const DashboardView = ({
                 <BathCardMicro key={bath.id} bath={bath} onClick={() => setExpandedBathId(bath.id)} onDelete={onDeleteBath} />
               ))}
               
-              {/* Botão de Adicionar Banho */}
               <button onClick={onOpenAddBathModal} className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 rounded-lg text-slate-400 hover:border-blue-400 hover:text-blue-500 hover:bg-slate-50 transition-all gap-1 group h-[112px]">
                 <div className="bg-slate-100 p-2 rounded-full group-hover:bg-blue-100 transition-colors">
                   <Plus size={20} />
@@ -150,7 +151,7 @@ const DashboardView = ({
             <button onClick={() => setExpandedBathId(null)} className="mb-4 text-sm font-bold text-slate-500 hover:text-blue-600 flex items-center gap-1">
               <ArrowLeft size={16} /> Voltar para lista
             </button>
-            {baths.filter(b => b.id === expandedBathId).map(bath => (
+            {safeBaths.filter(b => b.id === expandedBathId).map(bath => (
               <BathContainer 
                 key={bath.id} 
                 bath={bath} 
@@ -170,8 +171,7 @@ const DashboardView = ({
         )}
       </div>
 
-      {/* O Modal de Estatísticas vive aqui agora, pois só é chamado daqui */}
-      <TemperatureStatsModal isOpen={isTempStatsOpen} onClose={() => setIsTempStatsOpen(false)} baths={baths} />
+      <TemperatureStatsModal isOpen={isTempStatsOpen} onClose={() => setIsTempStatsOpen(false)} baths={safeBaths} />
     </div>
   );
 };

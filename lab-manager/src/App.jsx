@@ -37,9 +37,11 @@ const GlobalStyles = () => (
 );
 
 export default function LabManagerApp() {
+  // Inicializa sempre com arrays vazios para evitar erro de .map ou .reduce logo de cara
   const [baths, setBaths] = useState([]);
   const [logs, setLogs] = useState([]);
   const [protocols, setProtocols] = useState([]);
+  
   const [currentView, setCurrentView] = useState('dashboard');
   const [toast, setToast] = useState(null);
   
@@ -53,7 +55,7 @@ export default function LabManagerApp() {
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [isLinkOpen, setIsLinkOpen] = useState(false);
   
-  // Estados de Dados Temporários (para passar para os modais)
+  // Estados de Dados Temporários
   const [bathToEdit, setBathToEdit] = useState(null);
   const [moveData, setMoveData] = useState({ sourceBathId: null, circuitId: null });
   const [linkData, setLinkData] = useState({ bath: null, sourceId: null });
@@ -71,12 +73,11 @@ export default function LabManagerApp() {
 
   const fetchData = async () => { 
     const { success, data } = await bathService.getAllData();
-    if (success) {
+    if (success && data) {
+      // BLINDAGEM: O operador || [] garante que nunca entra 'undefined' no estado
       setBaths(data.baths || []); 
       setLogs(data.logs || []); 
       setProtocols(data.protocols || []); 
-    } else {
-      console.error("Falha ao carregar dados."); 
     }
   };
 
@@ -88,7 +89,7 @@ export default function LabManagerApp() {
     });
   };
 
-  // --- Funções de Lógica de Negócio (Usando bathService) ---
+  // --- Funções de Lógica de Negócio BLINDADAS ---
 
   const addCircuit = async (bathId, start, end) => {
     const startNum = parseInt(start);
@@ -97,11 +98,10 @@ export default function LabManagerApp() {
     
     const executeAdd = async () => {
       try {
-        // Loop para adicionar múltiplos circuitos
         for (let i = startNum; i <= endNum; i++) {
           await bathService.addCircuit(bathId, i);
         }
-        fetchData(); // Recarrega os dados para mostrar os novos circuitos
+        await fetchData(); // Força atualização segura
         setIsAddOpen(false);
         setToast({ message: `Circuitos adicionados com sucesso!`, type: 'success' });
       } catch (e) { 
@@ -119,9 +119,9 @@ export default function LabManagerApp() {
   const deleteCircuit = async (bathId, circuitId) => {
     askConfirm("Excluir Circuito", `Tem certeza que deseja remover o circuito ${circuitId}? Esta ação não pode ser desfeita.`, async () => {
       const { success, data } = await bathService.deleteCircuit(bathId, circuitId);
-      if (success) { 
-          setBaths(data.baths); 
-          setLogs(data.logs); 
+      if (success && data) { 
+          setBaths(data.baths || []); 
+          setLogs(data.logs || []); 
       } else {
           setToast({ message: "Erro ao deletar.", type: 'error' }); 
       }
@@ -130,9 +130,9 @@ export default function LabManagerApp() {
 
   const updateTemp = async (bathId, temp) => { 
       const { success, data } = await bathService.updateTemp(bathId, temp);
-      if (success) {
-          setBaths(data.baths);
-          setLogs(data.logs);
+      if (success && data) {
+          setBaths(data.baths || []);
+          setLogs(data.logs || []);
       } else {
           setToast({ message: "Erro ao salvar temperatura.", type: 'error' }); 
       }
@@ -141,9 +141,9 @@ export default function LabManagerApp() {
   const toggleMaintenance = async (bathId, circuitId, isMaint) => {
     const newStatus = isMaint ? 'free' : 'maintenance';
     const { success, data } = await bathService.updateStatus(bathId, circuitId, newStatus);
-    if (success) {
-        setBaths(data.baths);
-        setLogs(data.logs);
+    if (success && data) {
+        setBaths(data.baths || []);
+        setLogs(data.logs || []);
     } else {
         setToast({ message: "Erro ao atualizar status.", type: 'error' }); 
     }
@@ -154,12 +154,12 @@ export default function LabManagerApp() {
     const fullId = `${type} - ${id.toUpperCase()}`;
     const { success, data } = await bathService.addBath(fullId, temp);
     
-    if (success) {
+    if (success && data) {
         if (data.error) {
             setToast({ message: data.error, type: 'error' });
         } else {
-            setBaths(data.baths); 
-            setLogs(data.logs); 
+            setBaths(data.baths || []); 
+            setLogs(data.logs || []); 
             setIsAddBathOpen(false); 
         }
     } else {
@@ -170,9 +170,9 @@ export default function LabManagerApp() {
   const deleteBath = async (bathId) => {
     askConfirm("Excluir Unidade", `Você vai excluir a unidade ${bathId} e todos os seus circuitos. Tem certeza?`, async () => {
         const { success, data } = await bathService.deleteBath(bathId);
-        if (success) {
-            setBaths(data.baths); 
-            setLogs(data.logs); 
+        if (success && data) {
+            setBaths(data.baths || []); // AQUI O ERRO ACONTECIA ANTES (Se data.baths viesse nulo)
+            setLogs(data.logs || []); 
         } else {
             setToast({ message: "Erro ao excluir banho.", type: 'error' }); 
         }
@@ -183,9 +183,9 @@ export default function LabManagerApp() {
     if (oldId === newId) { setIsEditBathOpen(false); return; }
     const { success, data } = await bathService.renameBath(oldId, newId);
     
-    if (success) { 
-        setBaths(data.baths); 
-        setLogs(data.logs); 
+    if (success && data) { 
+        setBaths(data.baths || []); 
+        setLogs(data.logs || []); 
         setIsEditBathOpen(false); 
         setToast({ message: "Local renomeado com sucesso!", type: 'success' }); 
     } else { 
@@ -195,8 +195,8 @@ export default function LabManagerApp() {
 
   const handleAddProtocol = async (name, duration) => {
     const { success, data } = await bathService.addProtocol(name, duration);
-    if (success) {
-        setProtocols(data.protocols); 
+    if (success && data) {
+        setProtocols(data.protocols || []); 
         setToast({ message: "Teste adicionado!", type: 'success' });
     } else {
         setToast({ message: "Erro protocolos", type: 'error' }); 
@@ -206,8 +206,8 @@ export default function LabManagerApp() {
   const handleDeleteProtocol = async (id) => {
     askConfirm("Apagar Teste", `Remover o teste ${id}?`, async () => {
         const { success, data } = await bathService.deleteProtocol(id);
-        if (success) {
-            setProtocols(data.protocols); 
+        if (success && data) {
+            setProtocols(data.protocols || []); 
         } else {
             setToast({ message: "Erro ao apagar", type: 'error' }); 
         }
@@ -218,9 +218,9 @@ export default function LabManagerApp() {
     if (!circuitId) { setToast({ message: "Erro: ID do circuito inválido.", type: 'error' }); return; }
     const { success, data } = await bathService.moveCircuit(sourceBathId, targetBathId, circuitId);
     
-    if (success) { 
-        setBaths(data.baths); 
-        setLogs(data.logs); 
+    if (success && data) { 
+        setBaths(data.baths || []); 
+        setLogs(data.logs || []); 
         setIsMoveOpen(false); 
         setToast({ message: `Circuito movido com sucesso!`, type: 'success' }); 
     } else { 
@@ -230,9 +230,9 @@ export default function LabManagerApp() {
 
   const handleLinkCircuit = async (bathId, sourceId, targetId) => {
     const { success, data } = await bathService.linkCircuit(bathId, sourceId, targetId);
-    if (success) { 
-        setBaths(data.baths); 
-        setLogs(data.logs); 
+    if (success && data) { 
+        setBaths(data.baths || []); 
+        setLogs(data.logs || []); 
         setIsLinkOpen(false); 
         setToast({ message: "Circuitos vinculados em paralelo!", type: 'success' }); 
     } else { 
@@ -271,7 +271,7 @@ export default function LabManagerApp() {
         {currentView === 'dashboard' && (
           <div className="h-full flex flex-col">
             <DashboardView 
-              baths={baths}
+              baths={baths || []} // BLINDAGEM EXTRA AQUI
               onAddCircuit={(bid) => { setTargetBath(bid); setIsAddOpen(true); }}
               onDeleteCircuit={deleteCircuit}
               onToggleMaintenance={toggleMaintenance}
@@ -290,7 +290,7 @@ export default function LabManagerApp() {
       <footer className="w-full text-center py-6 border-t border-slate-200 mt-auto shrink-0"><p className="text-xs text-slate-400 font-medium">Desenvolvido por <span className="font-bold text-slate-600">João Victor</span> © 2026<br />LabFísico Sistema v2.2</p></footer>
 
       {/* Renderização dos Modais */}
-      <ImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImportSuccess={(db, message) => { setBaths(db.baths); setLogs(db.logs); setToast({ message: message || 'Sincronização concluída!', type: 'success' }); }} protocols={protocols} onRegisterProtocol={handleAddProtocol} />
+      <ImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImportSuccess={(db, message) => { setBaths(db.baths || []); setLogs(db.logs || []); setToast({ message: message || 'Sincronização concluída!', type: 'success' }); }} protocols={protocols} onRegisterProtocol={handleAddProtocol} />
       <AddCircuitModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onConfirm={addCircuit} bathId={targetBath} baths={baths} setToast={setToast} />
       <AddBathModal isOpen={isAddBathOpen} onClose={() => setIsAddBathOpen(false)} onConfirm={addBath} />
       <TestManagerModal isOpen={isProtocolsOpen} onClose={() => setIsProtocolsOpen(false)} protocols={protocols} onAddProtocol={handleAddProtocol} onDeleteProtocol={handleDeleteProtocol} setToast={setToast} />
