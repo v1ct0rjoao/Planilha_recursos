@@ -78,7 +78,7 @@ except ImportError:
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    """Handler global para exceções não tratadas."""
+    "
     traceback.print_exc()
     return jsonify({"sucesso": False, "erro": f"Erro interno: {str(e)}"}), 500
 
