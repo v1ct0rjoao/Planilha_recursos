@@ -26,14 +26,14 @@ if not os.path.exists(OEE_UPLOAD_FOLDER):
     os.makedirs(OEE_UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__, static_folder=DIST_DIR, static_url_path='')
-CORS(app)
+CORS(app) # Habilita CORS para todas as origens durante desenvolvimento
 
 # ==============================================================================
 # 2. INICIALIZAÇÃO DE SERVIÇOS EXTERNOS (FIREBASE)
 # ==============================================================================
 
 db_firestore = None
-DATA_CACHE = None # Cache em memória para o Lab Manager (Banhos)
+DATA_CACHE = None # Cache em memória para o Lab Manager (Monitoramento)
 
 # Tenta carregar credenciais via Variável de Ambiente (Prod) ou Arquivo Local (Dev)
 firebase_env = os.getenv("FIREBASE_CREDENTIALS")
@@ -44,7 +44,7 @@ try:
         cred_dict = json.loads(firebase_env)
         cred = credentials.Certificate(cred_dict)
     else:
-        # Busca por arquivos de chave padrão
+        # Busca por arquivos de chave padrão no diretório local
         possible_keys = ['serviceAccountKey.json', 'firebase_credentials.json']
         for key_file in possible_keys:
             key_path = os.path.join(base_dir, key_file)
@@ -83,7 +83,7 @@ def handle_exception(e):
     return jsonify({"sucesso": False, "erro": f"Erro interno: {str(e)}"}), 500
 
 # ==============================================================================
-# 4. HELPERS E LÓGICA DE NEGÓCIO (LABORATÓRIO)
+# 4. HELPERS E LÓGICA DE NEGÓCIO (MONITORAMENTO DE BANHOS)
 # ==============================================================================
 
 def save_db(data):
@@ -97,7 +97,7 @@ def save_db(data):
         print(f"[ERROR] Falha ao salvar DB: {e}")
 
 def load_db():
-    """Carrega o estado atual. Prioriza Cache, depois Firebase, depois Estrutura Vazia."""
+    """Carrega o estado atual. Prioriza Cache > Firebase > Estrutura Vazia."""
     global DATA_CACHE
     if DATA_CACHE is not None: return DATA_CACHE
     
@@ -109,7 +109,7 @@ def load_db():
         doc = db_firestore.collection('lab_data').document('main').get()
         if doc.exists:
             data = doc.to_dict()
-            # Garante integridade da estrutura
+            # Garante integridade da estrutura mínima
             for key in empty_structure:
                 if key not in data: data[key] = []
             DATA_CACHE = data
@@ -131,13 +131,13 @@ def add_log(db, action, bath_id, details):
     }
     if 'logs' not in db: db['logs'] = []
     db['logs'].insert(0, new_log)
-    db['logs'] = db['logs'][:200] # Limita histórico de logs operacionais
+    db['logs'] = db['logs'][:200] # Mantém histórico rotativo de 200 logs
 
 def apenas_numeros(texto):
     return re.sub(r'\D', '', str(texto))
 
 def identificar_nome_padrao(linha, db_protocols=[]):
-    """Tenta identificar o protocolo de teste baseado no texto do Digatron."""
+    """Normaliza nomes de protocolos baseados na entrada crua do Digatron."""
     texto_limpo = str(linha).upper().replace('_', '').replace('-', '').replace(' ', '')
     for p in db_protocols:
         nome_db = str(p['name']).upper().replace('_', '').replace('-', '').replace(' ', '')
@@ -151,7 +151,7 @@ def identificar_nome_padrao(linha, db_protocols=[]):
     return "Desconhecido"
 
 def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
-    """Calcula data prevista de fim com base na duração do protocolo cadastrado."""
+    """Calcula data prevista de fim com base na duração cadastrada."""
     duracao = next((p['duration'] for p in db_protocols if p['name'].upper() in nome_protocolo.upper()), 0)
     if duracao == 0: return "A calcular"
     try:
@@ -161,9 +161,9 @@ def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
     except: return "-"
 
 def atualizar_progresso_em_tempo_real(db):
-    """Atualiza % de progresso e finaliza testes automaticamente se o tempo expirou."""
+    """Atualiza % de progresso e finaliza testes automaticamente se expirados."""
     global DATA_CACHE
-    # Utiliza UTC c/ offset manual para evitar DeprecationWarning do Python 3.12
+    # Utiliza UTC com offset manual para evitar DeprecationWarning do Python 3.12
     agora_pe = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
     save_needed = False
     
@@ -187,10 +187,10 @@ def atualizar_progresso_em_tempo_real(db):
                         new_prog = round(max(0, min(99, percent)), 1)
                         if circuit.get('progress') != new_prog:
                             circuit['progress'] = new_prog
-                            DATA_CACHE = db # Atualiza apenas RAM para não saturar escritas
+                            DATA_CACHE = db # Atualiza apenas RAM para economizar escritas
                 except: pass
             
-            # Correção de consistência
+            # Correção de consistência para status finished
             elif circuit.get('status') == 'finished' and circuit.get('progress') != 100:
                 circuit['progress'] = 100
                 save_needed = True
@@ -262,17 +262,9 @@ def save_oee_history():
 
 @app.route('/api/oee/history', methods=['GET'])
 def get_oee_history():
-    """Lista fechamentos mensais salvos."""
+    """Lista fechamentos mensais salvos no Firebase."""
     if oee_service: return jsonify(oee_service.listar_historico())
-    
-    # Fallback caso service falhe (tenta ler direto se possível)
-    if not db_firestore: return jsonify({"sucesso": False, "erro": "Banco desconectado"}), 500
-    try:
-        docs = db_firestore.collection('lab_data').document('history').collection('oee_monthly').stream()
-        historico = [doc.to_dict() for doc in docs]
-        return jsonify({"sucesso": True, "historico": historico})
-    except Exception as e:
-        return jsonify({"sucesso": False, "erro": str(e)}), 500
+    return jsonify({"sucesso": False, "erro": "Serviço OEE offline"}), 503
 
 @app.route('/api/oee/history/delete', methods=['POST'])
 def delete_oee_history():
@@ -388,7 +380,10 @@ def add_protocol():
     save_db(db)
     return jsonify(db)
 
+# ==============================================================================
+# INICIALIZAÇÃO DO SERVIDOR
+# ==============================================================================
 
 if __name__ == '__main__':
- 
+
     app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
