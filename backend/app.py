@@ -10,119 +10,113 @@ from firebase_admin import credentials, firestore
 import traceback
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO DE AMBIENTE E DIRETÓRIOS
+# CONFIGURAÇÃO DE DIRETÓRIOS E APP
 # ==============================================================================
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 DIST_DIR = os.path.join(base_dir, 'dist')
 OEE_UPLOAD_FOLDER = os.path.join(base_dir, 'oee_uploads')
 
-# Fallback para estrutura de pastas onde dist está na raiz do projeto
+# Fallback para localizar a pasta dist caso esteja fora da pasta backend
 if not os.path.exists(DIST_DIR):
     DIST_DIR = os.path.join(os.path.dirname(base_dir), 'dist')
 
-# Garante existência da pasta temporária para uploads
 if not os.path.exists(OEE_UPLOAD_FOLDER):
     os.makedirs(OEE_UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__, static_folder=DIST_DIR, static_url_path='')
-CORS(app) # Habilita CORS para todas as origens durante desenvolvimento
+CORS(app) # Permite requisições de outras origens (ex: Vercel)
 
 # ==============================================================================
-# 2. INICIALIZAÇÃO DE SERVIÇOS EXTERNOS (FIREBASE)
+# FIREBASE SETUP
 # ==============================================================================
 
 db_firestore = None
-DATA_CACHE = None # Cache em memória para o Lab Manager (Monitoramento)
+DATA_CACHE = None 
 
-# Tenta carregar credenciais via Variável de Ambiente (Prod) ou Arquivo Local (Dev)
 firebase_env = os.getenv("FIREBASE_CREDENTIALS")
 
 try:
     cred = None
     if firebase_env:
+        # Modo Produção: Credenciais via Secret/Env
         cred_dict = json.loads(firebase_env)
         cred = credentials.Certificate(cred_dict)
     else:
-        # Busca por arquivos de chave padrão no diretório local
+        # Modo Local: Procura pelo arquivo JSON de chave
         possible_keys = ['serviceAccountKey.json', 'firebase_credentials.json']
-        for key_file in possible_keys:
-            key_path = os.path.join(base_dir, key_file)
-            if os.path.exists(key_path):
-                cred = credentials.Certificate(key_path)
+        for key in possible_keys:
+            path = os.path.join(base_dir, key)
+            if os.path.exists(path):
+                cred = credentials.Certificate(path)
                 break
 
     if cred:
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
         db_firestore = firestore.client()
-        print("[INFO] Firebase conectado com sucesso.")
+        print("[INFO] Firestore conectado.")
     else:
-        print("[WARN] Credenciais não encontradas. O sistema rodará sem persistência de histórico.")
+        print("[WARN] Firestore offline. Usando apenas memória RAM.")
 
 except Exception as e:
-    print(f"[CRITICAL] Falha na conexão com Firebase: {e}")
+    print(f"[ERROR] Falha na conexão Firebase: {e}")
 
 # ==============================================================================
-# 3. INTEGRAÇÃO COM MÓDULO OEE
+# IMPORTAÇÃO DO ENGINE OEE
 # ==============================================================================
 
 oee_service = None
 try:
-    from backend import oee_service
-except ImportError:
     try:
-        import oee_service
+        from backend import oee_service
     except ImportError:
-        print("[WARN] Módulo 'oee_service' não encontrado. Funcionalidades de OEE indisponíveis.")
+        import oee_service
+except ImportError:
+    print("[WARN] Módulo oee_service não encontrado.")
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    "
+    """Captura erros globais para não travar a API."""
     traceback.print_exc()
-    return jsonify({"sucesso": False, "erro": f"Erro interno: {str(e)}"}), 500
+    return jsonify({"sucesso": False, "erro": str(e)}), 500
 
 # ==============================================================================
-# 4. HELPERS E LÓGICA DE NEGÓCIO (MONITORAMENTO DE BANHOS)
+# LÓGICA DE PERSISTÊNCIA (LAB MANAGER GERAL)
 # ==============================================================================
 
 def save_db(data):
-    """Persiste o estado atual dos banhos no Firestore (Coleção Main)."""
     global DATA_CACHE
     DATA_CACHE = data
     if not db_firestore: return
     try:
         db_firestore.collection('lab_data').document('main').set(data)
     except Exception as e:
-        print(f"[ERROR] Falha ao salvar DB: {e}")
+        print(f"Erro ao salvar: {e}")
 
 def load_db():
-    """Carrega o estado atual. Prioriza Cache > Firebase > Estrutura Vazia."""
     global DATA_CACHE
     if DATA_CACHE is not None: return DATA_CACHE
     
-    empty_structure = {"baths": [], "protocols": [], "logs": []}
-    
-    if not db_firestore: return empty_structure
+    empty_schema = {"baths": [], "protocols": [], "logs": []}
+    if not db_firestore: return empty_schema
     
     try:
         doc = db_firestore.collection('lab_data').document('main').get()
         if doc.exists:
             data = doc.to_dict()
-            # Garante integridade da estrutura mínima
-            for key in empty_structure:
+            # Garante que chaves novas existam no objeto vindo do banco
+            for key in empty_schema:
                 if key not in data: data[key] = []
             DATA_CACHE = data
             return data
-        else:
-            save_db(empty_structure)
-            return empty_structure
-    except Exception:
-        return empty_structure
+        save_db(empty_schema)
+        return empty_schema
+    except:
+        return empty_schema
 
 def add_log(db, action, bath_id, details):
-    """Registra eventos operacionais para auditoria."""
-    new_log = {
+    log_entry = {
         "id": int(datetime.now().timestamp() * 1000) + random.randint(1, 9999),
         "date": datetime.now().strftime("%d/%m/%Y %H:%M"),
         "action": action,
@@ -130,30 +124,29 @@ def add_log(db, action, bath_id, details):
         "details": details
     }
     if 'logs' not in db: db['logs'] = []
-    db['logs'].insert(0, new_log)
-    db['logs'] = db['logs'][:200] # Mantém histórico rotativo de 200 logs
+    db['logs'].insert(0, log_entry)
+    db['logs'] = db['logs'][:200] # Limite de histórico operacional
+
+# ==============================================================================
+# PROCESSAMENTO DE DADOS (MONITORAMENTO)
+# ==============================================================================
 
 def apenas_numeros(texto):
     return re.sub(r'\D', '', str(texto))
 
 def identificar_nome_padrao(linha, db_protocols=[]):
-    """Normaliza nomes de protocolos baseados na entrada crua do Digatron."""
-    texto_limpo = str(linha).upper().replace('_', '').replace('-', '').replace(' ', '')
+    """Tenta casar o nome do teste do Digatron com os protocolos cadastrados."""
+    texto = str(linha).upper().replace('_', '').replace('-', '').replace(' ', '')
     for p in db_protocols:
-        nome_db = str(p['name']).upper().replace('_', '').replace('-', '').replace(' ', '')
-        if nome_db and nome_db in texto_limpo:
+        slug = str(p['name']).upper().replace('_', '').replace('-', '').replace(' ', '')
+        if slug and slug in texto:
             return p['name']
-    try:
-        parts = str(linha).split('_')
-        if len(parts) > 1 and len(parts[-1].strip()) > 2:
-            return parts[-1].strip()
-    except: pass
-    return "Desconhecido"
+    parts = str(linha).split('_')
+    return parts[-1].strip() if len(parts) > 1 else "Desconhecido"
 
 def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
-    """Calcula data prevista de fim com base na duração cadastrada."""
     duracao = next((p['duration'] for p in db_protocols if p['name'].upper() in nome_protocolo.upper()), 0)
-    if duracao == 0: return "A calcular"
+    if not duracao: return "A calcular"
     try:
         dt_start = datetime.strptime(start_str, "%d/%m/%Y %H:%M")
         dt_end = dt_start + timedelta(hours=duracao)
@@ -161,170 +154,150 @@ def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
     except: return "-"
 
 def atualizar_progresso_em_tempo_real(db):
-    """Atualiza % de progresso e finaliza testes automaticamente se expirados."""
+    """Calcula porcentagem de conclusão e encerra testes expirados."""
     global DATA_CACHE
-    # Utiliza UTC com offset manual para evitar DeprecationWarning do Python 3.12
-    agora_pe = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
-    save_needed = False
+    # Offset manual de 3h para horário de Brasília (evita utcnow deprecated)
+    agora = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
+    mudou = False
     
     for bath in db.get('baths', []):
-        for circuit in bath.get('circuits', []):
-            if circuit.get('status') == 'running':
+        for c in bath.get('circuits', []):
+            if c.get('status') == 'running':
                 try:
-                    dt_start = datetime.strptime(circuit.get('startTime'), "%d/%m/%Y %H:%M")
-                    dt_end = datetime.strptime(circuit.get('previsao'), "%d/%m/%Y %H:%M")
+                    t_ini = datetime.strptime(c.get('startTime'), "%d/%m/%Y %H:%M")
+                    t_fim = datetime.strptime(c.get('previsao'), "%d/%m/%Y %H:%M")
+                    total = (t_fim - t_ini).total_seconds()
+                    passado = (agora - t_ini).total_seconds()
                     
-                    total = (dt_end - dt_start).total_seconds()
-                    elapsed = (agora_pe - dt_start).total_seconds()
-                    
-                    if agora_pe >= dt_end:
-                        # Teste finalizado pelo tempo
-                        circuit.update({'status': 'finished', 'progress': 100})
-                        add_log(db, "Conclusão Auto", bath['id'], f"{circuit['id']} finalizado")
-                        save_needed = True
+                    if agora >= t_fim:
+                        c.update({'status': 'finished', 'progress': 100})
+                        add_log(db, "Auto Concluir", bath['id'], f"{c['id']} finalizado por tempo.")
+                        mudou = True
                     else:
-                        percent = (elapsed / total) * 100 if total > 0 else 0
-                        new_prog = round(max(0, min(99, percent)), 1)
-                        if circuit.get('progress') != new_prog:
-                            circuit['progress'] = new_prog
-                            DATA_CACHE = db # Atualiza apenas RAM para economizar escritas
+                        pct = (passado / total) * 100 if total > 0 else 0
+                        c['progress'] = round(max(0, min(99.9, pct)), 1)
+                        DATA_CACHE = db 
                 except: pass
-            
-            # Correção de consistência para status finished
-            elif circuit.get('status') == 'finished' and circuit.get('progress') != 100:
-                circuit['progress'] = 100
-                save_needed = True
+            elif c.get('status') == 'finished' and c.get('progress') != 100:
+                c['progress'] = 100
+                mudou = True
 
-    if save_needed: save_db(db)
+    if mudou: save_db(db)
 
 # ==============================================================================
-# 5. ROTAS (ENDPOINTS) - ESTÁTICOS
+# ROTAS API - MÓDULO OEE
 # ==============================================================================
 
-@app.route('/')
-def serve_react():
-    if os.path.exists(os.path.join(DIST_DIR, 'index.html')):
-        return send_from_directory(DIST_DIR, 'index.html')
-    return "Backend LabManager Ativo."
-
-@app.route('/<path:path>')
-def serve_static(path):
-    if os.path.exists(os.path.join(DIST_DIR, path)):
-        return send_from_directory(DIST_DIR, path)
-    return send_from_directory(DIST_DIR, 'index.html')
-
-# ==============================================================================
-# 6. ROTAS DA API - MÓDULO OEE
-# ==============================================================================
+@app.route('/api', methods=['GET'])
+def api_base():
+    """Rota base para confirmar que a API está viva e evitar 404 na Vercel."""
+    return jsonify({
+        "status": "online",
+        "service": "LabManager API",
+        "timestamp": datetime.now().isoformat()
+    })
 
 @app.route('/api/oee/upload', methods=['POST'])
 def upload_oee():
-    """Recebe planilha e carrega processamento na memória RAM."""
-    if not oee_service: return jsonify({"sucesso": False, "erro": "Serviço OEE offline"}), 503
-    if 'file' not in request.files: return jsonify({"sucesso": False, "erro": "Arquivo ausente"}), 400
+    if not oee_service: return jsonify({"sucesso": False, "erro": "Módulo OEE indisponível"}), 503
+    if 'file' not in request.files: return jsonify({"sucesso": False, "erro": "Arquivo não enviado"}), 400
     
     file = request.files['file']
-    mes = request.form.get('mes')
-    ano = request.form.get('ano')
-    
-    if not mes or not ano: return jsonify({"sucesso": False, "erro": "Data inválida"}), 400
+    mes, ano = request.form.get('mes'), request.form.get('ano')
+    if not mes or not ano: return jsonify({"sucesso": False, "erro": "Data base incompleta"}), 400
 
-    temp_path = os.path.join(OEE_UPLOAD_FOLDER, f"temp_{int(datetime.now().timestamp())}.xlsx")
-    file.save(temp_path)
+    path = os.path.join(OEE_UPLOAD_FOLDER, f"upload_{int(datetime.now().timestamp())}.xlsx")
+    file.save(path)
     
     try:
-        # Processamento Volátil (RAM)
-        resultado = oee_service.processar_upload_oee(temp_path, mes, ano)
+        res = oee_service.processar_upload_oee(path, mes, ano)
     finally:
-        if os.path.exists(temp_path): os.remove(temp_path)
+        if os.path.exists(path): os.remove(path)
         
-    return jsonify(resultado)
+    return jsonify(res)
 
 @app.route('/api/oee/calculate', methods=['POST'])
 def calculate_oee():
-    """Recalcula indicadores com base nos dados em memória."""
-    if not oee_service: return jsonify({"sucesso": False, "erro": "Serviço OEE offline"}), 503
+    if not oee_service: return jsonify({"erro": "Service Off"}), 503
     return jsonify(oee_service.calcular_indicadores_oee(request.json))
 
 @app.route('/api/oee/update_circuit', methods=['POST'])
 def update_oee_circuit():
-    """Aplica regra manual (EXT, STD, UP) a um circuito na memória."""
-    if not oee_service: return jsonify({"sucesso": False, "erro": "Serviço OEE offline"}), 503
+    if not oee_service: return jsonify({"erro": "Service Off"}), 503
     data = request.json
     return jsonify(oee_service.atualizar_circuito(data.get('id'), data.get('action')))
 
 @app.route('/api/oee/save_history', methods=['POST'])
 def save_oee_history():
-    """Persiste o estado atual da memória para o Firebase (Histórico)."""
-    if not oee_service: return jsonify({"sucesso": False, "erro": "Serviço OEE offline"}), 503
-    data = request.json
-    return jsonify(oee_service.save_history(data.get('kpi'), data.get('mes'), data.get('ano')))
+    if not oee_service: return jsonify({"erro": "Service Off"}), 503
+    d = request.json
+    return jsonify(oee_service.save_history(d.get('kpi'), d.get('mes'), d.get('ano')))
 
 @app.route('/api/oee/history', methods=['GET'])
 def get_oee_history():
-    """Lista fechamentos mensais salvos no Firebase."""
+    """Lista todos os fechamentos salvos no banco."""
     if oee_service: return jsonify(oee_service.listar_historico())
-    return jsonify({"sucesso": False, "erro": "Serviço OEE offline"}), 503
+    return jsonify({"sucesso": False}), 500
 
 @app.route('/api/oee/history/delete', methods=['POST'])
-def delete_oee_history():
-    """Remove um fechamento mensal do histórico."""
-    if not oee_service: return jsonify({"sucesso": False, "erro": "Serviço offline"}), 503
-    data = request.json
-    return jsonify(oee_service.delete_history_record(data.get('mes'), data.get('ano')))
+def delete_oee_record():
+    """Remove um mês específico do histórico."""
+    if not oee_service: return jsonify({"sucesso": False}), 503
+    d = request.json
+    return jsonify(oee_service.delete_history_record(d.get('mes'), d.get('ano')))
 
 # ==============================================================================
-# 7. ROTAS DA API - MÓDULO MONITORAMENTO (BANHOS)
+# ROTAS API - LAB MANAGER (MONITORAMENTO)
 # ==============================================================================
 
 @app.route('/api/data', methods=['GET'])
-def get_data():
-    """Retorna estado completo dos banhos e circuitos."""
+def get_lab_data():
     db = load_db()
     atualizar_progresso_em_tempo_real(db)
     return jsonify(db)
 
 @app.route('/api/import', methods=['POST'])
-def import_text():
-    """Parser de texto do Digatron."""
+def import_digatron_text():
     text = request.json.get('text', '')
     if not text: return jsonify({'sucesso': False}), 400
     
     db = load_db()
     protocols = db.get('protocols', [])
-    updated = []
+    atualizados = []
     
+    # Regex para pegar número do circuito e data de início
     matches = re.finditer(r"Circuit\s*0*(\d+).*?(\d{2}/\d{2}/\d{4}\s\d{2}:\d{2})", text, re.IGNORECASE)
     
     for m in matches:
-        cid_num, start_str = m.group(1), m.group(2)
-        line = text[m.start():text.find('\n', m.end())]
+        cid_num, t_start = m.group(1), m.group(2)
+        end_of_line = text.find('\n', m.end())
+        line = text[m.start():end_of_line if end_of_line != -1 else len(text)]
         
-        bat_id = "Desconhecido"
+        # Padrão de bateria MOURA (ex: 12345-ABC)
         bat_match = re.search(r"(\d{5,}-[\w-]+)", line)
-        if bat_match: bat_id = bat_match.group(1)
+        bat_id = bat_match.group(1) if bat_match else "Desconhecido"
         
-        proto_name = identificar_nome_padrao(line, protocols)
-        prev_str = calcular_previsao_fim(start_str, proto_name, protocols)
+        protocol_name = identificar_nome_padrao(line, protocols)
+        t_prev = calcular_previsao_fim(t_start, protocol_name, protocols)
         
         for bath in db['baths']:
             for c in bath['circuits']:
                 if apenas_numeros(c['id']) == apenas_numeros(cid_num):
                     c.update({
                         'status': 'running',
-                        'startTime': start_str,
-                        'previsao': prev_str,
+                        'startTime': t_start,
+                        'previsao': t_prev,
                         'batteryId': bat_id,
-                        'protocol': proto_name,
+                        'protocol': protocol_name,
                         'progress': 0
                     })
-                    updated.append(c['id'])
+                    atualizados.append(c['id'])
     
     save_db(db)
-    return jsonify({"sucesso": True, "atualizados": updated})
+    return jsonify({"sucesso": True, "count": len(atualizados)})
 
 @app.route('/api/baths/add', methods=['POST'])
-def add_bath():
+def add_new_bath():
     d = request.json
     db = load_db()
     db['baths'].append({"id": d['bathId'], "temp": d.get('temp', 25), "circuits": []})
@@ -341,7 +314,7 @@ def delete_bath():
     return jsonify(db)
 
 @app.route('/api/circuits/add', methods=['POST'])
-def add_circuit():
+def add_new_circuit():
     d = request.json
     db = load_db()
     cid = f"C-{d['circuitId']}" if not str(d['circuitId']).startswith("C-") else d['circuitId']
@@ -353,7 +326,7 @@ def add_circuit():
     return jsonify(db)
 
 @app.route('/api/circuits/status', methods=['POST'])
-def update_status():
+def update_circuit_status():
     d = request.json
     db = load_db()
     for b in db['baths']:
@@ -372,7 +345,7 @@ def update_status():
     return jsonify(db)
 
 @app.route('/api/protocols/add', methods=['POST'])
-def add_protocol():
+def add_new_protocol():
     d = request.json
     db = load_db()
     name = str(d.get('name')).upper()
@@ -381,9 +354,27 @@ def add_protocol():
     return jsonify(db)
 
 # ==============================================================================
-# INICIALIZAÇÃO DO SERVIDOR
+# FRONTEND SERVER (PARA DEPLOY MONOLÍTICO)
+# ==============================================================================
+
+@app.route('/')
+def index():
+    if os.path.exists(os.path.join(DIST_DIR, 'index.html')):
+        return send_from_directory(DIST_DIR, 'index.html')
+    return "API Online. Frontend não localizado."
+
+@app.route('/<path:path>')
+def static_proxy(path):
+    if os.path.exists(os.path.join(DIST_DIR, path)):
+        return send_from_directory(DIST_DIR, path)
+    return send_from_directory(DIST_DIR, 'index.html')
+
+# ==============================================================================
+# STARTUP
 # ==============================================================================
 
 if __name__ == '__main__':
-
-    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
+    # Porta dinâmica para o Render
+    port = int(os.environ.get("PORT", 5000))
+    # use_reloader=False é vital para manter os dados no GLOBAL_DB do oee_service
+    app.run(debug=True, host='0.0.0.0', port=port, use_reloader=False)
