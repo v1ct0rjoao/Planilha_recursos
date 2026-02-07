@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { API_URL } from '../../utils/constants';
 import { oeeService } from '../../services/oeeService';
+// Importamos o Modal Visual
+import ConfirmModal from "../../components/ui/ConfirmModal"; 
 
 const ReportKPICard = ({ title, value, icon: Icon, color }) => {
   const colorMap = {
@@ -112,11 +114,16 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
   );
 };
 
-const HistoryView = ({ logs }) => {
+// Adicionei setToast aos props caso você queira passar do pai para exibir mensagens de sucesso
+const HistoryView = ({ logs, setToast }) => {
   const [viewMode, setViewMode] = useState('chart'); 
   const [historyList, setHistoryList] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // --- NOVOS ESTADOS PARA O MODAL DE EXCLUSÃO ---
+  const [modalDeleteOpen, setModalDeleteOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   const fetchHistory = () => {
       setIsLoading(true);
@@ -153,24 +160,55 @@ const HistoryView = ({ logs }) => {
     setViewMode('chart');
   };
 
-  const handleDelete = async (item) => {
-    if (!confirm(`Tem certeza que deseja apagar o histórico de ${item.mes}/${item.ano}? Esta ação não pode ser desfeita.`)) return;
+  // 1. Função chamada ao clicar no botão de lixeira (Abre o Modal)
+  const handleRequestDelete = (item) => {
+    setItemToDelete(item);
+    setModalDeleteOpen(true);
+  };
 
-    const { success } = await oeeService.deleteHistory(item.mes, item.ano);
+  // 2. Função chamada ao confirmar no Modal (Executa a ação)
+  const executeDelete = async () => {
+    if (!itemToDelete) return;
+    setModalDeleteOpen(false); // Fecha o modal
+
+    const { success } = await oeeService.deleteHistory(itemToDelete.mes, itemToDelete.ano);
     
     if (success) {
-        setHistoryList(prev => prev.filter(h => !(h.mes === item.mes && h.ano === item.ano)));
-        if(selectedMonth && selectedMonth.mes === item.mes && selectedMonth.ano === item.ano) {
+        // Remove da lista localmente
+        setHistoryList(prev => prev.filter(h => !(h.mes === itemToDelete.mes && h.ano === itemToDelete.ano)));
+        
+        // Se estava na tela de detalhe desse item, volta para a lista
+        if(selectedMonth && selectedMonth.mes === itemToDelete.mes && selectedMonth.ano === itemToDelete.ano) {
             handleBack(); 
         }
+        
+        // Se tiver setToast, usa. Se não, apenas atualiza a tela (o modal fechando já é feedback)
+        if (setToast) setToast({ message: "Registro excluído com sucesso.", type: 'success' });
     } else {
         alert("Erro ao excluir histórico.");
     }
+    setItemToDelete(null);
   };
+
+  // --- RENDERIZAÇÃO ---
 
   if (viewMode === 'detail' && selectedMonth) {
     return (
       <div className="bg-slate-50/50 min-h-screen animate-in slide-in-from-right duration-300 pb-20">
+        
+        {/* MODAL DE CONFIRMAÇÃO (Visualização Detalhada) */}
+        <ConfirmModal 
+          isOpen={modalDeleteOpen}
+          title="Excluir Histórico"
+          message={`Tem certeza que deseja apagar o histórico de ${itemToDelete?.mes}/${itemToDelete?.ano}? Esta ação é irreversível.`}
+          confirmText="Sim, Excluir"
+          cancelText="Cancelar"
+          type="danger"
+          onClose={() => setModalDeleteOpen(false)}
+          onCancel={() => setModalDeleteOpen(false)}
+          onConfirm={executeDelete}
+        />
+
         <div className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm">
           <div className="flex items-center gap-6">
             <button onClick={handleBack} className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
@@ -188,15 +226,15 @@ const HistoryView = ({ logs }) => {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => handleDelete(selectedMonth)} className="flex items-center gap-2 text-rose-600 hover:text-white hover:bg-rose-600 font-bold text-xs bg-white border border-rose-200 px-4 py-2 rounded-lg shadow-sm transition-all">
+            <button onClick={() => handleRequestDelete(selectedMonth)} className="flex items-center gap-2 text-rose-600 hover:text-white hover:bg-rose-600 font-bold text-xs bg-white border border-rose-200 px-4 py-2 rounded-lg shadow-sm transition-all">
                 <Trash2 size={14} /> EXCLUIR
             </button>
             <button onClick={() => window.print()} className="flex items-center gap-2 text-slate-600 hover:text-blue-600 font-bold text-xs bg-white border border-slate-200 hover:border-blue-300 px-4 py-2 rounded-lg shadow-sm hover:shadow transition-all">
               <Printer size={14} /> IMPRIMIR
             </button>
-            <button className="flex items-center gap-2 text-white font-bold text-xs bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all">
+            {/* <button className="flex items-center gap-2 text-white font-bold text-xs bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all">
               <Download size={14} /> EXPORTAR PDF
-            </button>
+            </button> */}
           </div>
         </div>
         <div className="p-8 max-w-7xl mx-auto space-y-8">
@@ -233,6 +271,20 @@ const HistoryView = ({ logs }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300 min-h-[600px]">
+      
+      {/* MODAL DE CONFIRMAÇÃO (Visualização Lista) */}
+      <ConfirmModal 
+          isOpen={modalDeleteOpen}
+          title="Excluir Histórico"
+          message={`Tem certeza que deseja apagar o histórico de ${itemToDelete?.mes}/${itemToDelete?.ano}? Esta ação é irreversível.`}
+          confirmText="Sim, Excluir"
+          cancelText="Cancelar"
+          type="danger"
+          onClose={() => setModalDeleteOpen(false)}
+          onCancel={() => setModalDeleteOpen(false)}
+          onConfirm={executeDelete}
+      />
+
       <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
         <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
           <button onClick={() => setViewMode('logs')} className={`px-4 py-2 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'logs' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
@@ -310,7 +362,7 @@ const HistoryView = ({ logs }) => {
                                 </p>
                             </div>
                             <button 
-                                onClick={(e) => { e.stopPropagation(); handleDelete(item); }} 
+                                onClick={(e) => { e.stopPropagation(); handleRequestDelete(item); }} 
                                 className="text-slate-300 hover:text-rose-500 p-2 rounded-full transition-colors"
                                 title="Excluir Histórico"
                             >
