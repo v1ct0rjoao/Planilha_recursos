@@ -156,10 +156,14 @@ def calcular_indicadores_oee(params):
         }
 
         details = []
-        soma_medias = {'UP': 0, 'SD': 0, 'PQ': 0, 'PP': 0}
+        
+        soma_global_real = 0 
+        soma_global_disp = 0 
+        
+        soma_dias_counts = {'UP': 0, 'SD': 0, 'PP': 0, 'PQ': 0} 
         circuitos_validos_count = 0
+        
         capacidade_total = int(params.get('capacidade_total', 450))
-
         lista_ids = ['iDevice'] + [str(i) for i in range(1, capacidade_total + 1)]
 
         for cid in lista_ids:
@@ -169,12 +173,15 @@ def calcular_indicadores_oee(params):
             
             raw_days = db_data.get(cid, [])
             day_data = []
+            
             c_counts = {'UP': 0, 'SD': 0, 'PQ': 0, 'PP': 0, '': 0}
             display_name = "iDevice" if cid == 'iDevice' else f"Circuit{cid.zfill(3)}"
 
             for dia_idx in range(dias_no_mes):
                 dt = datetime(ano_salvo, mes_salvo, dia_idx + 1)
                 is_weekend = dt.weekday() >= 5
+                
+                status = 'SD' 
                 
                 if cid == 'iDevice':
                     status = 'PP' if is_weekend else 'UP'
@@ -184,31 +191,44 @@ def calcular_indicadores_oee(params):
                     else:
                         status = 'PP' if is_weekend else 'SD'
 
-                    if override_action == 'SET_UP': 
-                        status = 'UP'
-                    elif override_action == 'force_std': 
-                        status = 'PP' if is_weekend else 'UP'
-                    elif override_action == 'SET_BONUS': 
-                        if status == 'SD' or status == 'PP':
-                            status = '' 
+                if override_action == 'SET_UP': 
+                    status = 'UP' 
+                elif override_action == 'force_std': 
+                    status = 'PP' if is_weekend else 'UP' 
+                elif override_action == 'SET_BONUS': 
+                    if status == 'SD' or status == 'PP':
+                        status = '' 
 
                 day_data.append(status)
+                
                 if status in c_counts: c_counts[status] += 1
                 else: c_counts[''] += 1
 
             if not is_ignored:
                 is_inactive = (c_counts['UP'] == 0 and c_counts['PQ'] == 0 and not is_bonus)
+                
                 if not is_inactive or is_bonus or cid == 'iDevice':
                     circuitos_validos_count += 1
-                    soma_medias['UP'] += c_counts['UP']
-                    soma_medias['SD'] += c_counts['SD']
-                    soma_medias['PQ'] += c_counts['PQ']
-                    soma_medias['PP'] += c_counts['PP']
+                    
+                    soma_dias_counts['UP'] += c_counts['UP']
+                    soma_dias_counts['SD'] += c_counts['SD']
+                    soma_dias_counts['PP'] += c_counts['PP']
+                    soma_dias_counts['PQ'] += c_counts['PQ']
 
-            tempo_off = c_counts['PP'] + c_counts['SD'] + c_counts['']
-            t_disp = max(0, dias_no_mes - tempo_off)
-            t_real = c_counts['UP']
-            disp_ind = (t_real / t_disp * 100) if t_disp > 0 else 0
+                    tempo_real_ckt = c_counts['UP']
+                    
+                    # CORREÇÃO DA DISPONIBILIDADE
+                    # Tempo Disponível = Total - (PP + Vazios)
+                    # SD agora conta como tempo disponível (ocioso), o que reduz a % se não for usado.
+                    tempo_disp_ckt = max(0, dias_no_mes - c_counts['PP'] - c_counts[''])
+
+                    if tempo_disp_ckt > 0:
+                        soma_global_real += tempo_real_ckt
+                        soma_global_disp += tempo_disp_ckt
+
+            # Indicador Individual
+            t_disp_ind = max(0, dias_no_mes - c_counts['PP'] - c_counts[''])
+            disp_ind = (c_counts['UP'] / t_disp_ind * 100) if t_disp_ind > 0 else 0
 
             details.append({
                 'id': display_name,
@@ -219,23 +239,21 @@ def calcular_indicadores_oee(params):
                 'is_bonus': is_bonus,
                 'is_zero_up': (c_counts['UP'] == 0),
                 'stats': {
-                    'pct_up': round(c_counts['UP']/dias_no_mes*100, 1),
-                    'disponibilidade': round(disp_ind, 1)
+                    'pct_up': round(c_counts['UP']/dias_no_mes*100, 1), 
+                    'disponibilidade': round(disp_ind, 1) 
                 }
             })
 
         if circuitos_validos_count > 0:
-            media_up = math.ceil(soma_medias['UP'] / circuitos_validos_count)
-            media_sd = math.floor(soma_medias['SD'] / circuitos_validos_count)
-            media_pp = math.floor(soma_medias['PP'] / circuitos_validos_count)
-            media_pq = math.ceil(soma_medias['PQ'] / circuitos_validos_count)
+            media_up = math.ceil(soma_dias_counts['UP'] / circuitos_validos_count)
+            media_sd = math.floor(soma_dias_counts['SD'] / circuitos_validos_count)
+            media_pp = math.floor(soma_dias_counts['PP'] / circuitos_validos_count)
+            media_pq = math.ceil(soma_dias_counts['PQ'] / circuitos_validos_count)
         else:
             media_up = media_sd = media_pp = media_pq = 0
 
-        tempo_disp_global = dias_no_mes - media_pp - media_sd
-        tempo_real_global = max(0, media_up - media_pq - media_sd)
-
-        disp_global = (tempo_real_global / tempo_disp_global) if tempo_disp_global > 0 else 0
+        disp_global = (soma_global_real / soma_global_disp) if soma_global_disp > 0 else 0
+        
         perf_global = (kpi_inputs['exec'] / kpi_inputs['solic']) if kpi_inputs['solic'] > 0 else 0
         qual_global = (kpi_inputs['prazo'] / kpi_inputs['emit']) if kpi_inputs['emit'] > 0 else 0
 
@@ -347,4 +365,101 @@ def delete_history_record(mes, ano):
         db.collection('lab_data').document('history').collection('oee_monthly').document(doc_id).delete()
         return {"sucesso": True}
     except Exception as e:
+        return {"sucesso": False, "erro": str(e)}
+
+def limpar_extras():
+    try:
+        overrides = GLOBAL_DB.get("overrides", {})
+        
+        ids_para_limpar = [cid for cid, action in overrides.items() if action == 'SET_BONUS']
+        
+        for cid in ids_para_limpar:
+            del overrides[cid]
+            
+        return {
+            "sucesso": True, 
+            "mensagem": f"Restaurado! {len(ids_para_limpar)} circuitos voltaram ao normal.",
+            "qtd_removida": len(ids_para_limpar)
+        }
+    except Exception as e:
+        traceback.print_exc()
+        return {"sucesso": False, "erro": str(e)}
+
+def aplicar_regra_extras_automatica(limite_fixo):
+    try:
+        limite_fixo = int(limite_fixo)
+        db_data = GLOBAL_DB.get("processed_data", {})
+        overrides = GLOBAL_DB.get("overrides", {})
+        
+        if not db_data:
+            return {"sucesso": False, "erro": "Nenhum dado processado."}
+
+        candidatos = []
+        
+        for cid, dias in db_data.items():
+            if cid == 'iDevice': continue
+            
+            acao_atual = overrides.get(cid)
+            if acao_atual == 'SET_IGNORE': continue
+
+            count_up = dias.count('UP')
+            count_pq = dias.count('PQ')
+            count_sd = dias.count('SD')
+            count_pp = dias.count('PP')
+            
+            if acao_atual == 'SET_UP': count_up = 30 
+
+            if count_up > 0 or count_pq > 0:
+                score_ociosidade = count_sd + count_pp
+                candidatos.append({
+                    'id': cid,
+                    'score': score_ociosidade,
+                    'sd': count_sd, 
+                    'pp': count_pp  
+                })
+
+        total_usados = len(candidatos)
+        excedente = total_usados - limite_fixo
+
+        if excedente <= 0:
+            return {
+                "sucesso": True, 
+                "mensagem": f"Apenas {total_usados} circuitos em uso. Não ultrapassou o limite de {limite_fixo}.",
+                "relatorio": None
+            }
+
+        candidatos.sort(key=lambda x: x['score'], reverse=True)
+
+        novos_extras = candidatos[:excedente]
+        
+        count_aplicados = 0
+        total_sd_removido = 0
+        total_pp_removido = 0
+        lista_ids = []
+
+        for item in novos_extras:
+            cid = item['id']
+            
+            total_sd_removido += item['sd']
+            total_pp_removido += item['pp']
+            lista_ids.append(cid)
+
+            GLOBAL_DB["overrides"][cid] = 'SET_BONUS'
+            count_aplicados += 1
+        
+        lista_ids.sort(key=lambda x: int(x) if x.isdigit() else 9999)
+
+        return {
+            "sucesso": True, 
+            "mensagem": f"Regra aplicada em {count_aplicados} circuitos!",
+            "relatorio": {
+                "qtd": count_aplicados,
+                "total_sd": total_sd_removido,
+                "total_pp": total_pp_removido,
+                "ids": lista_ids
+            }
+        }
+
+    except Exception as e:
+        traceback.print_exc()
         return {"sucesso": False, "erro": str(e)}

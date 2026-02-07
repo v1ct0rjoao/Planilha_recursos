@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import {
   FileSpreadsheet, UploadCloud, Settings, ArrowLeft, Activity, 
-  Filter, ArrowRight, Save, Clock, Zap, CheckCircle2, CheckSquare, 
-  Square, Copy 
+  Filter, ArrowRight, Save, Clock, Zap, CheckCircle2, 
+  Copy, Star, X, Info, Eraser, AlertTriangle
 } from 'lucide-react';
 
 import KPICard from '../../components/ui/KPICard';
@@ -10,6 +10,8 @@ import StatusLegend from '../../components/ui/StatusLegend';
 import ValidationCard from './components/ValidationCard';
 import GridRow from './components/GridRow'; 
 import { oeeService } from '../../services/oeeService';
+import ConfirmModal from "../../components/ui/ConfirmModal"; 
+import InputModal from "../../components/modals/InputModal";
 
 const OEEDashboardView = ({ setToast }) => {
   const [step, setStep] = useState('config');
@@ -17,6 +19,13 @@ const OEEDashboardView = ({ setToast }) => {
   const [circuitosList, setCircuitosList] = useState([]); 
   const [isSelectionMode, setIsSelectionMode] = useState(false); 
   const [selectedIds, setSelectedIds] = useState([]);
+  
+  // --- ESTADOS DOS MODAIS ---
+  const [modalInputExtras, setModalInputExtras] = useState(false); 
+  const [modalConfirmSave, setModalConfirmSave] = useState(false); 
+  const [modalConfirmRestore, setModalConfirmRestore] = useState(false); // Novo Estado
+  
+  const [optReport, setOptReport] = useState(null);
 
   const [config, setConfig] = useState({
     ano: new Date().getFullYear(), 
@@ -109,26 +118,68 @@ const OEEDashboardView = ({ setToast }) => {
     setSelectedIds(prev => prev.includes(idStr) ? prev.filter(x => x !== idStr) : [...prev, idStr]);
   };
 
-  const handleSaveHistory = async () => {
-    if (!confirm("Deseja salvar o fechamento mensal?")) return;
+  const executeSaveHistory = async () => {
+    setModalConfirmSave(false); 
     const { success } = await oeeService.saveHistory(results.kpi, config.mes, config.ano);
     if (success) setToast({ message: "Fechamento salvo no Histórico!", type: 'success' });
   };
 
-  // --- NOVA FUNÇÃO DE COPIAR (LIMPA E COMPLETA) ---
+  const executeAutoExtras = async (inputValue) => {
+    setModalInputExtras(false); 
+
+    const limite = parseInt(inputValue);
+    if (isNaN(limite) || limite < 0) {
+      setToast({ message: "Valor inválido.", type: 'error' });
+      return;
+    }
+
+    setIsLoading(true);
+    const { success, data } = await oeeService.autoDefineExtras(limite);
+    
+    if (success && data.sucesso) {
+      if (data.relatorio) {
+        setOptReport(data.relatorio);
+        setToast({ message: "Otimização aplicada! Veja o relatório.", type: 'success' });
+      } else {
+        setToast({ message: data.mensagem, type: 'info' });
+      }
+      await calculate(); 
+    } else {
+      setToast({ message: data?.erro || "Erro ao definir extras.", type: 'error' });
+    }
+    setIsLoading(false);
+  };
+
+  // --- NOVA LÓGICA: Abre confirmação visual ---
+  const openRestoreConfirmation = () => {
+    setModalInputExtras(false);
+    setModalConfirmRestore(true);
+  };
+
+  // --- NOVA LÓGICA: Executa a restauração ---
+  const handleConfirmRestore = async () => {
+    setModalConfirmRestore(false);
+    setIsLoading(true);
+    
+    const { success, data } = await oeeService.clearExtras();
+    
+    if (success && data.sucesso) {
+      setOptReport(null);
+      setToast({ message: data.mensagem, type: 'success' });
+      await calculate();
+    } else {
+      setToast({ message: "Erro ao restaurar.", type: 'error' });
+    }
+    setIsLoading(false);
+  };
+
   const handleCopyTable = () => {
     if (!results.details || results.details.length === 0) return;
-
     let textToCopy = "";
-
     results.details.forEach(row => {
-      // Gera apenas os dados: "UP \t UP \t SD..."
-      // Como o Backend agora garante que o 'iDevice' é o primeiro da lista,
-      // ele será a primeira linha copiada aqui também.
       const dayString = row.day_data ? row.day_data.join('\t') : '';
       textToCopy += `${dayString}\n`;
     });
-
     navigator.clipboard.writeText(textToCopy).then(() => {
       setToast({ message: "Dados copiados! (iDevice + Circuitos)", type: 'success' });
     }).catch(() => {
@@ -236,16 +287,60 @@ const OEEDashboardView = ({ setToast }) => {
   if (step === 'dashboard') {
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative pb-20">
+        
+        {/* --- MODAL DE INPUT (300) --- */}
+        <InputModal 
+          isOpen={modalInputExtras}
+          title="Definir Limite de Extras"
+          message="Qual o limite de circuitos FIXOS da equipe? (Ex: 300)"
+          defaultValue="300"
+          type="number"
+          onClose={() => setModalInputExtras(false)}
+          onConfirm={executeAutoExtras}
+          extraLabel="Restaurar Originais"
+          onExtraAction={openRestoreConfirmation}
+        />
+
+        {/* --- MODAL DE RESTAURAR (NOVO) --- */}
+        <ConfirmModal 
+          isOpen={modalConfirmRestore}
+          title="Restaurar Originais?"
+          message="Isso vai remover TODOS os circuitos marcados como 'Extra' e restaurar o status original deles (SD/PP). Deseja continuar?"
+          confirmText="Sim, Restaurar"
+          cancelText="Cancelar"
+          type="danger" 
+          onClose={() => setModalConfirmRestore(false)}
+          onCancel={() => setModalConfirmRestore(false)}
+          onConfirm={handleConfirmRestore}
+        />
+
+        {/* --- MODAL DE SALVAR --- */}
+        <ConfirmModal 
+          isOpen={modalConfirmSave}
+          title="Salvar Fechamento"
+          message={`Deseja salvar os dados de ${config.mes}/${config.ano} no histórico? Isso sobrescreverá dados anteriores deste mês.`}
+          confirmText="Sim, Salvar"
+          cancelText="Cancelar"
+          type="success"
+          onClose={() => setModalConfirmSave(false)}
+          onCancel={() => setModalConfirmSave(false)}
+          onConfirm={executeSaveHistory}
+        />
+
         <div className="flex items-center justify-between mb-8">
           <div><h2 className="text-2xl font-bold text-slate-800">Painel OEE</h2><p className="text-slate-500 text-sm">{config.mes}/{config.ano}</p></div>
           <div className="flex gap-2">
             
-            {/* BOTÃO COPIAR TABELA - Agora Limpo (Sem ID, Sem Header) */}
+            <button onClick={() => setModalInputExtras(true)} className="bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-200 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors" title="Define automaticamente os extras baseados na ociosidade">
+               <Star size={16} /> Auto Extras
+            </button>
+
             <button onClick={handleCopyTable} className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
                <Copy size={16} className="text-blue-500" /> Copiar Dados
             </button>
 
-            <button onClick={handleSaveHistory} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm"><Save size={16} /> Salvar Fechamento</button>
+            <button onClick={() => setModalConfirmSave(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm"><Save size={16} /> Salvar Fechamento</button>
+            
             <button onClick={() => setStep('config')} className="bg-white border border-slate-300 text-slate-600 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><Settings size={14}/> Novo Cálculo</button>
           </div>
         </div>
@@ -257,7 +352,60 @@ const OEEDashboardView = ({ setToast }) => {
           <KPICard title="Qualidade" value={results.kpi.quality} icon={CheckCircle2} color="green" />
         </div>
         
-        <ValidationCard medias={results.medias} />
+        <div className="flex flex-col lg:flex-row gap-6 mb-8">
+          <div className="flex-1">
+            <ValidationCard medias={results.medias} />
+          </div>
+
+          {optReport && (
+            <div className="w-full lg:w-96 bg-white rounded-xl shadow-sm border border-amber-200 overflow-hidden flex flex-col animate-in slide-in-from-right-4">
+              <div className="bg-amber-50 px-4 py-3 border-b border-amber-100 flex justify-between items-center">
+                <h4 className="text-amber-900 font-bold text-sm flex items-center gap-2">
+                  <Star size={16} className="fill-amber-500 text-amber-600"/> 
+                  Relatório de Otimização
+                </h4>
+                <button onClick={() => setOptReport(null)} className="text-amber-400 hover:text-amber-700 p-1 rounded hover:bg-amber-100 transition-colors"><X size={16}/></button>
+              </div>
+              
+              <div className="p-4 flex-1 flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-amber-100 p-2 rounded-lg text-amber-700 font-bold text-xl min-w-[3rem] text-center shadow-inner">
+                    {optReport.qtd}
+                  </div>
+                  <p className="text-xs text-slate-600 leading-tight">
+                    Circuitos definidos como <strong className="text-amber-700">EXTRAS</strong> baseado em maior ociosidade.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-50 p-2 rounded border border-slate-100 text-center">
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide">SD Removido</span>
+                    <span className="text-sm font-black text-slate-700 flex items-center justify-center gap-1 mt-1">
+                      <Eraser size={12} className="text-slate-400"/> {optReport.total_sd}
+                    </span>
+                  </div>
+                  <div className="bg-slate-50 p-2 rounded border border-slate-100 text-center">
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide">PP Removido</span>
+                    <span className="text-sm font-black text-slate-700 flex items-center justify-center gap-1 mt-1">
+                      <AlertTriangle size={12} className="text-slate-400"/> {optReport.total_pp}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50/50 rounded-lg p-3 border border-amber-100 flex-1 flex flex-col overflow-hidden">
+                  <span className="text-[10px] font-bold text-amber-800/70 mb-2 flex items-center gap-1">
+                    <Info size={12}/> IDs Afetados:
+                  </span>
+                  <div className="overflow-y-auto max-h-32 custom-scrollbar pr-1">
+                    <p className="text-[10px] text-slate-600 font-mono break-words leading-relaxed">
+                      {optReport.ids.join(', ')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
         
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
           <div className="p-4 bg-slate-50 border-b border-slate-200"><StatusLegend /></div>

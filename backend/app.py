@@ -14,8 +14,8 @@ import traceback
 # ==============================================================================
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
-DIST_DIR = os.path.join(base_dir, 'dist')
-OEE_UPLOAD_FOLDER = os.path.join(base_dir, 'oee_uploads')
+DIST_DIR = os.path.join(base_dir, 'dist') 
+OEE_UPLOAD_FOLDER = os.path.join(base_dir, 'oee_uploads') 
 
 if not os.path.exists(DIST_DIR):
     DIST_DIR = os.path.join(os.path.dirname(base_dir), 'dist')
@@ -25,11 +25,10 @@ if not os.path.exists(OEE_UPLOAD_FOLDER):
 
 app = Flask(__name__, static_folder=DIST_DIR, static_url_path='')
 
-# CORS Reforçado: Permite a comunicação do Frontend com o Backend
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 # ==============================================================================
-# 2. INICIALIZAÇÃO DO FIREBASE (FIRESTORE)
+# 2. INICIALIZAÇÃO DO FIREBASE (BANCO DE DADOS)
 # ==============================================================================
 
 db_firestore = None
@@ -62,7 +61,7 @@ except Exception as e:
     print(f"[ERROR] Falha na ligação ao Firebase: {e}")
 
 # ==============================================================================
-# 3. IMPORTAÇÃO DO MÓDULO OEE (OPCIONAL)
+# 3. IMPORTAÇÃO DO MÓDULO OEE (CÁLCULOS)
 # ==============================================================================
 
 oee_service = None
@@ -80,11 +79,10 @@ def handle_exception(e):
     return jsonify({"sucesso": False, "erro": str(e)}), 500
 
 # ==============================================================================
-# 4. FUNÇÕES DE SUPORTE
+# 4. FUNÇÕES DE SUPORTE (AJUDANTES)
 # ==============================================================================
 
 def save_db(data):
-    """Persiste o estado atual no Firestore e atualiza o cache local."""
     global DATA_CACHE
     DATA_CACHE = data
     if not db_firestore: return True
@@ -96,7 +94,6 @@ def save_db(data):
         return False
 
 def load_db():
-    """Carrega o estado. Garante que chaves obrigatórias não sejam nulas."""
     global DATA_CACHE
     if DATA_CACHE is not None: return DATA_CACHE
     
@@ -165,7 +162,7 @@ def atualizar_progresso_realtime(db):
     if mudou: save_db(db)
 
 # ==============================================================================
-# 5. ROTAS DA API
+# 5. ROTAS DA API (O QUE O REACT CHAMA)
 # ==============================================================================
 
 @app.route('/api', methods=['GET'])
@@ -178,8 +175,7 @@ def get_main_data():
     atualizar_progresso_realtime(db)
     return jsonify(db)
 
-# --- IMPORTAÇÃO ---
-
+# --- IMPORTAÇÃO DIGATRON ---
 @app.route('/api/import', methods=['POST', 'OPTIONS'])
 def import_digatron_data():
     if request.method == 'OPTIONS': return '', 200
@@ -345,7 +341,7 @@ def circuit_move():
         circuit_obj = None
         ckt_clean = apenas_numeros(circuit_id)
 
-        # 1. Remover da origem
+        # 1. Tira da origem
         for b in db['baths']:
             if str(b['id']) == src_bath_id:
                 for idx, c in enumerate(b['circuits']):
@@ -354,7 +350,7 @@ def circuit_move():
                         break
             if circuit_obj: break
         
-        # 2. Adicionar no destino
+        # 2. Põe no destino
         if circuit_obj:
             target_found = False
             for b in db['baths']:
@@ -362,7 +358,6 @@ def circuit_move():
                     b['circuits'].append(circuit_obj)
                     target_found = True
                     break
-            # Segurança: se destino não existe, devolve para origem
             if not target_found:
                 for b in db['baths']:
                     if str(b['id']) == src_bath_id:
@@ -375,11 +370,9 @@ def circuit_move():
     
 @app.route('/api/circuits/link', methods=['POST'])
 def circuit_link():
-    # Placeholder para evitar erro 404 se o botão for clicado
-    # Implemente a lógica real se necessário
     return jsonify({"sucesso": True, "mensagem": "Link simulado com sucesso"})
 
-# --- PROTOCOLOS ---
+# --- PROTOCOLOS (CONFIG) ---
 
 @app.route('/api/protocols/add', methods=['POST'])
 def protocol_add():
@@ -402,7 +395,8 @@ def protocol_delete():
     except Exception as e:
         return jsonify({"sucesso": False, "erro": str(e)}), 500
 
-# --- MÓDULO OEE ---
+# --- MÓDULO OEE (CÁLCULOS AVANÇADOS) ---
+
 @app.route('/api/oee/upload', methods=['POST'])
 def oee_upload():
     if not oee_service: return jsonify({"sucesso": False, "erro": "Serviço OEE Offline"}), 503
@@ -443,6 +437,18 @@ def oee_history_delete():
     d = request.json
     return jsonify(oee_service.delete_history_record(d.get('mes'), d.get('ano')))
 
+@app.route('/api/oee/auto_extras', methods=['POST'])
+def oee_auto_extras():
+    if not oee_service: return jsonify({"sucesso": False, "erro": "Serviço OEE Offline"})
+    d = request.json
+    limite = d.get('limite', 300) 
+    return jsonify(oee_service.aplicar_regra_extras_automatica(limite))
+
+@app.route('/api/oee/clear_extras', methods=['POST'])
+def oee_clear_extras():
+    if not oee_service: return jsonify({"sucesso": False, "erro": "Serviço OEE Offline"})
+    return jsonify(oee_service.limpar_extras())
+
 # ==============================================================================
 # 6. INICIALIZAÇÃO DO SERVIDOR
 # ==============================================================================
@@ -461,5 +467,4 @@ def serve_assets(path):
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    # use_reloader=False para evitar problemas com threads do Firebase em alguns ambientes
     app.run(debug=True, host='0.0.0.0', port=port, use_reloader=False)
