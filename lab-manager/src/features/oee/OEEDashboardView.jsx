@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import {
   FileSpreadsheet, UploadCloud, Settings, ArrowLeft, Activity, 
   Filter, ArrowRight, Save, Clock, Zap, CheckCircle2, 
-  Copy, Star, X, Info, Eraser, AlertTriangle
+  Copy, Star, X, Info, Eraser, AlertTriangle, ToggleLeft, ToggleRight
 } from 'lucide-react';
 
 import KPICard from '../../components/ui/KPICard';
@@ -20,10 +20,11 @@ const OEEDashboardView = ({ setToast }) => {
   const [isSelectionMode, setIsSelectionMode] = useState(false); 
   const [selectedIds, setSelectedIds] = useState([]);
   
-  // --- ESTADOS DOS MODAIS ---
+  const [useExtrasRule, setUseExtrasRule] = useState(false); 
+
   const [modalInputExtras, setModalInputExtras] = useState(false); 
   const [modalConfirmSave, setModalConfirmSave] = useState(false); 
-  const [modalConfirmRestore, setModalConfirmRestore] = useState(false); // Novo Estado
+  const [modalConfirmRestore, setModalConfirmRestore] = useState(false);
   
   const [optReport, setOptReport] = useState(null);
 
@@ -49,9 +50,12 @@ const OEEDashboardView = ({ setToast }) => {
     setStep('upload');
   };
 
-  const calculate = useCallback(async (currentConfig = config) => {
+  const calculate = useCallback(async (currentConfig = config, ruleState = useExtrasRule) => {
     setIsLoading(true);
-    const payload = { ...currentConfig };
+    const payload = { 
+        ...currentConfig,
+        usar_regra_extras: ruleState 
+    };
     
     const { success, data } = await oeeService.calculate(payload);
     
@@ -68,7 +72,14 @@ const OEEDashboardView = ({ setToast }) => {
       setToast({ message: "Erro ao calcular dados.", type: 'error' });
     }
     setIsLoading(false);
-  }, [config, step, setToast]);
+  }, [config, step, setToast, useExtrasRule]);
+
+  const toggleExtrasRule = () => {
+      const newState = !useExtrasRule;
+      setUseExtrasRule(newState);
+      calculate(config, newState);
+      setToast({ message: newState ? "Regra 300 Aplicada!" : "Visualização Padrão (Todos)", type: 'info' });
+  };
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -80,7 +91,7 @@ const OEEDashboardView = ({ setToast }) => {
     if (success && data.sucesso) {
       setCircuitosList(data.circuitos || []);
       setToast({ message: 'Mapa gerado com sucesso!', type: 'success' });
-      await calculate(config);
+      await calculate(config, useExtrasRule);
       setStep('dashboard');
     } else {
       setToast({ message: data?.erro || "Erro ao processar arquivo.", type: 'error' });
@@ -143,20 +154,19 @@ const OEEDashboardView = ({ setToast }) => {
       } else {
         setToast({ message: data.mensagem, type: 'info' });
       }
-      await calculate(); 
+      setUseExtrasRule(true);
+      await calculate(config, true); 
     } else {
       setToast({ message: data?.erro || "Erro ao definir extras.", type: 'error' });
     }
     setIsLoading(false);
   };
 
-  // --- NOVA LÓGICA: Abre confirmação visual ---
   const openRestoreConfirmation = () => {
     setModalInputExtras(false);
     setModalConfirmRestore(true);
   };
 
-  // --- NOVA LÓGICA: Executa a restauração ---
   const handleConfirmRestore = async () => {
     setModalConfirmRestore(false);
     setIsLoading(true);
@@ -186,8 +196,6 @@ const OEEDashboardView = ({ setToast }) => {
         setToast({ message: "Erro ao copiar.", type: 'error' });
     });
   };
-
-  // --- RENDERIZAÇÃO ---
 
   if (step === 'config') {
     return (
@@ -288,7 +296,6 @@ const OEEDashboardView = ({ setToast }) => {
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative pb-20">
         
-        {/* --- MODAL DE INPUT (300) --- */}
         <InputModal 
           isOpen={modalInputExtras}
           title="Definir Limite de Extras"
@@ -301,7 +308,6 @@ const OEEDashboardView = ({ setToast }) => {
           onExtraAction={openRestoreConfirmation}
         />
 
-        {/* --- MODAL DE RESTAURAR (NOVO) --- */}
         <ConfirmModal 
           isOpen={modalConfirmRestore}
           title="Restaurar Originais?"
@@ -314,7 +320,6 @@ const OEEDashboardView = ({ setToast }) => {
           onConfirm={handleConfirmRestore}
         />
 
-        {/* --- MODAL DE SALVAR --- */}
         <ConfirmModal 
           isOpen={modalConfirmSave}
           title="Salvar Fechamento"
@@ -327,21 +332,30 @@ const OEEDashboardView = ({ setToast }) => {
           onConfirm={executeSaveHistory}
         />
 
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
           <div><h2 className="text-2xl font-bold text-slate-800">Painel OEE</h2><p className="text-slate-500 text-sm">{config.mes}/{config.ano}</p></div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-end">
             
-            <button onClick={() => setModalInputExtras(true)} className="bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-200 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors" title="Define automaticamente os extras baseados na ociosidade">
-               <Star size={16} /> Auto Extras
-            </button>
+            {/* <button 
+                onClick={toggleExtrasRule}
+                title="Ativar para limpar o SD dos circuitos excedentes (>300)"
+                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 border transition-all ${
+                    useExtrasRule 
+                    ? 'bg-amber-100 border-amber-300 text-amber-800 shadow-sm ring-1 ring-amber-200' 
+                    : 'bg-slate-50 border-slate-300 text-slate-500 hover:bg-slate-100'
+                }`}
+            >
+                {useExtrasRule ? <ToggleRight size={24} className="text-amber-600"/> : <ToggleLeft size={24} />}
+                {useExtrasRule ? "Regra 300 Ativada" : "Auto Extras"}
+            </button> */}
 
             <button onClick={handleCopyTable} className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
-               <Copy size={16} className="text-blue-500" /> Copiar Dados
+               <Copy size={16} className="text-blue-500" /> Copiar
             </button>
 
-            <button onClick={() => setModalConfirmSave(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm"><Save size={16} /> Salvar Fechamento</button>
+            <button onClick={() => setModalConfirmSave(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm"><Save size={16} /> Salvar</button>
             
-            <button onClick={() => setStep('config')} className="bg-white border border-slate-300 text-slate-600 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><Settings size={14}/> Novo Cálculo</button>
+            <button onClick={() => setStep('config')} className="bg-white border border-slate-300 text-slate-600 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><Settings size={14}/> Novo</button>
           </div>
         </div>
         

@@ -1,7 +1,5 @@
-//Componente de lógica de negócio pura para integridade de dados
-
 import React from 'react';
-import { Calculator } from 'lucide-react';
+import { Calculator, ClipboardList, Clock } from 'lucide-react';
 
 const ValidationCard = ({ medias }) => {
   if (!medias) return null;
@@ -10,46 +8,81 @@ const ValidationCard = ({ medias }) => {
   
   return (
     <div className="bg-white p-5 rounded-xl shadow-sm mb-6 border border-slate-200 animate-in fade-in slide-in-from-bottom-2">
-      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 flex items-center gap-2">
-        <Calculator size={16} className="text-blue-600" /> Conferência de Cálculo (Médias Globais)
-      </h3>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-        <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg flex flex-col justify-between">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Circuitos Ativos</span>
-          <span className="font-mono font-bold text-xl text-slate-700">{medias.circuitos_considerados}</span>
-        </div>
-        <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-lg">
-          <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block mb-1">Média UP (Dias)</span>
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono font-bold text-xl text-emerald-700">{medias.up_dias}</span>
-            <span className="text-xs font-bold text-emerald-500">({getPct(medias.up_dias)}%)</span>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Lado Esquerdo: Médias */}
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 flex items-center gap-2">
+            <Calculator size={16} className="text-blue-600" /> Médias Globais (Dias)
+          </h3>
+          <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+             <div className="bg-emerald-50 border border-emerald-100 p-2 rounded-lg">
+              <span className="text-[10px] font-bold text-emerald-600 uppercase">Média UP</span>
+              <div className="font-mono font-bold text-lg text-emerald-700">{medias.up_dias} <span className="text-xs text-emerald-500">({getPct(medias.up_dias)}%)</span></div>
+            </div>
+            <div className="bg-rose-50 border border-rose-100 p-2 rounded-lg">
+              <span className="text-[10px] font-bold text-rose-600 uppercase">Média PQ</span>
+              <div className="font-mono font-bold text-lg text-rose-700">{medias.pq_dias} <span className="text-xs text-rose-500">({getPct(medias.pq_dias)}%)</span></div>
+            </div>
+            <div className="bg-purple-50 border border-purple-100 p-2 rounded-lg">
+              <span className="text-[10px] font-bold text-purple-600 uppercase">Média PP</span>
+              <div className="font-mono font-bold text-lg text-purple-700">{medias.pp_dias} <span className="text-xs text-purple-500">({getPct(medias.pp_dias)}%)</span></div>
+            </div>
+            <div className="bg-amber-50 border border-amber-100 p-2 rounded-lg">
+              <span className="text-[10px] font-bold text-amber-600 uppercase">Média SD</span>
+              <div className="font-mono font-bold text-lg text-amber-700">{medias.sd_dias} <span className="text-xs text-amber-500">({getPct(medias.sd_dias)}%)</span></div>
+            </div>
+          </div>
+          <div className="text-[10px] text-slate-400 font-medium flex justify-between">
+            <span>Circuitos Ativos: <strong>{medias.circuitos_considerados}</strong></span>
+            <span>Dias no Mês: <strong>{medias.total_dias}</strong></span>
           </div>
         </div>
-        <div className="bg-rose-50 border border-rose-100 p-3 rounded-lg">
-          <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block mb-1">Média PQ (Dias)</span>
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono font-bold text-xl text-rose-700">{medias.pq_dias}</span>
-            <span className="text-xs font-bold text-rose-500">({getPct(medias.pq_dias)}%)</span>
+
+        {/* Lado Direito: Dados Supervisor */}
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 flex items-center gap-2">
+            <ClipboardList size={16} className="text-slate-600" /> Dados de Entrada & Tempos
+          </h3>
+          
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-3">
+            {/* Tempos */}
+            <div className="grid grid-cols-2 gap-4 border-b border-slate-200 pb-3">
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1"><Clock size={10}/> Tempo Disponível</span>
+                <span className="text-base font-mono font-bold text-slate-700">{medias.tempo_disp_calc}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1"><Clock size={10}/> Tempo Real Utilizado</span>
+                <span className="text-base font-mono font-bold text-blue-600">{medias.tempo_real_calc}</span>
+              </div>
+            </div>
+
+            {/* Ensaios */}
+            <div className="grid grid-cols-2 gap-4 border-b border-slate-200 pb-3">
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-bold">Ensaios Solicitados</span>
+                <span className="text-sm font-mono font-bold text-slate-700 block">{medias.ensaios_solic}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-bold">Ensaios Executados</span>
+                <span className="text-sm font-mono font-bold text-slate-700 block">{medias.ensaios_exec}</span>
+              </div>
+            </div>
+
+            {/* Relatórios */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-bold">Relatórios Emitidos</span>
+                <span className="text-sm font-mono font-bold text-slate-700 block">{medias.relatorios_emit}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-bold">Relatórios no Prazo</span>
+                <span className="text-sm font-mono font-bold text-slate-700 block">{medias.relatorios_prazo}</span>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="bg-purple-50 border border-purple-100 p-3 rounded-lg">
-          <span className="text-[10px] font-bold text-purple-600 uppercase tracking-wider block mb-1">Média PP (Dias)</span>
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono font-bold text-xl text-purple-700">{medias.pp_dias}</span>
-            <span className="text-xs font-bold text-purple-500">({getPct(medias.pp_dias)}%)</span>
-          </div>
-        </div>
-        <div className="bg-amber-50 border border-amber-100 p-3 rounded-lg">
-          <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block mb-1">Média SD (Dias)</span>
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono font-bold text-xl text-amber-700">{medias.sd_dias}</span>
-            <span className="text-xs font-bold text-amber-500">({getPct(medias.sd_dias)}%)</span>
-          </div>
-        </div>
-      </div>
-      <div className="mt-4 pt-3 border-t border-slate-100 text-[10px] text-slate-400 font-medium flex justify-between items-center">
-        <span>* Fórmula da Média: (Soma dos Dias de todos os circuitos) ÷ {medias.circuitos_considerados}</span>
-        <span>Total Dias Mês: {medias.total_dias}</span>
       </div>
     </div>
   );

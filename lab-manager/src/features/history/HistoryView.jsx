@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
-  BarChart, XAxis, YAxis, CartesianGrid, 
+  BarChart, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, Legend, LineChart, Line
 } from 'recharts';
 import { 
   List, BarChart2, Calendar, ArrowLeft, FileText, 
-  CheckCircle2, Clock, Zap, Activity, Printer, Download,
-  TrendingUp, Timer, MousePointerClick, Info, Trash2
+  CheckCircle2, Clock, Zap, Activity, Printer,
+  TrendingUp, Timer, Info, Trash2, ClipboardList
 } from 'lucide-react';
 import { API_URL } from '../../utils/constants';
 import { oeeService } from '../../services/oeeService';
-// Importamos o Modal Visual
 import ConfirmModal from "../../components/ui/ConfirmModal"; 
 
 const ReportKPICard = ({ title, value, icon: Icon, color }) => {
@@ -39,6 +38,74 @@ const ReportKPICard = ({ title, value, icon: Icon, color }) => {
   );
 };
 
+const DetailedStats = ({ data }) => {
+    if (!data) return null;
+
+    return (
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mb-8">
+            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
+                <ClipboardList size={18} className="text-blue-600"/> Detalhamento Técnico & Médias
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h4 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2">
+                        <Clock size={12}/> Médias de Dias (Por Circuito)
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-lg flex flex-col">
+                            <span className="text-[10px] font-bold text-emerald-600 uppercase">Média UP</span>
+                            <span className="text-xl font-mono font-bold text-emerald-700">{data.up_dias || '-'}</span>
+                        </div>
+                        <div className="bg-rose-50 border border-rose-100 p-3 rounded-lg flex flex-col">
+                            <span className="text-[10px] font-bold text-rose-600 uppercase">Média PQ</span>
+                            <span className="text-xl font-mono font-bold text-rose-700">{data.pq_dias || '-'}</span>
+                        </div>
+                        <div className="bg-purple-50 border border-purple-100 p-3 rounded-lg flex flex-col">
+                            <span className="text-[10px] font-bold text-purple-600 uppercase">Média PP</span>
+                            <span className="text-xl font-mono font-bold text-purple-700">{data.pp_dias || '-'}</span>
+                        </div>
+                        <div className="bg-amber-50 border border-amber-100 p-3 rounded-lg flex flex-col">
+                            <span className="text-[10px] font-bold text-amber-600 uppercase">Média SD</span>
+                            <span className="text-xl font-mono font-bold text-amber-700">{data.sd_dias || '-'}</span>
+                        </div>
+                    </div>
+                    <div className="mt-3 flex justify-between text-[10px] text-slate-400 font-mono bg-slate-50 p-2 rounded border border-slate-100">
+                        <span>Tempo Disp. Médio: <strong>{data.tempo_disp_calc || '-'}</strong></span>
+                        <span>Tempo Real Médio: <strong>{data.tempo_real_calc || '-'}</strong></span>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2">
+                        <FileText size={12}/> Dados de Produção (Entradas)
+                    </h4>
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                            <span className="text-xs font-bold text-slate-600">Ensaios Solicitados</span>
+                            <span className="font-mono font-bold text-slate-800">{data.ensaios_solic || 0}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                            <span className="text-xs font-bold text-slate-600">Ensaios Executados</span>
+                            <span className="font-mono font-bold text-blue-600">{data.ensaios_exec || 0}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 mt-2">
+                            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                <span className="text-[10px] text-slate-500 block">Relatórios Emitidos</span>
+                                <span className="font-mono font-bold text-slate-800">{data.relatorios_emit || 0}</span>
+                            </div>
+                            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                <span className="text-[10px] text-slate-500 block">Relatórios no Prazo</span>
+                                <span className="font-mono font-bold text-emerald-600">{data.relatorios_prazo || 0}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
   const getColor = (status) => {
     switch (status) {
@@ -53,23 +120,23 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center gap-6">
-         <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider">
-            <Info size={14} /> Legenda Visual:
-         </div>
-         <div className="flex items-center gap-4">
-             <div className="flex items-center gap-1.5"><span className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm border border-emerald-600">UP</span><span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Uso Prog.</span></div>
-             <div className="flex items-center gap-1.5"><span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm border border-rose-600">PQ</span><span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Quebra</span></div>
-             <div className="flex items-center gap-1.5"><span className="bg-purple-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm border border-purple-700">PP</span><span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Planejada</span></div>
-             <div className="flex items-center gap-1.5"><span className="bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm border border-amber-500">SD</span><span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Sem Demanda</span></div>
-         </div>
+      <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center gap-6 sticky left-0">
+          <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider">
+             <Info size={14} /> Legenda Visual:
+          </div>
+          <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5"><span className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm border border-emerald-600">UP</span><span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Uso Prog.</span></div>
+              <div className="flex items-center gap-1.5"><span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm border border-rose-600">PQ</span><span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Quebra</span></div>
+              <div className="flex items-center gap-1.5"><span className="bg-purple-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm border border-purple-700">PP</span><span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Planejada</span></div>
+              <div className="flex items-center gap-1.5"><span className="bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm border border-amber-500">SD</span><span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Sem Demanda</span></div>
+          </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto max-h-[600px] custom-scrollbar">
         <table className="w-full text-sm text-left border-collapse">
-          <thead className="bg-slate-100 text-slate-600 font-semibold text-xs uppercase sticky top-0 z-10">
+          <thead className="bg-slate-100 text-slate-600 font-semibold text-xs uppercase sticky top-0 z-20 shadow-sm">
             <tr>
-              <th className="px-3 py-3 border-r border-slate-200 w-32 sticky left-0 bg-slate-100 z-20 shadow-sm">Circuito</th>
+              <th className="px-3 py-3 border-r border-slate-200 w-32 sticky left-0 bg-slate-100 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Circuito</th>
               <th className="px-1 py-3">
                 <div className="flex gap-[2px]"> 
                   {Array.from({ length: daysInMonth }, (_, i) => (
@@ -82,11 +149,11 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
           <tbody className="divide-y divide-slate-100 bg-white">
             {gridData.map((row, idx) => (
               <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
-                <td className="px-3 py-2 font-mono font-bold text-slate-700 border-r border-slate-200 sticky left-0 bg-white z-10">
+                <td className="px-3 py-1 font-mono font-bold text-slate-700 border-r border-slate-200 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] text-xs">
                   {row.id === 'iDevice' ? (
-                     <span className="text-blue-600 underline decoration-dotted decoration-blue-300">iDevice</span>
+                      <span className="text-blue-600 underline decoration-dotted decoration-blue-300">iDevice</span>
                   ) : (
-                     <span className="text-slate-600">Circuit{row.id.padStart(3, '0')}</span>
+                      <span className="text-slate-600">Circuit{row.id.padStart(3, '0')}</span>
                   )}
                 </td>
                 <td className="p-1">
@@ -94,14 +161,14 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
                     {row.days && row.days.map((status, i) => (
                       <div 
                         key={i}
-                        className={`w-5 h-6 flex items-center justify-center text-[8px] font-bold text-white rounded-[2px] shrink-0 ${getColor(status)}`}
+                        className={`w-5 h-5 flex items-center justify-center text-[7px] font-bold text-white rounded-[2px] shrink-0 transition-transform hover:scale-110 cursor-default ${getColor(status)}`}
                         title={`Dia ${i+1}: ${status || 'Vazio'}`}
                       >
                         {status}
                       </div>
                     ))}
                     {Array.from({ length: Math.max(0, daysInMonth - (row.days?.length || 0)) }).map((_, i) => (
-                      <div key={`empty-${i}`} className="w-5 h-6 border border-slate-100 bg-white rounded-[2px]" />
+                      <div key={`empty-${i}`} className="w-5 h-5 border border-slate-100 bg-white rounded-[2px]" />
                     ))}
                   </div>
                 </td>
@@ -114,14 +181,12 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
   );
 };
 
-// Adicionei setToast aos props caso você queira passar do pai para exibir mensagens de sucesso
 const HistoryView = ({ logs, setToast }) => {
   const [viewMode, setViewMode] = useState('chart'); 
   const [historyList, setHistoryList] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // --- NOVOS ESTADOS PARA O MODAL DE EXCLUSÃO ---
   const [modalDeleteOpen, setModalDeleteOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
 
@@ -160,29 +225,24 @@ const HistoryView = ({ logs, setToast }) => {
     setViewMode('chart');
   };
 
-  // 1. Função chamada ao clicar no botão de lixeira (Abre o Modal)
   const handleRequestDelete = (item) => {
     setItemToDelete(item);
     setModalDeleteOpen(true);
   };
 
-  // 2. Função chamada ao confirmar no Modal (Executa a ação)
   const executeDelete = async () => {
     if (!itemToDelete) return;
-    setModalDeleteOpen(false); // Fecha o modal
+    setModalDeleteOpen(false); 
 
     const { success } = await oeeService.deleteHistory(itemToDelete.mes, itemToDelete.ano);
     
     if (success) {
-        // Remove da lista localmente
         setHistoryList(prev => prev.filter(h => !(h.mes === itemToDelete.mes && h.ano === itemToDelete.ano)));
         
-        // Se estava na tela de detalhe desse item, volta para a lista
         if(selectedMonth && selectedMonth.mes === itemToDelete.mes && selectedMonth.ano === itemToDelete.ano) {
             handleBack(); 
         }
         
-        // Se tiver setToast, usa. Se não, apenas atualiza a tela (o modal fechando já é feedback)
         if (setToast) setToast({ message: "Registro excluído com sucesso.", type: 'success' });
     } else {
         alert("Erro ao excluir histórico.");
@@ -190,13 +250,10 @@ const HistoryView = ({ logs, setToast }) => {
     setItemToDelete(null);
   };
 
-  // --- RENDERIZAÇÃO ---
-
   if (viewMode === 'detail' && selectedMonth) {
     return (
       <div className="bg-slate-50/50 min-h-screen animate-in slide-in-from-right duration-300 pb-20">
         
-        {/* MODAL DE CONFIRMAÇÃO (Visualização Detalhada) */}
         <ConfirmModal 
           isOpen={modalDeleteOpen}
           title="Excluir Histórico"
@@ -232,11 +289,9 @@ const HistoryView = ({ logs, setToast }) => {
             <button onClick={() => window.print()} className="flex items-center gap-2 text-slate-600 hover:text-blue-600 font-bold text-xs bg-white border border-slate-200 hover:border-blue-300 px-4 py-2 rounded-lg shadow-sm hover:shadow transition-all">
               <Printer size={14} /> IMPRIMIR
             </button>
-            {/* <button className="flex items-center gap-2 text-white font-bold text-xs bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all">
-              <Download size={14} /> EXPORTAR PDF
-            </button> */}
           </div>
         </div>
+        
         <div className="p-8 max-w-7xl mx-auto space-y-8">
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -251,6 +306,9 @@ const HistoryView = ({ logs, setToast }) => {
               <ReportKPICard title="Qualidade" value={selectedMonth.kpi.quality} color="green" icon={CheckCircle2} />
             </div>
           </div>
+
+          <DetailedStats data={selectedMonth.medias || selectedMonth.kpi?.medias} />
+
           <div>
             <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
               <FileText size={16} /> Detalhamento por Circuito
@@ -272,7 +330,6 @@ const HistoryView = ({ logs, setToast }) => {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300 min-h-[600px]">
       
-      {/* MODAL DE CONFIRMAÇÃO (Visualização Lista) */}
       <ConfirmModal 
           isOpen={modalDeleteOpen}
           title="Excluir Histórico"
