@@ -1,70 +1,201 @@
 import React, { useMemo } from 'react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip as RechartsTooltip, ResponsiveContainer, Cell 
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid 
 } from 'recharts';
-import { Thermometer, XCircle } from 'lucide-react';
+import { Thermometer, X, Layers, Snowflake, Flame, Sun } from 'lucide-react';
 
-const TemperatureStatsModal = ({ isOpen, onClose, baths }) => {
+const TemperatureStatsModal = ({ isOpen, onClose, baths = [] }) => {
   if (!isOpen) return null;
-  
-  const data = useMemo(() => {
+
+  // 1. Processamento de Dados
+  const { chartData, totalCircuits } = useMemo(() => {
+    const safeBaths = baths || [];
     const acc = {};
-    baths.forEach(b => {
-      const t = b.temp !== undefined ? b.temp : 'N/A';
-      const label = `${t}ºC`;
-      if (!acc[label]) acc[label] = { name: label, temp: parseFloat(t) || 0, count: 0, active: 0 };
-      const circuits = b.circuits || [];
-      acc[label].count += circuits.length;
-      acc[label].active += circuits.filter(c => c.status === 'running' || c.status === 'finished').length;
+    let total = 0;
+
+    safeBaths.forEach(b => {
+      // Normaliza a temperatura
+      const rawTemp = b.temp !== undefined && b.temp !== null ? b.temp : 'N/A';
+      const tempVal = parseFloat(rawTemp);
+      const label = isNaN(tempVal) ? 'N/A' : `${tempVal}ºC`;
+      
+      if (!acc[label]) {
+        // Define cores e ícones baseados na temperatura
+        let color = '#94a3b8'; // Slate (N/A)
+        let bg = 'bg-slate-100';
+        let textColor = 'text-slate-600';
+        let Icon = Thermometer;
+
+        if (!isNaN(tempVal)) {
+            if (tempVal < 25) {
+                color = '#3b82f6'; // Blue
+                bg = 'bg-blue-100';
+                textColor = 'text-blue-700';
+                Icon = Snowflake;
+            } else if (tempVal === 25) {
+                color = '#10b981'; // Green
+                bg = 'bg-emerald-100';
+                textColor = 'text-emerald-700';
+                Icon = Sun;
+            } else if (tempVal <= 40) {
+                color = '#f59e0b'; // Amber
+                bg = 'bg-amber-100';
+                textColor = 'text-amber-700';
+                Icon = Flame;
+            } else {
+                color = '#ef4444'; // Red
+                bg = 'bg-rose-100';
+                textColor = 'text-rose-700';
+                Icon = Flame;
+            }
+        }
+
+        acc[label] = { 
+            name: label, 
+            temp: isNaN(tempVal) ? -999 : tempVal, // Para ordenação
+            value: 0, 
+            color, 
+            bg, 
+            textColor,
+            Icon 
+        };
+      }
+
+      const circuitsCount = (b.circuits || []).length;
+      acc[label].value += circuitsCount;
+      total += circuitsCount;
     });
-    return Object.values(acc).sort((a, b) => a.temp - b.temp);
+
+    const sortedData = Object.values(acc)
+        .sort((a, b) => a.temp - b.temp)
+        .filter(item => item.value > 0); // Remove vazios
+
+    return { chartData: sortedData, totalCircuits: total };
   }, [baths]);
 
-  const getBarColor = (temp) => {
-    if (temp < 25) return '#3b82f6';
-    if (temp === 25) return '#10b981';
-    if (temp <= 40) return '#f59e0b';
-    return '#ef4444';
+  // Tooltip Customizado (Igual ao do PieChart)
+  const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const item = payload[0].payload;
+      return (
+        <div className="bg-slate-800 text-white p-3 rounded-lg shadow-xl border border-slate-700">
+          <p className="font-bold text-sm mb-1">{item.name}</p>
+          <div className="flex items-baseline gap-1">
+             <span className="text-2xl font-bold" style={{ color: item.color }}>{item.value}</span>
+             <span className="text-xs text-slate-400">circuitos</span>
+          </div>
+          <p className="text-[10px] text-slate-500 mt-1">
+            {totalCircuits > 0 ? ((item.value / totalCircuits) * 100).toFixed(1) : 0}% do total
+          </p>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100 relative z-[102]">
-        <div className="bg-gradient-to-r from-slate-700 to-slate-900 text-white px-6 py-5 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/10 rounded-lg"><Thermometer size={24} /></div>
-            <div>
-              <h2 className="font-bold text-xl leading-tight">Distribuição Térmica</h2>
-              <p className="text-slate-300 text-xs font-medium">Capacidade por Temperatura</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden border border-slate-200 flex flex-col md:flex-row max-h-[90vh]">
+        
+        {/* LADO ESQUERDO: GRÁFICO */}
+        <div className="w-full md:w-1/2 p-8 bg-slate-50 flex flex-col justify-center border-b md:border-b-0 md:border-r border-slate-200 relative min-h-[350px]">
+            <h3 className="absolute top-6 left-6 font-bold text-slate-400 text-xs uppercase tracking-wider flex items-center gap-2">
+                <Thermometer size={14} /> Distribuição Térmica
+            </h3>
+            
+            <div className="h-64 w-full mt-8">
+                {totalCircuits > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                        <XAxis 
+                            dataKey="name" 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 'bold' }} 
+                            dy={10}
+                        />
+                        <YAxis 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fill: '#94a3b8', fontSize: 10 }} 
+                        />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f1f5f9' }} />
+                        <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
+                            {chartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                        </Bar>
+                      </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                    <Thermometer size={48} className="opacity-20 mb-2" />
+                    <span className="text-xs">Sem dados</span>
+                  </div>
+                )}
             </div>
-          </div>
-          <button onClick={onClose} className="hover:bg-white/10 p-2 rounded-full transition-colors"><XCircle size={24} /></button>
         </div>
-        <div className="p-8">
-          <div className="h-80 w-full mb-6">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12, fontWeight: 'bold' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                <RechartsTooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                <Bar dataKey="count" name="Total Circuitos" radius={[6, 6, 0, 0]} barSize={50}>
-                  {data.map((entry, index) => (<Cell key={`cell-${index}`} fill={getBarColor(entry.temp)} />))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {data.map((d) => (
-              <div key={d.name} className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col items-center">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{d.name}</span>
-                <span className="text-2xl font-black text-slate-700">{d.count}</span>
-                <span className="text-[10px] font-medium text-slate-400">{d.active} em uso</span>
-              </div>
-            ))}
-          </div>
+
+        {/* LADO DIREITO: DETALHES */}
+        <div className="w-full md:w-1/2 p-8 flex flex-col">
+            <div className="flex justify-between items-start mb-6">
+                <div>
+                    <h2 className="text-xl font-bold text-slate-800">Temperaturas</h2>
+                    <p className="text-sm text-slate-500">Capacidade por faixa térmica.</p>
+                </div>
+                <button onClick={onClose} className="p-2 -mr-2 -mt-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
+                    <X size={20} />
+                </button>
+            </div>
+
+            <div className="space-y-5 flex-1 overflow-y-auto custom-scrollbar pr-2">
+                {chartData.map((item) => {
+                    const percent = totalCircuits > 0 ? ((item.value / totalCircuits) * 100).toFixed(1) : 0;
+                    return (
+                        <div key={item.name} className="group">
+                            <div className="flex justify-between items-end mb-2">
+                                <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-lg ${item.bg} ${item.textColor}`}>
+                                        <item.Icon size={18} />
+                                    </div>
+                                    <div>
+                                        <span className="block text-sm font-bold text-slate-700">{item.name}</span>
+                                        <span className="text-xs text-slate-400 font-mono">{percent}%</span>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <span className="block text-2xl font-bold text-slate-800">{item.value}</span>
+                                </div>
+                            </div>
+                            {/* Barra de Progresso */}
+                            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                    className="h-full rounded-full transition-all duration-1000 ease-out"
+                                    style={{ 
+                                        width: `${percent}%`, 
+                                        backgroundColor: item.color 
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* --- ÁREA DO TOTAL --- */}
+            <div className="mt-6 pt-4 border-t-2 border-slate-100 border-dashed">
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2 text-slate-500">
+                        <Layers size={18} />
+                        <span className="text-xs font-bold uppercase tracking-wider">Total de Circuitos</span>
+                    </div>
+                    <span className="text-3xl font-extrabold text-slate-800">{totalCircuits}</span>
+                </div>
+            </div>
+
         </div>
+
       </div>
     </div>
   );

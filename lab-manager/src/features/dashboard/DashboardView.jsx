@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Grid, Maximize2, Thermometer, Search, ArrowLeft, Plus 
-} from 'lucide-react';
+  Grid, Maximize2, Thermometer, Search, ArrowLeft, Plus, PieChart 
+} from 'lucide-react'; // <--- ADICIONEI PieChart AQUI
 
 import BathCardMicro from "../../components/business/BathCardMicro";
 import BathContainer from "../../components/business/BathContainer";
 import AllCircuitsView from "../../components/business/AllCircuitsView";
 
-
+// Importe o novo Modal
+import UsageStatsModal from "../../components/ui/UsageStatsModal"; // <--- IMPORTE O MODAL
 import TemperatureStatsModal from "../../components/ui/TemperatureStatsModal";
+
 const DashboardView = ({ 
-  baths = [], // 
+  baths = [], 
   onAddCircuit, 
   onDeleteCircuit, 
   onToggleMaintenance, 
@@ -25,9 +27,11 @@ const DashboardView = ({
   const [dashViewMode, setDashViewMode] = useState('baths');
   const [expandedBathId, setExpandedBathId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Estados dos Modais
   const [isTempStatsOpen, setIsTempStatsOpen] = useState(false);
+  const [isUsageStatsOpen, setIsUsageStatsOpen] = useState(false); // <--- NOVO ESTADO
 
-  // Garante que baths é sempre um array para evitar o erro do .reduce
   const safeBaths = baths || [];
 
   // Lógica de Busca Automática
@@ -48,13 +52,10 @@ const DashboardView = ({
     }
   }, [searchTerm, safeBaths]);
 
-  // --- AQUI ESTAVA O ERRO ---
-  // Adicionei (safeBaths) e verificação de (bath.circuits || [])
   const totalRunning = safeBaths.reduce((acc, bath) => acc + ((bath.circuits || []).filter(c => { const s = c.status ? c.status.toLowerCase().trim() : ''; return s === 'running' && c.progress < 100; }).length), 0);
   const totalFree = safeBaths.reduce((acc, bath) => acc + ((bath.circuits || []).filter(c => { const s = c.status ? c.status.toLowerCase().trim() : 'free'; return (s === 'free' || s === 'finished' || c.progress >= 100) && s !== 'maintenance'; }).length), 0);
   const totalMaint = safeBaths.reduce((acc, bath) => acc + ((bath.circuits || []).filter(c => c.status === 'maintenance').length), 0);
 
-  // Filtros de busca
   const filteredBaths = safeBaths.filter(b =>
     b.id.toUpperCase().includes(searchTerm) ||
     (b.circuits || []).some(c => (c.id && c.id.toUpperCase().includes(searchTerm)) || (c.batteryId && c.batteryId.toUpperCase().includes(searchTerm)))
@@ -84,12 +85,25 @@ const DashboardView = ({
             >
               <Maximize2 size={14} /> Circuitos
             </button>
+            
+            {/* --- SEPARAÇÃO --- */}
+            <div className="w-[1px] bg-slate-300 mx-1 my-1"></div>
+
             <button 
               onClick={() => setIsTempStatsOpen(true)} 
-              className="px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 bg-white text-slate-500 hover:text-blue-700 hover:shadow shadow-sm ml-2" 
+              className="px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 bg-white text-slate-500 hover:text-blue-700 hover:shadow shadow-sm" 
               title="Distribuição Térmica"
             >
               <Thermometer size={14} />
+            </button>
+            
+            {/* --- NOVO BOTÃO DE GRÁFICO PIZZA --- */}
+            <button 
+              onClick={() => setIsUsageStatsOpen(true)} 
+              className="px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 bg-white text-slate-500 hover:text-blue-700 hover:shadow shadow-sm ml-1" 
+              title="Gráfico de Ocupação"
+            >
+              <PieChart size={14} />
             </button>
           </div>
 
@@ -171,7 +185,12 @@ const DashboardView = ({
         )}
       </div>
 
+      {/* Modais */}
       <TemperatureStatsModal isOpen={isTempStatsOpen} onClose={() => setIsTempStatsOpen(false)} baths={safeBaths} />
+      
+      {/* --- O NOVO MODAL ESTÁ AQUI --- */}
+      <UsageStatsModal isOpen={isUsageStatsOpen} onClose={() => setIsUsageStatsOpen(false)} baths={safeBaths} />
+      
     </div>
   );
 };
