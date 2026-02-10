@@ -349,6 +349,105 @@ def save_history(kpi, mes, ano):
         if not db_data: return {"sucesso": False, "erro": "Memória vazia"}
 
         _, dias_no_mes = monthrange(int(ano), int(mes))
+
+ 
+        todos_candidatos = []
+        ids_raw = [k for k in db_data.keys() if k != 'iDevice']
+        limite_fixo = 300 # Mesmo limite usado no cálculo
+
+        for cid in ids_raw:
+            raw_days = db_data.get(cid, [])
+            c_up = raw_days.count('UP')
+            c_sd = raw_days.count('SD')
+            
+            action = overrides.get(cid)
+            if action == 'SET_UP': c_up = dias_no_mes; c_sd = 0
+            
+            todos_candidatos.append({
+                'id': cid,
+                'score_up': c_up,
+                'score_sd': c_sd
+            })
+
+        candidatos_ordenados = sorted(todos_candidatos, key=lambda x: (-x['score_up'], x['score_sd']))
+
+        ids_considerados_extras = set()
+        for idx, item in enumerate(candidatos_ordenados):
+            if idx >= limite_fixo:
+                ids_considerados_extras.add(item['id'])
+        # -----------------------------------------------------------
+
+        grid_snapshot = []
+        ids = list(db_data.keys())
+        ids_numericos = sorted([x for x in ids if x != 'iDevice'], key=lambda x: int(x) if x.isdigit() else 9999)
+        ids_final = ['iDevice'] + ids_numericos
+
+        for cid in ids_final:
+            override_action = overrides.get(cid)
+            raw_days = db_data.get(cid, [])
+            day_data = []
+
+            eh_extra_dinamico = cid in ids_considerados_extras
+
+            if not raw_days: raw_days = ['SD'] * dias_no_mes
+
+            if len(raw_days) == dias_no_mes:
+                for dia_idx, status_original in enumerate(raw_days):
+                    status = status_original
+                    dt = datetime(int(ano), int(mes), dia_idx + 1)
+                    is_weekend = dt.weekday() >= 5
+                    
+                    if cid == 'iDevice':
+                        status = 'PP' if is_weekend else 'UP'
+                    else:
+                     
+                        if override_action == 'SET_UP': status = 'UP'
+                        elif override_action == 'force_std': status = 'PP' if is_weekend else 'UP'
+                        elif override_action == 'SET_BONUS': 
+                            if status == 'SD' or status == 'PP': status = ''
+                        elif override_action == 'SET_IGNORE': status = 'IGNORE'
+
+                        if eh_extra_dinamico and override_action != 'SET_IGNORE':
+                            if status == 'SD' or status == 'PP':
+                                status = ''
+                        # --------------------------------------
+
+                    day_data.append(status)
+
+            grid_snapshot.append({
+                "id": cid,
+                "days": day_data,
+                "status": "ignored" if override_action == 'SET_IGNORE' else "active"
+            })
+
+        doc_id = f"{mes}_{ano}"
+        history_ref = db.collection('lab_data').document('history').collection('oee_monthly')
+        
+        history_ref.document(doc_id).set({
+            "mes": int(mes),
+            "ano": int(ano),
+            "kpi": kpi,
+            "medias": medias_data,
+            "grid": grid_snapshot,
+            "saved_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }, merge=True)
+        
+        return {"sucesso": True}
+
+    except Exception as e:
+        traceback.print_exc()
+        return {"sucesso": False, "erro": str(e)}
+    db = get_firebase()
+    if not db: return {"sucesso": False, "erro": "Firebase Off"}
+    
+    try:
+        db_data = GLOBAL_DB.get("processed_data", {})
+        overrides = GLOBAL_DB.get("overrides", {})
+        medias_data = GLOBAL_DB.get("latest_medias", {})
+        
+        if not db_data: return {"sucesso": False, "erro": "Memória vazia"}
+
+        _, dias_no_mes = monthrange(int(ano), int(mes))
         
         grid_snapshot = []
         ids = list(db_data.keys())
