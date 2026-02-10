@@ -258,9 +258,28 @@ export default function LabManagerApp() {
               <button onClick={() => setCurrentView('oee')} className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${currentView === 'oee' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}><Factory size={14} />OEE</button>
               <button onClick={() => setCurrentView('history')} className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${currentView === 'history' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Histórico</button>
             </div>
-            <div className="h-6 w-[1px] bg-slate-200"></div>
-            <button onClick={() => setIsProtocolsOpen(true)} className="text-slate-400 hover:text-slate-600 transition-colors" title="Configurar Testes"><Settings size={20} /></button>
-            <button onClick={() => setIsImportOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95"><Clipboard size={18} /><span className="hidden sm:inline">Importar Digatron</span></button>
+           <div className="flex items-center gap-3">
+            {/* Divisória sutil */}
+            <div className="h-8 w-[1px] bg-slate-200 mx-1 hidden sm:block"></div>
+
+            {/* Botão Configurações (Quadrado com cantos suaves) */}
+            <button 
+              onClick={() => setIsProtocolsOpen(true)} 
+              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200" 
+              title="Configurar Testes"
+            >
+              <Settings size={20} />
+            </button>
+
+            {/* Botão Importar (Retangular com cantos suaves) */}
+            <button 
+              onClick={() => setIsImportOpen(true)} 
+              className="bg-blue-600 hover:bg-blue-700 text-white pl-4 pr-5 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm shadow-blue-100 hover:shadow-md hover:shadow-blue-200 transition-all active:scale-95 hover:-translate-y-0.5"
+            >
+              <Clipboard size={18} />
+              <span className="hidden sm:inline">Importar Digatron</span>
+            </button>
+          </div>
           </div>
         </div>
       </header>
