@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Clipboard, X, CheckCircle2, AlertTriangle, 
-  ArrowRight, FileText, Database, Loader2, Clock 
+  X, CheckCircle2, AlertTriangle, ArrowRight, FileText, Database, Loader2, Clock 
 } from 'lucide-react';
 
 // =============================================================================
-// HELPERS (Mantidos)
+// HELPERS
 // =============================================================================
 
 const normalizeStr = (str) => {
@@ -21,14 +20,39 @@ const normalizeStr = (str) => {
 const API_URL = 'https://planilha-recursos.onrender.com/api';
 
 // =============================================================================
-// MODAL DE PROTOCOLO DESCONHECIDO (Ajustado para Amber/Blue)
+// MODAL DE PROTOCOLO DESCONHECIDO (SEM SCROLL, COM QUEBRA DE LINHA)
 // =============================================================================
 const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
   const [duration, setDuration] = useState('');
-  if (!isOpen) return null;
+  const [suggestedName, setSuggestedName] = useState('');
+  const inputRef = useRef(null);
 
-  const parts = line.split(/\s{2,}/); 
-  const suggestedName = parts.length > 2 ? parts[parts.length - 1].trim() : "TESTE_NOVO";
+  // Lógica inteligente (Array com âncora no Circuito) - MANTIDA
+  const extrairNomeDoTeste = (textoBruto) => {
+    if (!textoBruto) return '';
+    const arrayDaLinha = textoBruto.trim().split(/\s+/);
+    const indexCircuito = arrayDaLinha.findIndex(item => /^Circuit/i.test(item));
+
+    if (indexCircuito === -1) return '';
+
+    for (let i = indexCircuito + 1; i < arrayDaLinha.length; i++) {
+      const item = arrayDaLinha[i];
+      if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(item)) continue;
+      if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(item)) continue;
+      return item.replace(/[^a-zA-Z0-9_\-\.]/g, '');
+    }
+    return "";
+  };
+
+  useEffect(() => {
+    if (isOpen && line) {
+      const nome = extrairNomeDoTeste(line);
+      setSuggestedName(nome);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [isOpen, line]);
+
+  if (!isOpen) return null;
 
   const handleConfirm = () => {
     if (!duration || isNaN(duration)) {
@@ -56,9 +80,14 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
             O sistema encontrou um teste não cadastrado. Precisamos da duração para calcular as previsões.
           </p>
 
+          {/* ÁREA DA LINHA ORIGINAL - AJUSTADA */}
           <div className="bg-slate-50 p-3 rounded-lg mb-6 border border-slate-200">
              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Linha Original</span>
-             <code className="text-[10px] text-slate-600 font-mono break-all block leading-tight">
+             {/* MUDANÇAS AQUI: 
+                - Removi: overflow-x-auto, whitespace-nowrap 
+                - Adicionei: whitespace-pre-wrap (para quebrar linha mantendo espaços) 
+             */}
+             <code className="text-[10px] text-slate-600 font-mono break-all block leading-tight whitespace-pre-wrap">
                 {line}
              </code>
           </div>
@@ -69,19 +98,20 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
               <input 
                 type="text" 
                 value={suggestedName} 
-                readOnly
-                className="w-full p-3 bg-white border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:border-amber-500 focus:outline-none transition-colors"
+                onChange={(e) => setSuggestedName(e.target.value.toUpperCase())}
+                className="w-full p-3 bg-white border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:border-amber-500 focus:outline-none transition-colors uppercase"
               />
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Duração (Horas)</label>
               <div className="relative">
                 <input 
+                  ref={inputRef}
                   type="number" 
-                  autoFocus
                   placeholder="Ex: 48"
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}
                   className="w-full p-3 pl-10 border-2 border-slate-200 rounded-xl text-sm font-bold focus:border-amber-500 focus:outline-none transition-colors"
                 />
                 <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -104,21 +134,19 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
 };
 
 // =============================================================================
-// COMPONENTE PRINCIPAL
+// COMPONENTE PRINCIPAL (IMPORT MODAL)
 // =============================================================================
 
 const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterProtocol }) => {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   
-  // Estados para Unknown Protocol
   const [unknownLines, setUnknownLines] = useState([]);
   const [showUnknownModal, setShowUnknownModal] = useState(false);
   const [currentUnknownLine, setCurrentUnknownLine] = useState('');
 
   if (!isOpen) return null;
 
-  // --- LÓGICA DE NEGÓCIO (Mantida Igual) ---
   const preScanText = () => {
     if (!text) return [];
     const lines = text.split('\n');
@@ -132,7 +160,6 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
           const cleanProto = normalizeStr(p.name);
           return cleanLine.includes(cleanProto);
         });
-        
         if (!found) missing.push(line.trim());
       }
     });
@@ -150,6 +177,34 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
       return;
     }
     await executeImport();
+  };
+
+  const handleRegisterUnknown = async (name, duration) => {
+    await onRegisterProtocol(name, duration);
+    const newProtoClean = normalizeStr(name);
+    const nextUnknowns = unknownLines.slice(1).filter(line => {
+      const lineClean = normalizeStr(line);
+      return !lineClean.includes(newProtoClean);
+    });
+    
+    if (nextUnknowns.length > 0) {
+      setUnknownLines(nextUnknowns);
+      setCurrentUnknownLine(nextUnknowns[0]);
+    } else {
+      setShowUnknownModal(false);
+      await executeImport();
+    }
+  };
+
+  const skipUnknown = () => {
+    const remaining = unknownLines.slice(1);
+    if (remaining.length > 0) {
+      setUnknownLines(remaining);
+      setCurrentUnknownLine(remaining[0]);
+    } else {
+      setShowUnknownModal(false);
+      executeImport();
+    }
   };
 
   const executeImport = async () => {
@@ -184,43 +239,12 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
     setLoading(false);
   };
 
-  const handleRegisterUnknown = async (name, duration) => {
-    await onRegisterProtocol(name, duration);
-    const newProtoClean = normalizeStr(name);
-    const nextUnknowns = unknownLines.slice(1).filter(line => {
-      const lineClean = normalizeStr(line);
-      return !lineClean.includes(newProtoClean);
-    });
-    
-    if (nextUnknowns.length > 0) {
-      setUnknownLines(nextUnknowns);
-      setCurrentUnknownLine(nextUnknowns[0]);
-    } else {
-      setShowUnknownModal(false);
-      await executeImport();
-    }
-  };
-
-  const skipUnknown = () => {
-    const remaining = unknownLines.slice(1);
-    if (remaining.length > 0) {
-      setUnknownLines(remaining);
-      setCurrentUnknownLine(remaining[0]);
-    } else {
-      setShowUnknownModal(false);
-      executeImport();
-    }
-  };
-
-  // --- RENDERIZAÇÃO ---
   return (
     <>
       <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col md:flex-row h-[600px] border border-slate-200">
           
-          {/* LADO ESQUERDO: INSTRUÇÕES VISUAIS (AGORA EM AZUL/SLATE) */}
           <div className="w-full md:w-5/12 bg-slate-800 p-8 flex flex-col justify-between text-white relative overflow-hidden">
-            {/* Elementos Decorativos de Fundo */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500 opacity-10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400 opacity-10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
 
@@ -264,7 +288,6 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
             </div>
           </div>
 
-          {/* LADO DIREITO: ÁREA DE AÇÃO */}
           <div className="w-full md:w-7/12 bg-white flex flex-col h-full">
              <div className="p-4 flex justify-end">
                 <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
@@ -308,7 +331,6 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
         </div>
       </div>
 
-      {/* Modal Secundário */}
       <UnknownProtocolModal
         isOpen={showUnknownModal}
         line={currentUnknownLine}

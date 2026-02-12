@@ -1,6 +1,3 @@
-//Esse componente tem muita lógica visual (barras de progresso, cores de status, ícones de bateria).
-
-
 import React from 'react';
 import { 
   Clock, Link2, ArrowRightLeft, CheckSquare, Wrench, Trash2, 
@@ -10,7 +7,6 @@ import HighlightText from '../ui/HighlightText';
 import { formatDataCurta } from '../../utils/helpers';
 
 const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onViewHistory, onMove, onLink }) => {
-  // Lógica de Status: Define se está livre, rodando, finalizado ou manutenção
   const rawStatus = circuit.status ? circuit.status.toString().toLowerCase().trim() : 'free';
   const hasEnded = rawStatus === 'finished' || (circuit.progress >= 100);
   const isMaint = rawStatus === 'maintenance';
@@ -19,7 +15,6 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
   const isFinished = false;
   const isParallel = circuit.isParallel;
 
-  // Mapa de Temas (Cores e Bordas)
   const theme = {
     running: { 
       borderLeft: 'border-l-amber-400', textStatus: 'text-amber-500', 
@@ -46,7 +41,6 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
   const statusKey = isFinished ? 'finished' : isRunning ? 'running' : isMaint ? 'maintenance' : 'free';
   const style = theme[statusKey];
 
-  // Lógica de Busca: Verifica se o termo digitado bate com o ID ou Bateria
   const isHit = searchTerm && searchTerm.length > 2 && (
     (circuit.batteryId && circuit.batteryId.toUpperCase().includes(searchTerm)) ||
     (circuit.id.toUpperCase().includes(searchTerm))
@@ -55,14 +49,12 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
   return (
     <div className={`relative flex flex-col justify-between p-2 rounded-lg bg-white shadow-sm border transition-all hover:shadow-md h-full ${style.borderLeft} ${isHit ? 'bg-slate-50' : ''}`}>
       
-      {/* Cabeçalho do Card */}
       <div className="flex justify-between items-start mb-2">
         <h3 className="text-base font-bold text-slate-700 leading-none flex items-center gap-1">
           CIRC. <HighlightText text={circuit.id} highlight={searchTerm} className="" />
           {isParallel && <Link2 size={12} className="text-purple-500" title="Em paralelo" />}
         </h3>
         
-        {/* Botões de Ação */}
         <div className="flex gap-1">
           <button onClick={() => onViewHistory(circuit)} className="text-slate-300 hover:text-blue-500" title="Histórico">
             <Clock size={14} />
@@ -79,14 +71,14 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
           )}
           
           {(isRunning || isFinished) && (
-            <button onClick={() => onToggleMaintenance(circuit.id, true)} className="text-slate-300 hover:text-emerald-500" title="Finalizar/Manutenção">
+            <button onClick={() => onToggleMaintenance(circuit.id, 'maintenance')} className="text-slate-300 hover:text-emerald-500" title="Finalizar/Manutenção">
               <CheckSquare size={14} />
             </button>
           )}
           
           {(isFree || isMaint) && (
             <button 
-              onClick={() => onToggleMaintenance(circuit.id, isMaint)} 
+              onClick={() => onToggleMaintenance(circuit.id, isMaint ? 'free' : 'maintenance')} 
               className={`text-slate-300 ${isMaint ? 'text-rose-500' : 'hover:text-amber-500'}`}
               title={isMaint ? "Sair da Manutenção" : "Entrar em Manutenção"}
             >
@@ -102,7 +94,6 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
         </div>
       </div>
 
-      {/* Corpo do Card (Conteúdo) */}
       {(isRunning || isFinished) ? (
         <div className="flex-1 flex flex-col justify-end">
           <div className="flex items-center gap-1 mb-1">

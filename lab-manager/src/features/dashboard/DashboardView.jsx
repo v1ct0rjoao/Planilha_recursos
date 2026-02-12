@@ -8,7 +8,7 @@ import BathContainer from "../../components/business/BathContainer";
 import AllCircuitsView from "../../components/business/AllCircuitsView";
 
 // Importe o novo Modal
-import UsageStatsModal from "../../components/ui/UsageStatsModal"; // <--- IMPORTE O MODAL
+import UsageStatsModal from "../../components/ui/UsageStatsModal"
 import TemperatureStatsModal from "../../components/ui/TemperatureStatsModal";
 
 const DashboardView = ({ 
@@ -97,7 +97,7 @@ const DashboardView = ({
               <Thermometer size={14} />
             </button>
             
-            {/* --- NOVO BOTÃO DE GRÁFICO PIZZA --- */}
+
             <button 
               onClick={() => setIsUsageStatsOpen(true)} 
               className="px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 bg-white text-slate-500 hover:text-blue-700 hover:shadow shadow-sm ml-1" 

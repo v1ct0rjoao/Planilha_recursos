@@ -9,10 +9,6 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import traceback
 
-# ==============================================================================
-# 1. CONFIGURAÇÃO DE AMBIENTE E DIRETÓRIOS
-# ==============================================================================
-
 base_dir = os.path.dirname(os.path.abspath(__file__))
 DIST_DIR = os.path.join(base_dir, 'dist') 
 OEE_UPLOAD_FOLDER = os.path.join(base_dir, 'oee_uploads') 
@@ -26,10 +22,6 @@ if not os.path.exists(OEE_UPLOAD_FOLDER):
 app = Flask(__name__, static_folder=DIST_DIR, static_url_path='')
 
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
-
-# ==============================================================================
-# 2. INICIALIZAÇÃO DO FIREBASE (BANCO DE DADOS)
-# ==============================================================================
 
 db_firestore = None
 DATA_CACHE = None 
@@ -60,10 +52,6 @@ try:
 except Exception as e:
     print(f"[ERROR] Falha na ligação ao Firebase: {e}")
 
-# ==============================================================================
-# 3. IMPORTAÇÃO DO MÓDULO OEE (CÁLCULOS)
-# ==============================================================================
-
 oee_service = None
 try:
     try:
@@ -71,16 +59,12 @@ try:
     except ImportError:
         import oee_service
 except ImportError:
-    print("[WARN] Módulo 'oee_service' não encontrado.")
+    pass
 
 @app.errorhandler(Exception)
 def handle_exception(e):
     traceback.print_exc()
     return jsonify({"sucesso": False, "erro": str(e)}), 500
-
-# ==============================================================================
-# 4. FUNÇÕES DE SUPORTE (AJUDANTES)
-# ==============================================================================
 
 def save_db(data):
     global DATA_CACHE
@@ -161,10 +145,6 @@ def atualizar_progresso_realtime(db):
 
     if mudou: save_db(db)
 
-# ==============================================================================
-# 5. ROTAS DA API (O QUE O REACT CHAMA)
-# ==============================================================================
-
 @app.route('/api', methods=['GET'])
 def api_ping():
     return jsonify({"status": "online", "message": "LabManager API v2.2"})
@@ -175,7 +155,6 @@ def get_main_data():
     atualizar_progresso_realtime(db)
     return jsonify(db)
 
-# --- IMPORTAÇÃO DIGATRON ---
 @app.route('/api/import', methods=['POST', 'OPTIONS'])
 def import_digatron_data():
     if request.method == 'OPTIONS': return '', 200
@@ -214,8 +193,6 @@ def import_digatron_data():
         return jsonify({"sucesso": True, "atualizados": atualizados, "db_atualizado": db})
     except Exception as e:
         return jsonify({"sucesso": False, "erro": str(e)}), 500
-
-# --- BANHOS (BATHS) ---
 
 @app.route('/api/baths/add', methods=['POST'])
 def bath_add():
@@ -270,8 +247,6 @@ def bath_update_temp():
     except Exception as e:
         return jsonify({"sucesso": False, "erro": str(e)}), 500
 
-# --- CIRCUITOS ---
-
 @app.route('/api/circuits/add', methods=['POST'])
 def circuit_add():
     d = request.json
@@ -307,18 +282,21 @@ def update_circuit_status():
     try:
         d = request.json
         db = load_db()
-        target_bath = d.get('bathId')
+        target_bath = str(d.get('bathId'))
         target_circuit = str(d.get('circuitId'))
-        new_status = d.get('status')
+        new_status = str(d.get('status')).lower() 
+        
+        if new_status == 'true': new_status = 'maintenance'
+        if new_status == 'false': new_status = 'free'
 
         for b in db.get('baths', []):
-            if str(b['id']) == str(target_bath):
+            if str(b['id']) == target_bath:
                 for c in b.get('circuits', []):
-                    if apenas_numeros(c['id']) == apenas_numeros(target_circuit):
+                    if int(apenas_numeros(c['id'])) == int(apenas_numeros(target_circuit)):
                         if new_status == 'free':
                             c.update({
                                 'status': 'free', 'batteryId': None, 'protocol': None, 
-                                'previsao': '-', 'startTime': None, 'progress': 0
+                                'previsao': '-', 'startTime': None, 'progress': 0, 'isParallel': False
                             })
                         else:
                             c['status'] = new_status
@@ -339,29 +317,46 @@ def circuit_move():
         circuit_id = str(d['circuitId'])
         
         circuit_obj = None
-        ckt_clean = apenas_numeros(circuit_id)
+        
+        try:
+            ckt_num = int(apenas_numeros(circuit_id))
+        except:
+            ckt_num = -1
 
-        # 1. Tira da origem
+        found_idx = -1
+        src_bath_ref = None
+        
         for b in db['baths']:
             if str(b['id']) == src_bath_id:
+                src_bath_ref = b
                 for idx, c in enumerate(b['circuits']):
-                    if apenas_numeros(c['id']) == ckt_clean:
-                        circuit_obj = b['circuits'].pop(idx)
+                    c_num = int(apenas_numeros(c['id'])) if apenas_numeros(c['id']) else -2
+                    if c['id'] == circuit_id or c_num == ckt_num:
+                        circuit_obj = c
+                        found_idx = idx
                         break
-            if circuit_obj: break
-        
-        # 2. Põe no destino
-        if circuit_obj:
-            target_found = False
-            for b in db['baths']:
-                if str(b['id']) == tgt_bath_id:
-                    b['circuits'].append(circuit_obj)
-                    target_found = True
+                if found_idx != -1:
+                    b['circuits'].pop(found_idx)
                     break
-            if not target_found:
-                for b in db['baths']:
-                    if str(b['id']) == src_bath_id:
-                        b['circuits'].append(circuit_obj)
+        
+        if not circuit_obj:
+             return jsonify({"sucesso": False, "erro": "Circuito não encontrado na origem"}), 404
+
+        target_found = False
+        for b in db['baths']:
+            if str(b['id']) == tgt_bath_id:
+                ids_existentes = [x['id'] for x in b['circuits']]
+                if circuit_obj['id'] in ids_existentes:
+                     circuit_obj['id'] = f"{circuit_obj['id']}_mov"
+                
+                b['circuits'].append(circuit_obj)
+                b['circuits'].sort(key=lambda x: int(apenas_numeros(x['id'])) if apenas_numeros(x['id']) else 999)
+                target_found = True
+                break
+            
+        if not target_found and src_bath_ref:
+            src_bath_ref['circuits'].append(circuit_obj)
+            return jsonify({"sucesso": False, "erro": "Banho de destino não encontrado"}), 404
 
         save_db(db)
         return jsonify({"sucesso": True, "db_atualizado": db})
@@ -370,9 +365,40 @@ def circuit_move():
     
 @app.route('/api/circuits/link', methods=['POST'])
 def circuit_link():
-    return jsonify({"sucesso": True, "mensagem": "Link simulado com sucesso"})
+    try:
+        d = request.json
+        db = load_db()
+        bath_id = str(d['bathId'])
+        source_id = str(d['sourceId'])
+        target_id = str(d['targetId'])
+        
+        source_circuit = None
+        target_circuit = None
 
-# --- PROTOCOLOS (CONFIG) ---
+        for b in db['baths']:
+            if str(b['id']) == bath_id:
+                for c in b['circuits']:
+                    if c['id'] == source_id: source_circuit = c
+                    if c['id'] == target_id: target_circuit = c
+                break
+        
+        if source_circuit and target_circuit:
+            target_circuit['status'] = source_circuit['status']
+            target_circuit['batteryId'] = source_circuit.get('batteryId')
+            target_circuit['protocol'] = source_circuit.get('protocol')
+            target_circuit['startTime'] = source_circuit.get('startTime')
+            target_circuit['previsao'] = source_circuit.get('previsao')
+            target_circuit['progress'] = source_circuit.get('progress', 0)
+            
+            target_circuit['isParallel'] = True 
+            source_circuit['isParallel'] = True 
+
+            save_db(db)
+            return jsonify({"sucesso": True, "db_atualizado": db})
+        
+        return jsonify({"sucesso": False, "erro": "Circuitos não encontrados"}), 404
+    except Exception as e:
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
 
 @app.route('/api/protocols/add', methods=['POST'])
 def protocol_add():
@@ -394,8 +420,6 @@ def protocol_delete():
         return jsonify({"sucesso": True, "db_atualizado": db})
     except Exception as e:
         return jsonify({"sucesso": False, "erro": str(e)}), 500
-
-# --- MÓDULO OEE (CÁLCULOS AVANÇADOS) ---
 
 @app.route('/api/oee/upload', methods=['POST'])
 def oee_upload():
@@ -448,10 +472,6 @@ def oee_auto_extras():
 def oee_clear_extras():
     if not oee_service: return jsonify({"sucesso": False, "erro": "Serviço OEE Offline"})
     return jsonify(oee_service.limpar_extras())
-
-# ==============================================================================
-# 6. INICIALIZAÇÃO DO SERVIDOR
-# ==============================================================================
 
 @app.route('/')
 def serve_index():

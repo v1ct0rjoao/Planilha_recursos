@@ -6,43 +6,45 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
   const [duration, setDuration] = useState('20');
   const inputRef = useRef(null);
 
+  const extrairNomeDoTeste = (textoBruto) => {
+    if (!textoBruto) return '';
+
+    // 1. TRANSFORMA EM ARRAY (Remove espaços extras e tabs vazios)
+    // O split(/\s+/) já elimina os buracos vazios que o TAB cria.
+    const arrayDaLinha = textoBruto.trim().split(/\s+/);
+
+    // 2. ACHA ONDE ESTÁ O CIRCUITO (Nossa âncora)
+    // Ex: Se a linha for "22180 Circuit145...", o indexCircuito será 1
+    // Ex: Se a linha for "Circuit353...", o indexCircuito será 0
+    const indexCircuito = arrayDaLinha.findIndex(item => /^Circuit/i.test(item));
+
+    // Se não achou circuito, aborta
+    if (indexCircuito === -1) return '';
+
+    // 3. PROCURA O NOME A PARTIR DO CIRCUITO
+    // Começamos a olhar o array logo depois do circuito (indexCircuito + 1)
+    for (let i = indexCircuito + 1; i < arrayDaLinha.length; i++) {
+      const item = arrayDaLinha[i];
+
+      // É Data? (XX/XX/XXXX ou XX-XX-XXXX)
+      if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(item)) continue;
+      
+      // É Hora? (XX:XX ou XX:XX:XX)
+      if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(item)) continue;
+
+      // SE NÃO É DATA E NÃO É HORA, É O NOME!
+      // Achamos! Retorna limpo.
+      return item.replace(/[^a-zA-Z0-9_\-\.]/g, '');
+    }
+
+    return '';
+  };
+
   useEffect(() => {
     if (isOpen && line) {
       setTimeout(() => inputRef.current?.focus(), 100);
-      
-      let candidateName = '';
-      
-      try {
-        // LÓGICA NOVA E INTELIGENTE:
-        // 1. Procura um padrão de hora (ex: 14:30 ou 14:30:00)
-        // \d{2}:\d{2} acha os minutos. (?::\d{2})? acha os segundos (opcional)
-        const timeMatch = line.match(/\d{2}:\d{2}(?::\d{2})?/);
-
-        if (timeMatch) {
-          // Se achou a hora, pega tudo que vem DEPOIS dela
-          // (Pega a substring a partir do fim do horário encontrado)
-          const afterTime = line.substring(timeMatch.index + timeMatch[0].length).trim();
-          
-          // Agora pega a primeira palavra que aparecer depois da hora
-          const partsAfterTime = afterTime.split(/\s+/);
-          if (partsAfterTime.length > 0) {
-            candidateName = partsAfterTime[0];
-          }
-        } else {
-          // Fallback: Se não achar hora nenhuma, tenta pegar o 5º elemento (índice 4)
-          // Geralmente: 0=Circuit, 1=N, 2=Date, 3=Time, 4=TEST_NAME
-          const parts = line.trim().split(/\s+/);
-          if (parts.length >= 5) candidateName = parts[4];
-          else if (parts.length >= 4) candidateName = parts[3]; // Tenta o 4º se não tiver 5
-        }
-      } catch (e) { 
-        console.log("Falha ao extrair nome automático", e); 
-      }
-
-      // Limpeza extra: Remove caracteres especiais que as vezes colam no nome (ex: parênteses)
-      candidateName = candidateName.replace(/[^a-zA-Z0-9_-]/g, '');
-      
-      setName(candidateName.toUpperCase());
+      const nomeDetectado = extrairNomeDoTeste(line);
+      setName(nomeDetectado.toUpperCase());
     }
   }, [isOpen, line]);
 
@@ -62,13 +64,15 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
         </div>
         <div className="p-6">
           <p className="text-sm text-slate-600 mb-2">Encontramos uma linha sem teste correspondente:</p>
-          <div className="bg-slate-100 p-3 rounded border border-slate-200 text-[10px] font-mono text-slate-700 mb-6 break-all">
+          <div className="bg-slate-100 p-3 rounded border border-slate-200 text-[10px] font-mono text-slate-700 mb-6 break-all overflow-x-auto whitespace-nowrap">
             {line}
           </div>
           
-          {/* Mostra a sugestão visualmente para conferência */}
-          <div className="mb-4 text-xs text-amber-600 font-bold bg-amber-50 p-2 rounded border border-amber-100">
-            Sugestão detectada: {name || "..."}
+          <div className="mb-4 text-xs text-amber-600 font-bold bg-amber-50 p-2 rounded border border-amber-100 flex items-center gap-2">
+             <span>🎯 Sugestão detectada:</span>
+             <span className="text-sm uppercase bg-white px-2 py-0.5 rounded border border-amber-200 shadow-sm min-h-[24px] min-w-[50px]">
+               {name || "..."}
+             </span>
           </div>
 
           <h3 className="font-bold text-slate-800 text-sm mb-3">Deseja cadastrar este teste agora?</h3>
@@ -78,7 +82,7 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
               <input 
                 ref={inputRef} 
                 type="text" 
-                className="w-full p-2 border-2 border-slate-200 rounded-lg font-bold text-slate-700 outline-none uppercase focus:border-amber-500" 
+                className="w-full p-2 border-2 border-slate-200 rounded-lg font-bold text-slate-700 outline-none uppercase focus:border-amber-500 transition-colors" 
                 value={name} 
                 onChange={e => setName(e.target.value.toUpperCase())} 
                 onKeyDown={e => e.key === 'Enter' && handleRegister()} 
@@ -88,7 +92,7 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
               <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Duração (h)</label>
               <input 
                 type="number" 
-                className="w-full p-2 border-2 border-slate-200 rounded-lg font-bold text-slate-700 outline-none focus:border-amber-500" 
+                className="w-full p-2 border-2 border-slate-200 rounded-lg font-bold text-slate-700 outline-none focus:border-amber-500 transition-colors" 
                 value={duration} 
                 onChange={e => setDuration(e.target.value)} 
                 onKeyDown={e => e.key === 'Enter' && handleRegister()} 
@@ -96,8 +100,8 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
             </div>
           </div>
           <div className="flex gap-3">
-            <button onClick={onClose} className="flex-1 py-3 border border-slate-200 rounded-lg text-slate-500 font-bold text-sm hover:bg-slate-50">Pular Este</button>
-            <button onClick={handleRegister} className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-sm shadow-md">Cadastrar e Continuar</button>
+            <button onClick={onClose} className="flex-1 py-3 border border-slate-200 rounded-lg text-slate-500 font-bold text-sm hover:bg-slate-50 transition-colors">Pular Este</button>
+            <button onClick={handleRegister} className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-sm shadow-md transition-all active:scale-95">Cadastrar e Continuar</button>
           </div>
         </div>
       </div>
