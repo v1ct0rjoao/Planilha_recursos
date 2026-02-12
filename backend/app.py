@@ -102,14 +102,22 @@ def apenas_numeros(texto):
 
 def identificar_nome_padrao(linha, db_protocols=[]):
     texto_limpo = str(linha).upper().replace('_', '').replace('-', '').replace(' ', '')
-    for p in db_protocols:
+    protocolos_ordenados = sorted(db_protocols, key=lambda p: len(p['name']), reverse=True)
+    
+    for p in protocolos_ordenados:
         nome_db = str(p['name']).upper().replace('_', '').replace('-', '').replace(' ', '')
         if nome_db and nome_db in texto_limpo:
             return p['name']
     return "Desconhecido"
 
 def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
-    duracao = next((p['duration'] for p in db_protocols if p['name'].upper() in nome_protocolo.upper()), 0)
+    protocolos_ordenados = sorted(db_protocols, key=lambda p: len(p['name']), reverse=True)
+    duracao = 0
+    for p in protocolos_ordenados:
+        if p['name'].upper() in nome_protocolo.upper():
+            duracao = p['duration']
+            break
+            
     if duracao == 0: return "A calcular"
     try:
         dt_start = datetime.strptime(start_str, "%d/%m/%Y %H:%M")
