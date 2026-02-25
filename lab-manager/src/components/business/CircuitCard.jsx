@@ -8,37 +8,30 @@ import { formatDataCurta } from '../../utils/helpers';
 
 const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onViewHistory, onMove, onLink }) => {
   const rawStatus = circuit.status ? circuit.status.toString().toLowerCase().trim() : 'free';
+  
+  // Lógica corrigida: Se acabou o tempo (100% ou finished), ele vira Livre automaticamente na tela
   const hasEnded = rawStatus === 'finished' || (circuit.progress >= 100);
   const isMaint = rawStatus === 'maintenance';
-  const isRunning = rawStatus === 'running' && !hasEnded;
   const isFree = (rawStatus === 'free' || hasEnded) && !isMaint;
-  const isFinished = false;
+  const isRunning = rawStatus === 'running' && !hasEnded && !isMaint;
   const isParallel = circuit.isParallel;
 
   const theme = {
     running: { 
       borderLeft: 'border-l-amber-400', textStatus: 'text-amber-500', 
-      bar: 'bg-amber-400', bg: 'bg-white', badge: 'text-amber-600', 
-      iconColor: 'text-amber-500', statusText: 'EM ANDAMENTO' 
-    },
-    finished: { 
-      borderLeft: 'border-l-blue-500', textStatus: 'text-blue-500', 
-      bar: 'bg-blue-500', bg: 'bg-white', badge: 'text-blue-600', 
-      iconColor: 'text-blue-500', statusText: 'CONCLUÍDO' 
+      bar: 'bg-amber-400', iconColor: 'text-amber-500', statusText: 'EM ANDAMENTO' 
     },
     maintenance: { 
       borderLeft: 'border-l-rose-500', textStatus: 'text-rose-500', 
-      bar: 'bg-rose-500', bg: 'bg-white', badge: 'text-rose-600', 
-      iconColor: 'text-rose-500', statusText: 'MANUTENÇÃO' 
+      bar: 'bg-rose-500', iconColor: 'text-rose-500', statusText: 'MANUTENÇÃO' 
     },
     free: { 
       borderLeft: 'border-l-emerald-400', textStatus: 'text-emerald-500', 
-      bar: 'bg-emerald-400', bg: 'bg-white', badge: 'text-emerald-600', 
-      iconColor: 'text-emerald-500', statusText: 'DISPONÍVEL' 
+      bar: 'bg-emerald-400', iconColor: 'text-emerald-500', statusText: 'DISPONÍVEL' 
     }
   };
 
-  const statusKey = isFinished ? 'finished' : isRunning ? 'running' : isMaint ? 'maintenance' : 'free';
+  const statusKey = isRunning ? 'running' : isMaint ? 'maintenance' : 'free';
   const style = theme[statusKey];
 
   const isHit = searchTerm && searchTerm.length > 2 && (
@@ -70,8 +63,9 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
             </button>
           )}
           
-          {(isRunning || isFinished) && (
-            <button onClick={() => onToggleMaintenance(circuit.id, 'maintenance')} className="text-slate-300 hover:text-emerald-500" title="Finalizar/Manutenção">
+          {isRunning && (
+            // AQUI ESTÁ A CORREÇÃO: O botão agora envia 'free' para o banco, limpando o circuito!
+            <button onClick={() => onToggleMaintenance(circuit.id, 'free')} className="text-slate-300 hover:text-emerald-500" title="Liberar Circuito">
               <CheckSquare size={14} />
             </button>
           )}
@@ -94,7 +88,7 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
         </div>
       </div>
 
-      {(isRunning || isFinished) ? (
+      {isRunning ? (
         <div className="flex-1 flex flex-col justify-end">
           <div className="flex items-center gap-1 mb-1">
             <BatteryCharging size={14} className={style.iconColor} />
@@ -112,13 +106,13 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
           
           <div className="mb-2">
             <div className="flex justify-between items-end mb-1">
-              <span className="text-[10px] font-bold text-slate-600">{isFinished ? '100%' : `${circuit.progress}%`}</span>
+              <span className="text-[10px] font-bold text-slate-600">{circuit.progress}%</span>
               <span className={`text-[8px] font-black uppercase tracking-wider ${style.textStatus}`}>{style.statusText}</span>
             </div>
             <div className="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
               <div 
                 className={`h-full rounded-full transition-all duration-500 ${style.bar}`} 
-                style={{ width: isFinished ? '100%' : `${circuit.progress}%` }}
+                style={{ width: `${circuit.progress}%` }}
               ></div>
             </div>
           </div>

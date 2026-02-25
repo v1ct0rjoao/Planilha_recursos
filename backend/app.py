@@ -3,7 +3,6 @@ from flask_cors import CORS
 import os
 import json
 import re
-import random
 from datetime import datetime, timedelta, timezone
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -45,12 +44,11 @@ try:
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
         db_firestore = firestore.client()
-        print("[INFO] Ligação ao Firebase estabelecida.")
+        print("[INFO] Ligação ao Firebase estabelecida com SUCESSO.")
     else:
-        print("[WARN] Credenciais não encontradas. O sistema rodará em RAM.")
-
+        print("[WARN] Credenciais não encontradas. O sistema rodará apenas na RAM.")
 except Exception as e:
-    print(f"[ERROR] Falha na ligação ao Firebase: {e}")
+    print(f"[ERROR] Falha crítica na ligação ao Firebase: {e}")
 
 oee_service = None
 try:
@@ -66,35 +64,56 @@ def handle_exception(e):
     traceback.print_exc()
     return jsonify({"sucesso": False, "erro": str(e)}), 500
 
+def save_log_to_db(log_entry):
+    if not db_firestore: return
+    try:
+        db_firestore.collection('lab_logs').document(str(log_entry['id'])).set(log_entry)
+        print(f"[LOG SALVO] {log_entry['action']} - {log_entry['details']}")
+    except Exception as e:
+        print(f"[ERRO LOG] Falha ao salvar log no Firebase: {e}")
+
 def save_db(data):
     global DATA_CACHE
     DATA_CACHE = data
     if not db_firestore: return True
     try:
-        db_firestore.collection('lab_data').document('main').set(data)
+        data_to_save = {
+            "baths": data.get("baths", []),
+            "protocols": data.get("protocols", []),
+            "experienceOwners": data.get("experienceOwners", {})
+        }
+        db_firestore.collection('lab_data').document('main').set(data_to_save)
+        print(f"[BANCO SALVO] Modificações gravadas no Firestore com sucesso!")
         return True
     except Exception as e:
-        print(f"Erro ao guardar no Firebase: {e}")
+        print(f"[ERRO FIREBASE] Falha ao gravar no documento main: {e}")
         return False
 
 def load_db():
     global DATA_CACHE
     if DATA_CACHE is not None: return DATA_CACHE
     
-    empty_schema = {"baths": [], "protocols": [], "logs": []}
+    empty_schema = {"baths": [], "protocols": [], "logs": [], "experienceOwners": {}}
     if not db_firestore: return empty_schema
     
     try:
         doc = db_firestore.collection('lab_data').document('main').get()
+        data = empty_schema.copy()
+        
         if doc.exists:
-            data = doc.to_dict()
-            for key in empty_schema:
-                if key not in data or data[key] is None: 
-                    data[key] = []
-            DATA_CACHE = data
-            return data
-        return empty_schema
-    except:
+            main_data = doc.to_dict()
+            for key in ["baths", "protocols", "experienceOwners"]:
+                if key in main_data:
+                    data[key] = main_data[key]
+        
+        logs_query = db_firestore.collection('lab_logs').order_by('id', direction=firestore.Query.DESCENDING).limit(500).get()
+        data["logs"] = [doc.to_dict() for doc in logs_query]
+        
+        DATA_CACHE = data
+        print("[INFO] Banco de dados carregado do Firebase com sucesso.")
+        return data
+    except Exception as e:
+        print(f"[ERRO FIREBASE] Erro ao carregar banco: {e}")
         return empty_schema
 
 def apenas_numeros(texto):
@@ -163,9 +182,53 @@ def get_main_data():
     atualizar_progresso_realtime(db)
     return jsonify(db)
 
-@app.route('/api/import', methods=['POST', 'OPTIONS'])
+@app.route('/api/migrate_logs', methods=['GET'])
+def migrate_logs():
+    if not db_firestore:
+        return jsonify({"sucesso": False, "erro": "Firestore não conectado"})
+        
+    try:
+        doc_ref = db_firestore.collection('lab_data').document('main')
+        doc = doc_ref.get()
+        
+        if not doc.exists:
+            return jsonify({"sucesso": False, "erro": "Documento main não encontrado"})
+            
+        data = doc.to_dict()
+        old_logs = data.get('logs', [])
+        
+        if not old_logs:
+            return jsonify({"sucesso": True, "message": "Nenhum log para migrar no documento main"})
+            
+        batch = db_firestore.batch()
+        migrated_count = 0
+        
+        for log in old_logs:
+            log_id = str(log.get('id', int(datetime.now().timestamp() * 1000) + migrated_count))
+            log['id'] = int(log_id)
+            log_ref = db_firestore.collection('lab_logs').document(log_id)
+            batch.set(log_ref, log)
+            migrated_count += 1
+            
+            if migrated_count % 400 == 0:
+                batch.commit()
+                batch = db_firestore.batch()
+                
+        batch.commit()
+        
+        doc_ref.update({"logs": firestore.DELETE_FIELD})
+        
+        global DATA_CACHE
+        DATA_CACHE = None
+        
+        return jsonify({"sucesso": True, "message": f"{migrated_count} logs migrados com sucesso!"})
+        
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
+
+@app.route('/api/import', methods=['POST'])
 def import_digatron_data():
-    if request.method == 'OPTIONS': return '', 200
     try:
         data = request.json
         text = data.get('text', '')
@@ -196,6 +259,18 @@ def import_digatron_data():
                             'batteryId': bat_id, 'protocol': proto_name, 'progress': 0
                         })
                         atualizados.append(c['id'])
+                        
+                        agora = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
+                        new_log = {
+                            "id": int(agora.timestamp() * 1000) + int(cid_num),
+                            "action": "Importação",
+                            "bath": bath['id'],
+                            "date": agora.strftime("%d/%m/%Y %H:%M"),
+                            "details": f"Atualizado C-{cid_num}"
+                        }
+                        save_log_to_db(new_log)
+                        if 'logs' not in db: db['logs'] = []
+                        db['logs'].insert(0, new_log)
         
         save_db(db)
         return jsonify({"sucesso": True, "atualizados": atualizados, "db_atualizado": db})
@@ -257,15 +332,31 @@ def bath_update_temp():
 
 @app.route('/api/circuits/add', methods=['POST'])
 def circuit_add():
-    d = request.json
-    db = load_db()
-    cid = f"C-{d['circuitId']}" if not str(d['circuitId']).startswith("C-") else d['circuitId']
-    for b in db['baths']:
-        if str(b['id']) == str(d['bathId']):
-            b['circuits'].append({"id": cid, "status": "free", "batteryId": None, "previsao": "-"})
-            break
-    save_db(db)
-    return jsonify({"sucesso": True, "db_atualizado": db})
+    try:
+        d = request.json
+        db = load_db()
+        cid = f"C-{d['circuitId']}" if not str(d['circuitId']).startswith("C-") else d['circuitId']
+        for b in db['baths']:
+            if str(b['id']) == str(d['bathId']):
+                b['circuits'].append({"id": cid, "status": "free", "batteryId": None, "previsao": "-"})
+                break
+                
+        agora = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
+        new_log = {
+            "id": int(agora.timestamp() * 1000),
+            "action": "Adição",
+            "bath": str(d['bathId']),
+            "date": agora.strftime("%d/%m/%Y %H:%M"),
+            "details": f"Circuito {cid} adicionado"
+        }
+        save_log_to_db(new_log)
+        if 'logs' not in db: db['logs'] = []
+        db['logs'].insert(0, new_log)
+        
+        save_db(db)
+        return jsonify({"sucesso": True, "db_atualizado": db})
+    except Exception as e:
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
 
 @app.route('/api/circuits/delete', methods=['POST'])
 def circuit_delete():
@@ -308,6 +399,19 @@ def update_circuit_status():
                             })
                         else:
                             c['status'] = new_status
+                            
+                        agora = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
+                        new_log = {
+                            "id": int(agora.timestamp() * 1000),
+                            "action": "Status Alterado",
+                            "bath": target_bath,
+                            "date": agora.strftime("%d/%m/%Y %H:%M"),
+                            "details": f"Circuito {c['id']} alterado para {new_status}"
+                        }
+                        save_log_to_db(new_log)
+                        if 'logs' not in db: db['logs'] = []
+                        db['logs'].insert(0, new_log)
+                        
                         break
         
         save_db(db)
@@ -365,6 +469,18 @@ def circuit_move():
         if not target_found and src_bath_ref:
             src_bath_ref['circuits'].append(circuit_obj)
             return jsonify({"sucesso": False, "erro": "Banho de destino não encontrado"}), 404
+
+        agora = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
+        new_log = {
+            "id": int(agora.timestamp() * 1000),
+            "action": "Movimentação",
+            "bath": tgt_bath_id,
+            "date": agora.strftime("%d/%m/%Y %H:%M"),
+            "details": f"Circuito {circuit_obj['id']} movido de {src_bath_id}"
+        }
+        save_log_to_db(new_log)
+        if 'logs' not in db: db['logs'] = []
+        db['logs'].insert(0, new_log)
 
         save_db(db)
         return jsonify({"sucesso": True, "db_atualizado": db})
@@ -424,6 +540,23 @@ def protocol_delete():
         db = load_db()
         p_id = d.get('id')
         db['protocols'] = [p for p in db['protocols'] if p['id'] != p_id]
+        save_db(db)
+        return jsonify({"sucesso": True, "db_atualizado": db})
+    except Exception as e:
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
+
+@app.route('/api/experience/owners', methods=['POST'])
+def update_experience_owner():
+    try:
+        data = request.json 
+        db = load_db()
+        
+        if 'experienceOwners' not in db:
+            db['experienceOwners'] = {}
+            
+        for exp_code, owner_name in data.items():
+            db['experienceOwners'][exp_code] = owner_name
+            
         save_db(db)
         return jsonify({"sucesso": True, "db_atualizado": db})
     except Exception as e:

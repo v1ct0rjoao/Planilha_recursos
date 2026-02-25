@@ -1,12 +1,10 @@
 import { apiRequest } from './api';
 
 export const bathService = {
-  // Busca todos os dados iniciais
   getAllData: async () => {
     return await apiRequest('/data');
   },
 
-  // --- Banhos ---
   addBath: async (bathId, temp) => {
     return await apiRequest('/baths/add', 'POST', { bathId, temp });
   },
@@ -20,7 +18,6 @@ export const bathService = {
     return await apiRequest('/baths/temp', 'POST', { bathId, temp: Number(temp) });
   },
 
-  // --- Circuitos ---
   addCircuit: async (bathId, circuitId) => {
     return await apiRequest('/circuits/add', 'POST', { bathId, circuitId });
   },
@@ -37,7 +34,6 @@ export const bathService = {
     return await apiRequest('/circuits/link', 'POST', { bathId, sourceId, targetId });
   },
 
-  // --- Protocolos ---
   addProtocol: async (name, duration) => {
     return await apiRequest('/protocols/add', 'POST', { name, duration });
   },
@@ -45,7 +41,10 @@ export const bathService = {
     return await apiRequest('/protocols/delete', 'POST', { id });
   },
 
-  // --- Importação ---
+  updateExperienceOwner: async (expCode, ownerName) => {
+    return await apiRequest('/experience/owners', 'POST', { [expCode]: ownerName });
+  },
+
   importDigatron: async (text) => {
     return await apiRequest('/import', 'POST', { text });
   }
