@@ -31,7 +31,7 @@ const ExperienceListItem = React.memo(({ item, onSave, onNavigate }) => {
   return (
     <div 
       className="group bg-white border border-slate-200 rounded-2xl p-4 flex flex-col gap-3 hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer relative overflow-hidden outline-none focus:outline-none"
-      onClick={() => !isEditing && onNavigate && onNavigate(item.code)}
+      onClick={() => !isEditing && onNavigate && onNavigate(item.code.replace('/', '-'))}
     >
       <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
       
@@ -127,7 +127,7 @@ const ExperienceOwnerModal = ({ isOpen, onClose, baths = [], experienceOwners = 
     }
   }, [onRefreshData]);
 
-  const { chartData, experienceList, totalCircuits } = useMemo(() => {
+const { chartData, experienceList, totalCircuits } = useMemo(() => {
     if (!isOpen) return { chartData: [], experienceList: [], totalCircuits: 0 };
 
     const expCounts = {}; 
@@ -135,13 +135,26 @@ const ExperienceOwnerModal = ({ isOpen, onClose, baths = [], experienceOwners = 
 
     baths.forEach(bath => {
       if (!bath.circuits) return;
+      
       bath.circuits.forEach(c => {
+        const statusCircuito = c.status ? c.status.toLowerCase() : "";
+
+        if (statusCircuito !== "running" || !c.batteryId || c.batteryId.trim() === "") {
+          return; 
+        }
+
         const idToParse = c.batteryId || c.id || "";
         const parts = idToParse.split('-');
         
-        let expCode = "Outros";
+        let expCode = idToParse;
+        
         if (parts.length >= 2 && parts[1].toUpperCase().startsWith('E')) {
           expCode = parts[1].toUpperCase();
+          
+          if (parts.length >= 3) {
+            const anoLimpo = parts[2].split('_')[0]; 
+            expCode = `${expCode}/${anoLimpo}`;
+          }
         }
 
         const testName = c.protocol || c.testName || c.testType || c.test || "Sem Protocolo";
@@ -168,11 +181,15 @@ const ExperienceOwnerModal = ({ isOpen, onClose, baths = [], experienceOwners = 
         .map(([name, qtd]) => ({ name, qtd }))
         .sort((a, b) => b.qtd - a.qtd);
 
+      const baseCode = code.includes('/') ? code.split('/')[0] : code;
+      
+      const ownerName = ownersFromDb[code] || ownersFromDb[baseCode] || "Sem Dono";
+
       return {
         code,
         count: expCounts[code].count,
         tests: testsArray,
-        ownerName: ownersFromDb[code] || (code === "Outros" ? "Não Identificado" : "Sem Dono")
+        ownerName: ownerName 
       };
     });
 
