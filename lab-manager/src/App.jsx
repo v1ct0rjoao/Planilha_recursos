@@ -362,7 +362,7 @@ export default function LabManagerApp() {
                 active={currentView === 'history'}
                 onClick={() => setCurrentView('history')}
                 icon={History}
-                label="Histórico"
+                label="Dashboard OEE"
               />
 
               <MenuButton

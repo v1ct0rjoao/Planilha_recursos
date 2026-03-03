@@ -336,18 +336,6 @@ const OEEDashboardView = ({ setToast }) => {
           <div><h2 className="text-2xl font-bold text-slate-800">Painel OEE</h2><p className="text-slate-500 text-sm">{config.mes}/{config.ano}</p></div>
           <div className="flex gap-2 flex-wrap justify-end">
             
-            {/* <button 
-                onClick={toggleExtrasRule}
-                title="Ativar para limpar o SD dos circuitos excedentes (>300)"
-                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 border transition-all ${
-                    useExtrasRule 
-                    ? 'bg-amber-100 border-amber-300 text-amber-800 shadow-sm ring-1 ring-amber-200' 
-                    : 'bg-slate-50 border-slate-300 text-slate-500 hover:bg-slate-100'
-                }`}
-            >
-                {useExtrasRule ? <ToggleRight size={24} className="text-amber-600"/> : <ToggleLeft size={24} />}
-                {useExtrasRule ? "Regra 300 Ativada" : "Auto Extras"}
-            </button> */}
 
             <button onClick={handleCopyTable} className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
                <Copy size={16} className="text-blue-500" /> Copiar
