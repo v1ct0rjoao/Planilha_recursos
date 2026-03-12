@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ResponsiveContainer, 
-  LineChart, 
-  Line, 
+  AreaChart,     
+  Area,         
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -10,7 +10,8 @@ import {
   Tooltip as RechartsTooltip, 
   PieChart, 
   Pie, 
-  Cell 
+  Cell,
+  LabelList      
 } from 'recharts';
 import {
   List, BarChart2, Calendar, ArrowLeft, FileText,
@@ -361,35 +362,38 @@ const medias = {
     quality: mediaQual.toFixed(2),
     oee: mediaOeeCalculada.toFixed(2)
   };
-
   //converte os números no nome do mês
 
   const meses = [ 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-  const yAxisTicks = array.from({length: 21}, (_, i) => i*5);
+  const yAxisTicks = Array.from({ length: 100}, (_, i) => i * 2);
 
-  const charData = {...historyList}
+  const chartData = [...historyList] 
   .sort((a,b)=>{
-    if(a.ano !== b.ano) return a.ano - b.ano
-    return a.mes - b-mes;
-
+    if(a.ano !== b.ano) return a.ano - b.ano;
+    return a.mes - b.mes; 
   })
-
   .map(h => ({
-    name: meses[parseInt(h.mes,10) - 1], ...h.kpi
-    
-  }))
+    name: meses[parseInt(h.mes, 10) - 1], ...h.kpi
+  }));
+
+
+  const oeeValues = chartData.map(item => Number(item.oee));
+
+  const yMin = oeeValues.length > 0 ? Math.max(0, Math.floor(Math.min(...oeeValues)) - 25) : 0;
+  const yMax = oeeValues.length > 0 ? Math.min(100, Math.ceil(Math.max(...oeeValues)) + 10) : 100;
+
+
+
   
-
-
-
+  
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300 min-h-[600px]">
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300 min-h-[800px]">
 
       <ConfirmModal
         isOpen={modalDeleteOpen}
         title="Excluir Histórico"
-        message={`Tem certeza que deseja apagar o histórico de ${itemToDelete?.mes}/${itemToDelete?.ano}? Esta ação é irreversível.`}
+        message={itemToDelete ? `Tem certeza que deseja apagar o histórico de ${itemToDelete.mes}/${itemToDelete.ano}? Esta ação é irreversível.` : ""}
         confirmText="Sim, Excluir"
         cancelText="Cancelar"
         type="danger"
@@ -411,22 +415,62 @@ const medias = {
 
          
 
-            <div className="lg:col-span-3 h-80 bg-slate-50 rounded-2xl border border-slate-200 p-6 relative">
+          <div className="lg:col-span-3 h-[450px] bg-slate-50 rounded-2xl border border-slate-200 p-6 relative">
               <h3 className="font-bold text-slate-700 mb-6 uppercase text-xs tracking-wider flex items-center gap-2 absolute top-6 left-6">
                 <TrendingUp size={16} /> Tendência de OEE
               </h3>
+              
               {isLoading ? (
-                <div className="h-full flex items-center justify-center text-blue-600 font-bold animate-pulse">Carregando dados...</div>
+                <div className="h-full flex items-center justify-center text-blue-600 font-bold animate-pulse">
+                  Carregando dados...
+                </div>
               ) : historyList.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={historyList.map(h => ({ name: `${h.mes}/${h.ano}`, ...h.kpi }))} margin={{ top: 30, right: 10, left: -20, bottom: 0 }}>
+                 
+                  <AreaChart data={chartData} margin={{ top: 40, right: 10, left: -20, bottom: 0 }}>
+                    
+            
+                    <defs>
+                      <linearGradient id="colorOee" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#93c5fd" stopOpacity={0.6}/>
+                        <stop offset="95%" stopColor="#93c5fd" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dy={10} />
-                    <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                    
+                   
+                    <YAxis 
+                      domain={[yMin, yMax]} 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#94a3b8', fontSize: 11 }} 
+                    />
+                    
                     <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
                     <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }} />
-                    <Line type="stepAfter" dataKey="oee" stroke="#2563eb" strokeWidth={3} name="OEE %" dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
-                  </LineChart>
+                    
+              
+                    <Area 
+                      type="stepAfter" 
+                      dataKey="oee" 
+                      stroke="#2563eb" 
+                      strokeWidth={3} 
+                      fill="url(#colorOee)" 
+                      name="OEE %" 
+                      activeDot={{ r: 6 }} 
+                    >
+                     
+                      <LabelList 
+                        dataKey="oee" 
+                        position="top" 
+                        offset={10}
+                        formatter={(value) => `${value}%`} 
+                        style={{ fill: '#475569', fontSize: 12, fontWeight: 'bold' }} 
+                      />
+                    </Area>
+                  </AreaChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400">
@@ -542,14 +586,15 @@ const medias = {
                     className="group bg-white p-5 rounded-2xl border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 relative overflow-hidden flex flex-col"
                   >
                     <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h4 className="font-bold text-xl text-slate-800 flex items-center gap-2">
-                          {item.mes}/{item.ano}
+                     <div>
+                        <h4 className="font-bold text-xl text-slate-800 flex items-center gap-2 capitalize">
+                          {meses[parseInt(item.mes, 10) - 1]} / {item.ano}
                         </h4>
                         <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wide mt-1">
                           {new Date(item.saved_at).toLocaleDateString()}
                         </p>
                       </div>
+                      
                       <button
                         onClick={(e) => { e.stopPropagation(); handleRequestDelete(item); }}
                         className="text-slate-300 hover:text-rose-500 p-2 rounded-full transition-colors"
