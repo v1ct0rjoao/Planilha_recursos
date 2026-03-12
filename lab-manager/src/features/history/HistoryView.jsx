@@ -362,6 +362,25 @@ const medias = {
     oee: mediaOeeCalculada.toFixed(2)
   };
 
+  //converte os números no nome do mês
+
+  const meses = [ 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+  const yAxisTicks = array.from({length: 21}, (_, i) => i*5);
+
+  const charData = {...historyList}
+  .sort((a,b)=>{
+    if(a.ano !== b.ano) return a.ano - b.ano
+    return a.mes - b-mes;
+
+  })
+
+  .map(h => ({
+    name: meses[parseInt(h.mes,10) - 1], ...h.kpi
+    
+  }))
+  
+
 
 
   return (
