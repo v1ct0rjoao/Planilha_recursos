@@ -25,8 +25,14 @@ def get_firebase():
     except:
         return None
 
+# =========================================================
+# O GRANDE CULPADO CORRIGIDO AQUI: 
+# Transforma '001' em 1 (para tirar os zeros) e depois 
+# volta para texto '1' para casar com a matriz 1 a 450!
+# =========================================================
 def apenas_numeros(texto):
-    return re.sub(r'\D', '', str(texto))
+    numeros = re.sub(r'\D', '', str(texto))
+    return str(int(numeros)) if numeros else str(texto).strip()
 
 def processar_upload_oee(file_path, target_mes, target_ano):
     try:
@@ -268,8 +274,8 @@ def calcular_indicadores_oee(params):
         media_pp = media_simples(valores_pp)
         media_pq = media_simples(valores_pq)
 
-        tempo_disponivel_global = dias_no_mes - media_pp - media_sd
-        tempo_operacao_real = media_up - media_pq - media_sd
+        tempo_disponivel_global = dias_no_mes - media_pp
+        tempo_operacao_real = media_up
 
         if tempo_disponivel_global <= 0.001:
             disp_global = 0
@@ -379,9 +385,6 @@ def save_history(kpi, mes, ano):
         traceback.print_exc()
         return {"sucesso": False, "erro": str(e)}
 
-# ======================================================================================
-# FUNÇÃO MANUAL INTELIGENTE (Agora aceita GRID ou NÚMEROS DIRETOS)
-# ======================================================================================
 def save_manual_history(payload):
     db = get_firebase()
     if not db: return {"sucesso": False, "erro": "Firebase Off"}
@@ -394,7 +397,6 @@ def save_manual_history(payload):
         doc_id = f"{mes}_{ano}"
         history_ref = db.collection('lab_data').document('history').collection('oee_monthly')
 
-        # === MODO 1: O USUÁRIO COLOU O GRID (EXCEL) ===
         if grid_text.strip():
             executados = float(payload.get('ensaios_executados', 0))
             solicitados = float(payload.get('ensaios_solicitados', 0))
@@ -529,7 +531,6 @@ def save_manual_history(payload):
             
             return {"sucesso": True, "mensagem": "Histórico manual com grid processado e salvo."}
 
-        # === MODO 2: O USUÁRIO DIGITOU TUDO MANUALMENTE (SEM GRID) ===
         else:
             kpi = payload.get('kpi', {})
             medias = payload.get('medias', {})
@@ -548,7 +549,6 @@ def save_manual_history(payload):
     except Exception as e:
         traceback.print_exc()
         return {"sucesso": False, "erro": str(e)}
-
 
 def listar_historico():
     db = get_firebase()
