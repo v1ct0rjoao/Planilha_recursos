@@ -3,7 +3,8 @@ import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Label, Sector 
 } from 'recharts';
 import { Users, X, User, Tag, Save, Layers, PieChart as PieIcon, Search, ArrowRight, Activity, Edit2, ChevronLeft } from 'lucide-react';
-import { bathService } from "../../services/bathService";
+// IMPORTANTE: Importamos a API_URL para fazer a chamada direta pro back-end
+import { API_URL } from '../../utils/constants';
 
 const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#64748b'];
 
@@ -113,12 +114,23 @@ const ExperienceOwnerModal = ({ isOpen, onClose, baths = [], experienceOwners = 
   const [selectedOwner, setSelectedOwner] = useState(null);
   const [activeIndex, setActiveIndex] = useState(null);
 
+  // MUDANÇA PRINCIPAL AQUI: O salvamento agora faz um 'fetch' direto no formato de Dicionário 
+  // Ex: Payload vira {"E123/26": "Adriana"} que é exatamente o que o Python lê no for key, value in data.items()
   const saveOwner = useCallback(async (expCode, name) => {
     const updatedName = name || "Sem Dono";
     
     try {
-      const response = await bathService.updateExperienceOwner(expCode, updatedName);
-      if (!response.success) throw new Error("Falha ao salvar");
+      const payload = { [expCode]: updatedName }; 
+      
+      const response = await fetch(`${API_URL}/experience/owners`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await response.json();
+
+      if (!data.sucesso) throw new Error("Falha ao salvar");
       
       if (onRefreshData) onRefreshData();
     } catch (error) {
@@ -127,7 +139,7 @@ const ExperienceOwnerModal = ({ isOpen, onClose, baths = [], experienceOwners = 
     }
   }, [onRefreshData]);
 
-const { chartData, experienceList, totalCircuits } = useMemo(() => {
+  const { chartData, experienceList, totalCircuits } = useMemo(() => {
     if (!isOpen) return { chartData: [], experienceList: [], totalCircuits: 0 };
 
     const expCounts = {}; 
@@ -151,6 +163,7 @@ const { chartData, experienceList, totalCircuits } = useMemo(() => {
         if (parts.length >= 2 && parts[1].toUpperCase().startsWith('E')) {
           expCode = parts[1].toUpperCase();
           
+          // Anexando o ano à experiência (Ex: E123/26) para evitar conflitos com anos anteriores
           if (parts.length >= 3) {
             const anoLimpo = parts[2].split('_')[0]; 
             expCode = `${expCode}/${anoLimpo}`;
@@ -181,8 +194,8 @@ const { chartData, experienceList, totalCircuits } = useMemo(() => {
         .map(([name, qtd]) => ({ name, qtd }))
         .sort((a, b) => b.qtd - a.qtd);
 
+      // Puxamos a lógica do "fallback": Tenta achar E123/26. Se não tiver, puxa a base (E123).
       const baseCode = code.includes('/') ? code.split('/')[0] : code;
-      
       const ownerName = ownersFromDb[code] || ownersFromDb[baseCode] || "Sem Dono";
 
       return {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ResponsiveContainer, 
   AreaChart,     
@@ -16,7 +16,7 @@ import {
 import {
   List, BarChart2, Calendar, ArrowLeft, FileText,
   CheckCircle2, Clock, Zap, Activity, Printer,
-  TrendingUp, Timer, Info, Trash2, ClipboardList
+  TrendingUp, Timer, Info, Trash2, ClipboardList, Plus, X, Save, Filter
 } from 'lucide-react';
 import { API_URL } from '../../utils/constants';
 import { oeeService } from '../../services/oeeService';
@@ -196,9 +196,18 @@ const HistoryView = ({ logs, setToast }) => {
   const [historyList, setHistoryList] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedYear, setSelectedYear] = useState('');
 
   const [modalDeleteOpen, setModalDeleteOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    mes: '', ano: '', availability: '', performance: '', quality: '',
+    up_dias: '', pq_dias: '', pp_dias: '', sd_dias: '',
+    tempo_disp_calc: '', tempo_real_calc: '',
+    ensaios_solic: '', ensaios_exec: '', relatorios_emit: '', relatorios_prazo: ''
+  });
 
   const fetchHistory = () => {
     setIsLoading(true);
@@ -224,6 +233,24 @@ const HistoryView = ({ logs, setToast }) => {
       fetchHistory();
     }
   }, [viewMode]);
+
+  const availableYears = useMemo(() => {
+    const years = historyList.map(item => item.ano.toString());
+    return [...new Set(years)].sort((a, b) => b - a);
+  }, [historyList]);
+
+  useEffect(() => {
+    if (availableYears.length > 0) {
+      if (!selectedYear || (!availableYears.includes(selectedYear) && selectedYear !== 'Todos')) {
+        setSelectedYear(availableYears[0]);
+      }
+    }
+  }, [availableYears, selectedYear]);
+
+  const filteredHistoryList = useMemo(() => {
+    if (selectedYear === 'Todos' || !selectedYear) return historyList;
+    return historyList.filter(item => item.ano.toString() === selectedYear);
+  }, [historyList, selectedYear]);
 
   const handleOpenDetail = (item) => {
     setSelectedMonth(item);
@@ -260,10 +287,70 @@ const HistoryView = ({ logs, setToast }) => {
     setItemToDelete(null);
   };
 
+  const handleManualFormChange = (e) => {
+    const { name, value } = e.target;
+    setManualForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleManualSubmit = async (e) => {
+    e.preventDefault();
+    
+    const oeeCalculado = ((Number(manualForm.availability) / 100) * (Number(manualForm.performance) / 100) * (Number(manualForm.quality) / 100) * 100).toFixed(2);
+
+    const payload = {
+      mes: manualForm.mes,
+      ano: manualForm.ano,
+      kpi: {
+        oee: oeeCalculado,
+        availability: manualForm.availability,
+        performance: manualForm.performance,
+        quality: manualForm.quality
+      },
+      medias: {
+        up_dias: manualForm.up_dias,
+        pq_dias: manualForm.pq_dias,
+        pp_dias: manualForm.pp_dias,
+        sd_dias: manualForm.sd_dias,
+        tempo_disp_calc: manualForm.tempo_disp_calc,
+        tempo_real_calc: manualForm.tempo_real_calc,
+        ensaios_solic: manualForm.ensaios_solic,
+        ensaios_exec: manualForm.ensaios_exec,
+        relatorios_emit: manualForm.relatorios_emit,
+        relatorios_prazo: manualForm.relatorios_prazo
+      },
+      grid: null
+    };
+
+    try {
+      const response = await fetch(`${API_URL}/oee/history/manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+
+      if (data.sucesso || data.success) {
+        if (setToast) setToast({ message: "Histórico manual inserido com sucesso!", type: 'success' });
+        setIsManualModalOpen(false);
+        setManualForm({
+          mes: '', ano: '', availability: '', performance: '', quality: '',
+          up_dias: '', pq_dias: '', pp_dias: '', sd_dias: '',
+          tempo_disp_calc: '', tempo_real_calc: '',
+          ensaios_solic: '', ensaios_exec: '', relatorios_emit: '', relatorios_prazo: ''
+        });
+        fetchHistory(); 
+      } else {
+        alert("Erro ao salvar histórico manual.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Falha na comunicação com o servidor.");
+    }
+  };
+
   if (viewMode === 'detail' && selectedMonth) {
     return (
       <div className="bg-slate-50/50 min-h-screen animate-in slide-in-from-right duration-300 pb-20">
-
         <ConfirmModal
           isOpen={modalDeleteOpen}
           title="Excluir Histórico"
@@ -328,7 +415,7 @@ const HistoryView = ({ logs, setToast }) => {
             ) : (
               <div className="p-12 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
                 <div className="text-slate-400 mb-2">Sem dados detalhados</div>
-                <p className="text-xs text-slate-400">Este fechamento não possui grid salvo.</p>
+                <p className="text-xs text-slate-400">Este fechamento manual não possui grid visual salvo.</p>
               </div>
             )}
           </div>
@@ -337,8 +424,8 @@ const HistoryView = ({ logs, setToast }) => {
     );
   }
 
-  const kpimedio = historyList.length > 0 ?
-    historyList.reduce((acc, item) => {
+  const kpimedio = filteredHistoryList.length > 0 ?
+    filteredHistoryList.reduce((acc, item) => {
       acc.availability += Number(item.kpi.availability);
       acc.performance += Number(item.kpi.performance);
       acc.quality += Number(item.kpi.quality);
@@ -348,47 +435,40 @@ const HistoryView = ({ logs, setToast }) => {
     )
     : { availability: 0, performance: 0, quality: 0 };
 
-  const totalMeses = historyList.length || 1;
+  const totalMeses = filteredHistoryList.length || 1;
 
   const mediaDisp = kpimedio.availability / totalMeses;
   const mediaPerf = kpimedio.performance / totalMeses;
   const mediaQual = kpimedio.quality / totalMeses;
-
   const mediaOeeCalculada = (mediaDisp / 100) * (mediaPerf / 100) * (mediaQual / 100) * 100;
 
-const medias = {
+  const medias = {
     availability: mediaDisp.toFixed(2),
     performance: mediaPerf.toFixed(2),
     quality: mediaQual.toFixed(2),
     oee: mediaOeeCalculada.toFixed(2)
   };
-  //converte os números no nome do mês
 
   const meses = [ 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-  const yAxisTicks = Array.from({ length: 100}, (_, i) => i * 2);
-
-  const chartData = [...historyList] 
+  const chartData = [...filteredHistoryList] 
   .sort((a,b)=>{
     if(a.ano !== b.ano) return a.ano - b.ano;
     return a.mes - b.mes; 
   })
   .map(h => ({
-    name: meses[parseInt(h.mes, 10) - 1], ...h.kpi
+    name: selectedYear === 'Todos' 
+          ? `${meses[parseInt(h.mes, 10) - 1].substring(0,3)}/${h.ano}` 
+          : meses[parseInt(h.mes, 10) - 1].substring(0,3), 
+    ...h.kpi
   }));
 
-
   const oeeValues = chartData.map(item => Number(item.oee));
-
   const yMin = oeeValues.length > 0 ? Math.max(0, Math.floor(Math.min(...oeeValues)) - 25) : 0;
   const yMax = oeeValues.length > 0 ? Math.min(100, Math.ceil(Math.max(...oeeValues)) + 10) : 100;
 
-
-
-  
-  
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300 min-h-[800px]">
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300 min-h-[800px] relative">
 
       <ConfirmModal
         isOpen={modalDeleteOpen}
@@ -402,34 +482,179 @@ const medias = {
         onConfirm={executeDelete}
       />
 
-      <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
-        <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
-          <button onClick={() => setViewMode('chart')} className={`px-4 py-2 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'chart' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
-            <BarChart2 size={14} /> EVOLUÇÃO
-          </button>
+      {isManualModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex justify-between items-center z-10">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Plus size={20} className="text-blue-600" />
+                Inserção Manual de Histórico OEE
+              </h2>
+              <button onClick={() => setIsManualModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleManualSubmit} className="p-6 space-y-6">
+              <div>
+                <h3 className="text-xs font-bold text-slate-500 uppercase mb-3">Mês e Ano Referência</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Mês (1-12)</label>
+                    <input required type="number" min="1" max="12" name="mes" value={manualForm.mes} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Ano (ex: 2023)</label>
+                    <input required type="number" min="2000" name="ano" value={manualForm.ano} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xs font-bold text-slate-500 uppercase mb-3">Indicadores Principais (%)</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Disponibilidade</label>
+                    <input required type="number" step="0.01" min="0" max="100" name="availability" value={manualForm.availability} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Performance</label>
+                    <input required type="number" step="0.01" min="0" max="100" name="performance" value={manualForm.performance} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Qualidade</label>
+                    <input required type="number" step="0.01" min="0" max="100" name="quality" value={manualForm.quality} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2">* O OEE Global será calculado automaticamente com base nesses 3 indicadores.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-500 uppercase mb-3">Médias de Dias</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Média UP</label>
+                      <input required type="number" step="0.1" name="up_dias" value={manualForm.up_dias} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Média PQ</label>
+                      <input required type="number" step="0.1" name="pq_dias" value={manualForm.pq_dias} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Média PP</label>
+                      <input required type="number" step="0.1" name="pp_dias" value={manualForm.pp_dias} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Média SD</label>
+                      <input required type="number" step="0.1" name="sd_dias" value={manualForm.sd_dias} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Tempo Disp (ex: 240h)</label>
+                      <input required type="text" name="tempo_disp_calc" value={manualForm.tempo_disp_calc} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Tempo Real (ex: 200h)</label>
+                      <input required type="text" name="tempo_real_calc" value={manualForm.tempo_real_calc} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-xs font-bold text-slate-500 uppercase mb-3">Ensaios e Relatórios</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Ensaios Solicitados</label>
+                      <input required type="number" name="ensaios_solic" value={manualForm.ensaios_solic} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Ensaios Executados</label>
+                      <input required type="number" name="ensaios_exec" value={manualForm.ensaios_exec} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 mb-1 block">Relatórios Emitidos</label>
+                        <input required type="number" name="relatorios_emit" value={manualForm.relatorios_emit} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 mb-1 block">Relatórios no Prazo</label>
+                        <input required type="number" name="relatorios_prazo" value={manualForm.relatorios_prazo} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+                <button type="button" onClick={() => setIsManualModalOpen(false)} className="px-5 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
+                  Cancelar
+                </button>
+                <button type="submit" className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors flex items-center gap-2">
+                  <Save size={16} />
+                  Salvar Histórico
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
+      )}
+
+      <div className="px-6 py-4 border-b border-slate-200 flex flex-wrap justify-between items-center bg-slate-50/50 gap-4">
+        <div className="flex items-center gap-4">
+          <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
+            <button onClick={() => setViewMode('chart')} className={`px-4 py-2 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'chart' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>
+              <BarChart2 size={14} /> EVOLUÇÃO
+            </button>
+          </div>
+
+          {availableYears.length > 0 && (
+            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg border border-slate-200">
+              <Filter size={14} className="text-slate-400 ml-2" />
+              <div className="flex gap-1">
+                <button 
+                  onClick={() => setSelectedYear('Todos')} 
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedYear === 'Todos' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200'}`}
+                >
+                  Todos
+                </button>
+                {availableYears.map(year => (
+                  <button 
+                    key={year}
+                    onClick={() => setSelectedYear(year)} 
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedYear === year ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200'}`}
+                  >
+                    {year}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button 
+          onClick={() => setIsManualModalOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+        >
+          <Plus size={14} /> INSERIR MANUAL
+        </button>
       </div>
 
-
       <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-         
-
           <div className="lg:col-span-3 h-[450px] bg-slate-50 rounded-2xl border border-slate-200 p-6 relative">
               <h3 className="font-bold text-slate-700 mb-6 uppercase text-xs tracking-wider flex items-center gap-2 absolute top-6 left-6">
-                <TrendingUp size={16} /> Tendência de OEE
+                <TrendingUp size={16} /> 
+                Tendência de OEE {selectedYear !== 'Todos' && selectedYear ? `- ${selectedYear}` : ''}
               </h3>
               
               {isLoading ? (
                 <div className="h-full flex items-center justify-center text-blue-600 font-bold animate-pulse">
                   Carregando dados...
                 </div>
-              ) : historyList.length > 0 ? (
+              ) : filteredHistoryList.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                 
                   <AreaChart data={chartData} margin={{ top: 40, right: 10, left: -20, bottom: 0 }}>
-                    
-            
                     <defs>
                       <linearGradient id="colorOee" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#93c5fd" stopOpacity={0.6}/>
@@ -440,7 +665,6 @@ const medias = {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dy={10} />
                     
-                   
                     <YAxis 
                       domain={[yMin, yMax]} 
                       axisLine={false} 
@@ -451,7 +675,6 @@ const medias = {
                     <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
                     <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }} />
                     
-              
                     <Area 
                       type="stepAfter" 
                       dataKey="oee" 
@@ -461,7 +684,6 @@ const medias = {
                       name="OEE %" 
                       activeDot={{ r: 6 }} 
                     >
-                     
                       <LabelList 
                         dataKey="oee" 
                         position="top" 
@@ -475,15 +697,13 @@ const medias = {
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400">
                   <BarChart2 size={32} className="mb-2 opacity-30" />
-                  <span className="text-xs">Sem dados históricos no banco.</span>
+                  <span className="text-xs">Nenhum dado encontrado para o período selecionado.</span>
                 </div>
               )}
             </div>
 
-             {historyList.length > 0 && (
+             {filteredHistoryList.length > 0 && (
             <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
-              
-          
               <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col items-center relative shadow-sm">
                 <span className="text-xs font-bold text-slate-500 uppercase mb-2 z-10 flex items-center gap-1">Média OEE</span>
                 <div className="w-full h-28 relative mt-2">
@@ -505,7 +725,6 @@ const medias = {
                 </div>
               </div>
 
-              
               <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col items-center relative shadow-sm">
                 <span className="text-xs font-bold text-slate-500 uppercase mb-2 z-10 flex items-center gap-1"><Timer size={14} className="text-orange-500"/> Média Disp.</span>
                 <div className="w-full h-28 relative mt-2">
@@ -527,7 +746,6 @@ const medias = {
                 </div>
               </div>
 
-             
               <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col items-center relative shadow-sm">
                 <span className="text-xs font-bold text-slate-500 uppercase mb-2 z-10 flex items-center gap-1"><Zap size={14} className="text-purple-500"/> Média Perf.</span>
                 <div className="w-full h-28 relative mt-2">
@@ -549,7 +767,6 @@ const medias = {
                 </div>
               </div>
 
-         
               <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col items-center relative shadow-sm">
                 <span className="text-xs font-bold text-slate-500 uppercase mb-2 z-10 flex items-center gap-1"><CheckCircle2 size={14} className="text-emerald-500"/> Média Qual.</span>
                 <div className="w-full h-28 relative mt-2">
@@ -579,11 +796,12 @@ const medias = {
               <h3 className="font-bold text-slate-700 mb-4 uppercase text-xs tracking-wider flex items-center gap-2">
                 <Calendar size={16} /> Fechamentos Mensais
               </h3>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[...historyList]
+                {[...filteredHistoryList]
                   .sort((a, b) => {
-                    if (a.ano !== b.ano) return a.ano - b.ano;
-                    return a.mes - b.mes;
+                    if (a.ano !== b.ano) return b.ano - a.ano;
+                    return b.mes - a.mes;
                   })
                   .map((item, idx) => (
                   <div
@@ -596,7 +814,7 @@ const medias = {
                           {meses[parseInt(item.mes, 10) - 1]} / {item.ano}
                         </h4>
                         <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wide mt-1">
-                          {new Date(item.saved_at).toLocaleDateString()}
+                          {item.saved_at ? new Date(item.saved_at).toLocaleDateString() : 'Inserido Manualmente'}
                         </p>
                       </div>
                       
@@ -646,12 +864,17 @@ const medias = {
                     </div>
                   </div>
                 ))}
+                {filteredHistoryList.length === 0 && (
+                   <div className="col-span-full text-center py-10 text-slate-400 text-sm">
+                      Nenhum fechamento registrado para este período.
+                   </div>
+                )}
               </div>
             </div>
           </div>
      
     </div>
-      );
+  );
 };
 
-      export default HistoryView;
+export default HistoryView;
