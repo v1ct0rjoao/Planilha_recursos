@@ -274,8 +274,8 @@ def calcular_indicadores_oee(params):
         media_pp = media_simples(valores_pp)
         media_pq = media_simples(valores_pq)
 
-        tempo_disponivel_global = dias_no_mes - media_pp
-        tempo_operacao_real = media_up
+        tempo_disponivel_global = dias_no_mes - media_pp - media_sd
+        tempo_operacao_real = media_up -  media_pq - media_sd
 
         if tempo_disponivel_global <= 0.001:
             disp_global = 0
