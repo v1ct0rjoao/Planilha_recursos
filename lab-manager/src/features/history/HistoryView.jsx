@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+// Importação dos componentes do Recharts para desenhar os gráficos na tela
 import { 
   ResponsiveContainer, 
   AreaChart,     
@@ -15,16 +16,24 @@ import {
   Cell,
   LabelList      
 } from 'recharts';
+// Importação dos ícones do Lucide para enfeitar os cards
 import {
   List, BarChart2, Calendar, ArrowLeft, FileText,
   CheckCircle2, Clock, Zap, Activity, Printer,
   TrendingUp, Timer, Info, Trash2, ClipboardList, Plus, X, Save, Filter, Database
 } from 'lucide-react';
+// Constantes de comunicação e serviços
 import { API_URL } from '../../utils/constants';
 import { oeeService } from '../../services/oeeService';
+// Modal de confirmação padrão (usado na hora de apagar algo)
 import ConfirmModal from "../../components/ui/ConfirmModal";
 
+// ==============================================================
+// COMPONENTE: ReportKPICard
+// Objetivo: Desenha os 4 cartões principais (OEE, Disp, Perf, Qual)
+// ==============================================================
 const ReportKPICard = ({ title, value, icon: Icon, color }) => {
+  // Mapa de cores para dar o tema correto dependendo do indicador
   const colorMap = {
     blue: 'text-blue-600 bg-blue-50 border-blue-100',
     orange: 'text-orange-600 bg-orange-50 border-orange-100',
@@ -38,6 +47,7 @@ const ReportKPICard = ({ title, value, icon: Icon, color }) => {
     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-start justify-between hover:shadow-md transition-shadow">
       <div>
         <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{title}</p>
+        {/* Valor em % grande na tela */}
         <h3 className="text-3xl font-extrabold text-slate-800 tracking-tight">{value}%</h3>
         <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full w-fit">
           <Activity size={10} /> REGISTRO FINALIZADO
@@ -50,7 +60,12 @@ const ReportKPICard = ({ title, value, icon: Icon, color }) => {
   );
 };
 
+// ==============================================================
+// COMPONENTE: DetailedStats
+// Objetivo: Mostra as médias de UP/PQ/PP/SD e Ensaios daquele mês
+// ==============================================================
 const DetailedStats = ({ data }) => {
+  // Se não tiver dados (ex: histórico manual sem métricas extras), não mostra a caixa.
   if (!data) return null;
 
   return (
@@ -60,6 +75,7 @@ const DetailedStats = ({ data }) => {
       </h3>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Bloco 1: Médias Operacionais da Fábrica */}
         <div>
           <h4 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2">
             <Clock size={12} /> Médias de Dias (Por Circuito)
@@ -82,12 +98,14 @@ const DetailedStats = ({ data }) => {
               <span className="text-xl font-mono font-bold text-amber-700">{data.sd_dias || '-'}</span>
             </div>
           </div>
+          {/* Rodapé com tempo disponível e real */}
           <div className="mt-3 flex justify-between text-[10px] text-slate-400 font-mono bg-slate-50 p-2 rounded border border-slate-100">
             <span>Tempo Disp. Médio: <strong>{data.tempo_disp_calc || '-'}</strong></span>
             <span>Tempo Real Médio: <strong>{data.tempo_real_calc || '-'}</strong></span>
           </div>
         </div>
 
+        {/* Bloco 2: Volume de Produção Informado */}
         <div>
           <h4 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2">
             <FileText size={12} /> Dados de Produção (Entradas)
@@ -118,7 +136,12 @@ const DetailedStats = ({ data }) => {
   );
 }
 
+// ==============================================================
+// COMPONENTE: ReadOnlyGrid
+// Objetivo: Desenhar aquela matriz colorida de 30 dias só pra visualização
+// ==============================================================
 const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
+  // Função para retornar a cor CSS dependendo da sigla do dia
   const getColor = (status) => {
     switch (status) {
       case 'UP': return 'bg-emerald-500 border border-emerald-600';
@@ -132,6 +155,7 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* Cabeçalho da Tabela com a Legenda */}
       <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center gap-6 sticky left-0">
         <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider">
           <Info size={14} /> Legenda Visual:
@@ -146,6 +170,7 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
 
       <div className="overflow-x-auto max-h-[600px] custom-scrollbar">
         <table className="w-full text-sm text-left border-collapse">
+          {/* O topo da tabela mostrando os números dos dias de 1 a 30 (ou 31) */}
           <thead className="bg-slate-100 text-slate-600 font-semibold text-xs uppercase sticky top-0 z-20 shadow-sm">
             <tr>
               <th className="px-3 py-3 border-r border-slate-200 w-32 sticky left-0 bg-slate-100 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Circuito</th>
@@ -158,18 +183,29 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
               </th>
             </tr>
           </thead>
+          {/* Corpo da tabela: Desenha as linhas coloridas circuito a circuito */}
           <tbody className="divide-y divide-slate-100 bg-white">
             {gridData.map((row, idx) => (
               <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                
+                {/* TRUQUE ANTI-FALHA (raw_id): 
+                  Se for um mês muito antigo, ele pode não ter o atributo 'raw_id', só o 'id'.
+                  Então usamos o '||' para pegar o 'id' caso o raw_id não exista, e colocamos os zeros à esquerda (001, 002...) 
+                */}
                 <td className="px-3 py-1 font-mono font-bold text-slate-700 border-r border-slate-200 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] text-xs">
-                  {row.id === 'iDevice' ? (
+                  {row.id === 'iDevice' || row.raw_id === 'iDevice' ? (
                     <span className="text-blue-600 underline decoration-dotted decoration-blue-300">iDevice</span>
                   ) : (
-                    <span className="text-slate-600">Circuit{row.raw_id.padStart(3, '0')}</span>
+                    <span className="text-slate-600">
+                      Circuit{String(row.raw_id || row.id).replace('Circuit', '').padStart(3, '0')}
+                    </span>
                   )}
                 </td>
+                
+                {/* Renderização dos quadradinhos de dia */}
                 <td className="p-1">
                   <div className="flex gap-[2px] px-1">
+                    {/* Pega o array de dias que veio do banco e desenha as cores */}
                     {row.days && row.days.map((status, i) => (
                       <div
                         key={i}
@@ -179,6 +215,7 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
                         {status}
                       </div>
                     ))}
+                    {/* Se faltar dias para fechar o mês (por algum erro de upload antigo), ele preenche com vazio para a tabela não quebrar */}
                     {Array.from({ length: Math.max(0, daysInMonth - (row.days?.length || 0)) }).map((_, i) => (
                       <div key={`empty-${i}`} className="w-5 h-5 border border-slate-100 bg-white rounded-[2px]" />
                     ))}
@@ -193,19 +230,27 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
   );
 };
 
+// ==============================================================
+// COMPONENTE PRINCIPAL: HistoryView
+// Objetivo: É o maestro que gerencia tudo na aba Histórico OEE
+// ==============================================================
 const HistoryView = ({ logs, setToast }) => {
+  // Controle de estado da tela (chart = gráfico, detail = olhando um mês específico)
   const [viewMode, setViewMode] = useState('chart');
   const [historyList, setHistoryList] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedYear, setSelectedYear] = useState('');
 
+  // Controles do modal de exclusão
   const [modalDeleteOpen, setModalDeleteOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
 
+  // Controles do modal de Inserção de OEE Passado (Manual)
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [inputMode, setInputMode] = useState('grid'); 
   
+  // Objeto de estado que guarda tudo o que foi digitado/colado no modal manual
   const [manualForm, setManualForm] = useState({
     mes: '', ano: '', 
     ensaios_solic: '', ensaios_exec: '', relatorios_emit: '', relatorios_prazo: '',
@@ -215,12 +260,14 @@ const HistoryView = ({ logs, setToast }) => {
     tempo_disp_calc: '', tempo_real_calc: ''
   });
 
+  // Vai buscar no banco Python os relatórios guardados
   const fetchHistory = () => {
     setIsLoading(true);
     fetch(`${API_URL}/oee/history`)
       .then(r => r.json())
       .then(data => {
         if (data.sucesso && Array.isArray(data.historico)) {
+          // Ordena os meses para o último salvo aparecer primeiro na listagem visual
           const sorted = data.historico.sort((a, b) => new Date(b.saved_at) - new Date(a.saved_at));
           setHistoryList(sorted);
         } else {
@@ -234,17 +281,20 @@ const HistoryView = ({ logs, setToast }) => {
       .finally(() => setIsLoading(false));
   };
 
+  // Quando o usuário abre essa tela de Histórico, busca os dados
   useEffect(() => {
     if (viewMode === 'chart') {
       fetchHistory();
     }
   }, [viewMode]);
 
+  // Separa magicamente todos os anos que existem no banco (ex: 2024, 2025, 2026) para montar o filtro
   const availableYears = useMemo(() => {
     const years = historyList.map(item => item.ano.toString());
     return [...new Set(years)].sort((a, b) => b - a);
   }, [historyList]);
 
+  // Autoseleciona o ano mais recente quando carrega
   useEffect(() => {
     if (availableYears.length > 0) {
       if (!selectedYear || (!availableYears.includes(selectedYear) && selectedYear !== 'Todos')) {
@@ -253,11 +303,13 @@ const HistoryView = ({ logs, setToast }) => {
     }
   }, [availableYears, selectedYear]);
 
+  // Filtra a lista de relatórios de acordo com o ano escolhido no combo box
   const filteredHistoryList = useMemo(() => {
     if (selectedYear === 'Todos' || !selectedYear) return historyList;
     return historyList.filter(item => item.ano.toString() === selectedYear);
   }, [historyList, selectedYear]);
 
+  // Quando clica no cardzinho do mês, abre os detalhes gigantes dele
   const handleOpenDetail = (item) => {
     setSelectedMonth(item);
     setViewMode('detail');
@@ -268,11 +320,13 @@ const HistoryView = ({ logs, setToast }) => {
     setViewMode('chart');
   };
 
+  // Abre a lixeirinha de confirmação
   const handleRequestDelete = (item) => {
     setItemToDelete(item);
     setModalDeleteOpen(true);
   };
 
+  // Dá a ordem pro Python matar aquele registro no Firebase
   const executeDelete = async () => {
     if (!itemToDelete) return;
     setModalDeleteOpen(false);
@@ -280,8 +334,10 @@ const HistoryView = ({ logs, setToast }) => {
     const { success } = await oeeService.deleteHistory(itemToDelete.mes, itemToDelete.ano);
 
     if (success) {
+      // Remove da tela sem precisar recarregar o banco
       setHistoryList(prev => prev.filter(h => !(h.mes === itemToDelete.mes && h.ano === itemToDelete.ano)));
 
+      // Se eu estava olhando os detalhes do mês que apaguei, eu volto pra tela de gráficos
       if (selectedMonth && selectedMonth.mes === itemToDelete.mes && selectedMonth.ano === itemToDelete.ano) {
         handleBack();
       }
@@ -293,16 +349,19 @@ const HistoryView = ({ logs, setToast }) => {
     setItemToDelete(null);
   };
 
+  // Atualiza o estado das variáveis do formulário manual
   const handleManualFormChange = (e) => {
     const { name, value } = e.target;
     setManualForm(prev => ({ ...prev, [name]: value }));
   };
 
+  // O botão verde "Salvar Histórico" na tela de Inserção de Mês Passado
   const handleManualSubmit = async (e) => {
     e.preventDefault();
     
     let payload = {};
 
+    // Se ele tiver usando a caixa grande de texto com colar excel, só precisa mandar isso
     if (inputMode === 'grid') {
       payload = {
         mes: manualForm.mes,
@@ -314,6 +373,7 @@ const HistoryView = ({ logs, setToast }) => {
         grid_text: manualForm.grid_text
       };
     } else {
+      // Se ele tá digitando só valores, calcula na tela e manda as métricas mastigadas pro banco
       const oeeCalculado = ((Number(manualForm.availability) / 100) * (Number(manualForm.performance) / 100) * (Number(manualForm.quality) / 100) * 100).toFixed(2);
       payload = {
         mes: manualForm.mes,
@@ -345,6 +405,7 @@ const HistoryView = ({ logs, setToast }) => {
     }
 
     try {
+      // Bate na rota da API do app.py
       const response = await fetch(`${API_URL}/oee/history/manual`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -354,6 +415,7 @@ const HistoryView = ({ logs, setToast }) => {
 
       if (data.sucesso || data.success) {
         if (setToast) setToast({ message: "Histórico inserido com sucesso!", type: 'success' });
+        // Limpa tudo e fecha o modal
         setIsManualModalOpen(false);
         setManualForm({
           mes: '', ano: '', availability: '', performance: '', quality: '',
@@ -372,6 +434,7 @@ const HistoryView = ({ logs, setToast }) => {
     }
   };
 
+  // Se o viewMode for 'detail', ele some com a tela de gráficos e renderiza a tela inteira com o Grid colorido
   if (viewMode === 'detail' && selectedMonth) {
     return (
       <div className="bg-slate-50/50 min-h-screen animate-in slide-in-from-right duration-300 pb-20">
@@ -439,7 +502,7 @@ const HistoryView = ({ logs, setToast }) => {
             ) : (
               <div className="p-12 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
                 <div className="text-slate-400 mb-2">Sem dados detalhados</div>
-                <p className="text-xs text-slate-400">Este fechamento (sem grid) foi inserido com valores diretos.</p>
+                <p className="text-xs text-slate-400">Este fechamento manual foi inserido diretamente através de valores de média, sem preenchimento de matriz (Grid).</p>
               </div>
             )}
           </div>
@@ -448,7 +511,8 @@ const HistoryView = ({ logs, setToast }) => {
     );
   }
 
-  // Lógica inteligente do gráfico
+  // Daqui pra baixo é o código pra montar os gráficos da tela inicial de Históricos
+
   const isCompareMode = selectedYear === 'Todos';
   const meses = [ 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   const mesesAbreviados = [ 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -456,6 +520,7 @@ const HistoryView = ({ logs, setToast }) => {
   let chartData = [];
   let linesToRender = [];
 
+  // Se escolheu 'Todos' no filtro, eu monto o objeto do gráfico com linhas de todas as cores
   if (isCompareMode) {
     chartData = mesesAbreviados.map((nomeMes, index) => {
       const mesNum = index + 1;
@@ -471,6 +536,7 @@ const HistoryView = ({ logs, setToast }) => {
     });
     linesToRender = availableYears;
   } else {
+    // Se não, pinto aquele grafico bonitão azul preenchido
     chartData = filteredHistoryList
       .sort((a, b) => parseInt(a.mes) - parseInt(b.mes))
       .map(h => ({
@@ -480,10 +546,12 @@ const HistoryView = ({ logs, setToast }) => {
     linesToRender = ['oee'];
   }
 
+  // Faz a matemática pra não deixar o gráfico cortado ou com um teto de 1000%
   const allOeeValues = historyList.map(item => Number(item.kpi.oee));
   const yMin = allOeeValues.length > 0 ? Math.max(0, Math.floor(Math.min(...allOeeValues)) - 25) : 0;
   const yMax = allOeeValues.length > 0 ? Math.min(100, Math.ceil(Math.max(...allOeeValues)) + 10) : 100;
 
+  // Calcula a média das coisas que estão aparecendo no filtro atualmente
   const kpimedio = filteredHistoryList.length > 0 ?
     filteredHistoryList.reduce((acc, item) => {
       acc.availability += Number(item.kpi.availability);
@@ -508,6 +576,7 @@ const HistoryView = ({ logs, setToast }) => {
     oee: mediaOeeCalculada.toFixed(2)
   };
 
+  // Render da tela Inicial (Modo Chart)
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300 min-h-[800px] relative">
 
@@ -523,6 +592,7 @@ const HistoryView = ({ logs, setToast }) => {
         onConfirm={executeDelete}
       />
 
+      {/* MODAL DE INSERÇÃO MANUAL */}
       {isManualModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar flex flex-col">
@@ -538,6 +608,7 @@ const HistoryView = ({ logs, setToast }) => {
             
             <form onSubmit={handleManualSubmit} className="p-6 flex flex-col gap-6">
               
+              {/* Botões para alternar o modo de entrada (com grid ou só métricas) */}
               <div className="flex bg-slate-100 p-1 rounded-lg w-fit">
                 <button 
                   type="button"
@@ -593,6 +664,7 @@ const HistoryView = ({ logs, setToast }) => {
                  </div>
               </div>
 
+              {/* Formulário Dinâmico: Depende do modo que o usuário escolheu em cima */}
               {inputMode === 'grid' ? (
                 <div className="flex-1 min-h-[250px] flex flex-col animate-in fade-in duration-300">
                   <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 border-b border-slate-100 pb-2">Área de Transferência do Excel</h3>
@@ -674,6 +746,7 @@ const HistoryView = ({ logs, setToast }) => {
         </div>
       )}
 
+      {/* Controle visual dos filtros (Todos os Anos, 2024, etc) */}
       <div className="px-6 py-4 border-b border-slate-200 flex flex-wrap justify-between items-center bg-slate-50/50 gap-4">
         <div className="flex items-center gap-4">
           <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
@@ -710,7 +783,7 @@ const HistoryView = ({ logs, setToast }) => {
           onClick={() => setIsManualModalOpen(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-2"
         >
-          <Plus size={14} /> INSERIR MANUAL
+          <Plus size={14} /> IMPORTAR HISTÓRICO
         </button>
       </div>
 
@@ -893,6 +966,7 @@ const HistoryView = ({ logs, setToast }) => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[...filteredHistoryList]
+                  // CORREÇÃO DA ORDEM AQUI: a.mes - b.mes faz Janeiro aparecer antes de Fevereiro, etc.
                   .sort((a, b) => {
                     if (a.ano !== b.ano) return b.ano - a.ano; 
                     return a.mes - b.mes; 
