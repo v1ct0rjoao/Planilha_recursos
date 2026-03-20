@@ -192,7 +192,7 @@ def calcular_indicadores_oee(params):
             'prazo': float(params.get('relatorios_no_prazo', 0))
         }
 
-        capacidade_total = int(params.get('capacidade_total', 424)) 
+        capacidade_total = int(params.get('capacidade_total', 450)) 
         limite_fixo = 300 # A Moura considera 300 equipamentos como "ativos principais".
         
         todos_candidatos = []
