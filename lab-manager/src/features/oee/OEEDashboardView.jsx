@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import {
   FileSpreadsheet, UploadCloud, Settings, ArrowLeft, Activity, 
   Filter, ArrowRight, Save, Clock, Zap, CheckCircle2, 
-  Copy, Star, X, Info, Eraser, AlertTriangle, ToggleLeft, ToggleRight
+  Copy, X, Info, AlertTriangle
 } from 'lucide-react';
 
 import KPICard from '../../components/ui/KPICard';
@@ -11,7 +11,6 @@ import ValidationCard from './components/ValidationCard';
 import GridRow from './components/GridRow'; 
 import { oeeService } from '../../services/oeeService';
 import ConfirmModal from "../../components/ui/ConfirmModal"; 
-import InputModal from "../../components/modals/InputModal";
 
 const OEEDashboardView = ({ setToast }) => {
   const [step, setStep] = useState('config');
@@ -20,13 +19,7 @@ const OEEDashboardView = ({ setToast }) => {
   const [isSelectionMode, setIsSelectionMode] = useState(false); 
   const [selectedIds, setSelectedIds] = useState([]);
   
-  const [useExtrasRule, setUseExtrasRule] = useState(false); 
-
-  const [modalInputExtras, setModalInputExtras] = useState(false); 
   const [modalConfirmSave, setModalConfirmSave] = useState(false); 
-  const [modalConfirmRestore, setModalConfirmRestore] = useState(false);
-  
-  const [optReport, setOptReport] = useState(null);
 
   const [config, setConfig] = useState({
     ano: new Date().getFullYear(), 
@@ -50,14 +43,10 @@ const OEEDashboardView = ({ setToast }) => {
     setStep('upload');
   };
 
-  const calculate = useCallback(async (currentConfig = config, ruleState = useExtrasRule) => {
+  const calculate = useCallback(async (currentConfig = config) => {
     setIsLoading(true);
-    const payload = { 
-        ...currentConfig,
-        usar_regra_extras: ruleState 
-    };
-    
-    const { success, data } = await oeeService.calculate(payload);
+    // Removemos o "usar_regra_extras", agora é cálculo limpo e direto
+    const { success, data } = await oeeService.calculate(currentConfig);
     
     if (success && data.sucesso) {
       setResults({
@@ -72,14 +61,7 @@ const OEEDashboardView = ({ setToast }) => {
       setToast({ message: "Erro ao calcular dados.", type: 'error' });
     }
     setIsLoading(false);
-  }, [config, step, setToast, useExtrasRule]);
-
-  const toggleExtrasRule = () => {
-      const newState = !useExtrasRule;
-      setUseExtrasRule(newState);
-      calculate(config, newState);
-      setToast({ message: newState ? "Regra 300 Aplicada!" : "Visualização Padrão (Todos)", type: 'info' });
-  };
+  }, [config, step, setToast]);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -91,7 +73,7 @@ const OEEDashboardView = ({ setToast }) => {
     if (success && data.sucesso) {
       setCircuitosList(data.circuitos || []);
       setToast({ message: 'Mapa gerado com sucesso!', type: 'success' });
-      await calculate(config, useExtrasRule);
+      await calculate(config);
       setStep('dashboard');
     } else {
       setToast({ message: data?.erro || "Erro ao processar arquivo.", type: 'error' });
@@ -106,8 +88,7 @@ const OEEDashboardView = ({ setToast }) => {
 
   const handlePreset = async (id, type) => {
     let action = 'SET_UP';
-    if (type === 'bonus_list') action = 'SET_BONUS';
-    else if (type === 'force_std') action = 'force_std';
+    if (type === 'force_std') action = 'force_std';
     else if (type === 'force_up') action = 'SET_UP';
 
     const ok = await updateCircuitOnDB(id, action);
@@ -133,54 +114,6 @@ const OEEDashboardView = ({ setToast }) => {
     setModalConfirmSave(false); 
     const { success } = await oeeService.saveHistory(results.kpi, config.mes, config.ano);
     if (success) setToast({ message: "Fechamento salvo no Histórico!", type: 'success' });
-  };
-
-  const executeAutoExtras = async (inputValue) => {
-    setModalInputExtras(false); 
-
-    const limite = parseInt(inputValue);
-    if (isNaN(limite) || limite < 0) {
-      setToast({ message: "Valor inválido.", type: 'error' });
-      return;
-    }
-
-    setIsLoading(true);
-    const { success, data } = await oeeService.autoDefineExtras(limite);
-    
-    if (success && data.sucesso) {
-      if (data.relatorio) {
-        setOptReport(data.relatorio);
-        setToast({ message: "Otimização aplicada! Veja o relatório.", type: 'success' });
-      } else {
-        setToast({ message: data.mensagem, type: 'info' });
-      }
-      setUseExtrasRule(true);
-      await calculate(config, true); 
-    } else {
-      setToast({ message: data?.erro || "Erro ao definir extras.", type: 'error' });
-    }
-    setIsLoading(false);
-  };
-
-  const openRestoreConfirmation = () => {
-    setModalInputExtras(false);
-    setModalConfirmRestore(true);
-  };
-
-  const handleConfirmRestore = async () => {
-    setModalConfirmRestore(false);
-    setIsLoading(true);
-    
-    const { success, data } = await oeeService.clearExtras();
-    
-    if (success && data.sucesso) {
-      setOptReport(null);
-      setToast({ message: data.mensagem, type: 'success' });
-      await calculate();
-    } else {
-      setToast({ message: "Erro ao restaurar.", type: 'error' });
-    }
-    setIsLoading(false);
   };
 
   const handleCopyTable = () => {
@@ -296,30 +229,6 @@ const OEEDashboardView = ({ setToast }) => {
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative pb-20">
         
-        <InputModal 
-          isOpen={modalInputExtras}
-          title="Definir Limite de Extras"
-          message="Qual o limite de circuitos FIXOS da equipe? (Ex: 300)"
-          defaultValue="300"
-          type="number"
-          onClose={() => setModalInputExtras(false)}
-          onConfirm={executeAutoExtras}
-          extraLabel="Restaurar Originais"
-          onExtraAction={openRestoreConfirmation}
-        />
-
-        <ConfirmModal 
-          isOpen={modalConfirmRestore}
-          title="Restaurar Originais?"
-          message="Isso vai remover TODOS os circuitos marcados como 'Extra' e restaurar o status original deles (SD/PP). Deseja continuar?"
-          confirmText="Sim, Restaurar"
-          cancelText="Cancelar"
-          type="danger" 
-          onClose={() => setModalConfirmRestore(false)}
-          onCancel={() => setModalConfirmRestore(false)}
-          onConfirm={handleConfirmRestore}
-        />
-
         <ConfirmModal 
           isOpen={modalConfirmSave}
           title="Salvar Fechamento"
@@ -335,8 +244,6 @@ const OEEDashboardView = ({ setToast }) => {
         <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
           <div><h2 className="text-2xl font-bold text-slate-800">Painel OEE</h2><p className="text-slate-500 text-sm">{config.mes}/{config.ano}</p></div>
           <div className="flex gap-2 flex-wrap justify-end">
-            
-
             <button onClick={handleCopyTable} className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
                <Copy size={16} className="text-blue-500" /> Copiar
             </button>
@@ -358,55 +265,6 @@ const OEEDashboardView = ({ setToast }) => {
           <div className="flex-1">
             <ValidationCard medias={results.medias} />
           </div>
-
-          {optReport && (
-            <div className="w-full lg:w-96 bg-white rounded-xl shadow-sm border border-amber-200 overflow-hidden flex flex-col animate-in slide-in-from-right-4">
-              <div className="bg-amber-50 px-4 py-3 border-b border-amber-100 flex justify-between items-center">
-                <h4 className="text-amber-900 font-bold text-sm flex items-center gap-2">
-                  <Star size={16} className="fill-amber-500 text-amber-600"/> 
-                  Relatório de Otimização
-                </h4>
-                <button onClick={() => setOptReport(null)} className="text-amber-400 hover:text-amber-700 p-1 rounded hover:bg-amber-100 transition-colors"><X size={16}/></button>
-              </div>
-              
-              <div className="p-4 flex-1 flex flex-col gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="bg-amber-100 p-2 rounded-lg text-amber-700 font-bold text-xl min-w-[3rem] text-center shadow-inner">
-                    {optReport.qtd}
-                  </div>
-                  <p className="text-xs text-slate-600 leading-tight">
-                    Circuitos definidos como <strong className="text-amber-700">EXTRAS</strong> baseado em maior ociosidade.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-slate-50 p-2 rounded border border-slate-100 text-center">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide">SD Removido</span>
-                    <span className="text-sm font-black text-slate-700 flex items-center justify-center gap-1 mt-1">
-                      <Eraser size={12} className="text-slate-400"/> {optReport.total_sd}
-                    </span>
-                  </div>
-                  <div className="bg-slate-50 p-2 rounded border border-slate-100 text-center">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide">PP Removido</span>
-                    <span className="text-sm font-black text-slate-700 flex items-center justify-center gap-1 mt-1">
-                      <AlertTriangle size={12} className="text-slate-400"/> {optReport.total_pp}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-amber-50/50 rounded-lg p-3 border border-amber-100 flex-1 flex flex-col overflow-hidden">
-                  <span className="text-[10px] font-bold text-amber-800/70 mb-2 flex items-center gap-1">
-                    <Info size={12}/> IDs Afetados:
-                  </span>
-                  <div className="overflow-y-auto max-h-32 custom-scrollbar pr-1">
-                    <p className="text-[10px] text-slate-600 font-mono break-words leading-relaxed">
-                      {optReport.ids.join(', ')}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
         
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">

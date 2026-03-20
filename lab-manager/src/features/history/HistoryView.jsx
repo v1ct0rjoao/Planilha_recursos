@@ -3,6 +3,8 @@ import {
   ResponsiveContainer, 
   AreaChart,     
   Area,         
+  LineChart,
+  Line,
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -16,7 +18,7 @@ import {
 import {
   List, BarChart2, Calendar, ArrowLeft, FileText,
   CheckCircle2, Clock, Zap, Activity, Printer,
-  TrendingUp, Timer, Info, Trash2, ClipboardList, Plus, X, Save, Filter
+  TrendingUp, Timer, Info, Trash2, ClipboardList, Plus, X, Save, Filter, Database
 } from 'lucide-react';
 import { API_URL } from '../../utils/constants';
 import { oeeService } from '../../services/oeeService';
@@ -163,7 +165,7 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
                   {row.id === 'iDevice' ? (
                     <span className="text-blue-600 underline decoration-dotted decoration-blue-300">iDevice</span>
                   ) : (
-                    <span className="text-slate-600">Circuit{row.id.padStart(3, '0')}</span>
+                    <span className="text-slate-600">Circuit{row.raw_id.padStart(3, '0')}</span>
                   )}
                 </td>
                 <td className="p-1">
@@ -202,11 +204,15 @@ const HistoryView = ({ logs, setToast }) => {
   const [itemToDelete, setItemToDelete] = useState(null);
 
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [inputMode, setInputMode] = useState('grid'); 
+  
   const [manualForm, setManualForm] = useState({
-    mes: '', ano: '', availability: '', performance: '', quality: '',
+    mes: '', ano: '', 
+    ensaios_solic: '', ensaios_exec: '', relatorios_emit: '', relatorios_prazo: '',
+    grid_text: '',
+    availability: '', performance: '', quality: '',
     up_dias: '', pq_dias: '', pp_dias: '', sd_dias: '',
-    tempo_disp_calc: '', tempo_real_calc: '',
-    ensaios_solic: '', ensaios_exec: '', relatorios_emit: '', relatorios_prazo: ''
+    tempo_disp_calc: '', tempo_real_calc: ''
   });
 
   const fetchHistory = () => {
@@ -295,31 +301,48 @@ const HistoryView = ({ logs, setToast }) => {
   const handleManualSubmit = async (e) => {
     e.preventDefault();
     
-    const oeeCalculado = ((Number(manualForm.availability) / 100) * (Number(manualForm.performance) / 100) * (Number(manualForm.quality) / 100) * 100).toFixed(2);
+    let payload = {};
 
-    const payload = {
-      mes: manualForm.mes,
-      ano: manualForm.ano,
-      kpi: {
-        oee: oeeCalculado,
-        availability: manualForm.availability,
-        performance: manualForm.performance,
-        quality: manualForm.quality
-      },
-      medias: {
-        up_dias: manualForm.up_dias,
-        pq_dias: manualForm.pq_dias,
-        pp_dias: manualForm.pp_dias,
-        sd_dias: manualForm.sd_dias,
-        tempo_disp_calc: manualForm.tempo_disp_calc,
-        tempo_real_calc: manualForm.tempo_real_calc,
-        ensaios_solic: manualForm.ensaios_solic,
-        ensaios_exec: manualForm.ensaios_exec,
-        relatorios_emit: manualForm.relatorios_emit,
-        relatorios_prazo: manualForm.relatorios_prazo
-      },
-      grid: null
-    };
+    if (inputMode === 'grid') {
+      payload = {
+        mes: manualForm.mes,
+        ano: manualForm.ano,
+        ensaios_solicitados: manualForm.ensaios_solic,
+        ensaios_executados: manualForm.ensaios_exec,
+        relatorios_emitidos: manualForm.relatorios_emit,
+        relatorios_no_prazo: manualForm.relatorios_prazo,
+        grid_text: manualForm.grid_text
+      };
+    } else {
+      const oeeCalculado = ((Number(manualForm.availability) / 100) * (Number(manualForm.performance) / 100) * (Number(manualForm.quality) / 100) * 100).toFixed(2);
+      payload = {
+        mes: manualForm.mes,
+        ano: manualForm.ano,
+        ensaios_solicitados: manualForm.ensaios_solic,
+        ensaios_executados: manualForm.ensaios_exec,
+        relatorios_emitidos: manualForm.relatorios_emit,
+        relatorios_no_prazo: manualForm.relatorios_prazo,
+        grid_text: '',
+        kpi: {
+          oee: oeeCalculado,
+          availability: manualForm.availability,
+          performance: manualForm.performance,
+          quality: manualForm.quality
+        },
+        medias: {
+          up_dias: manualForm.up_dias,
+          pq_dias: manualForm.pq_dias,
+          pp_dias: manualForm.pp_dias,
+          sd_dias: manualForm.sd_dias,
+          tempo_disp_calc: manualForm.tempo_disp_calc,
+          tempo_real_calc: manualForm.tempo_real_calc,
+          ensaios_solic: manualForm.ensaios_solic,
+          ensaios_exec: manualForm.ensaios_exec,
+          relatorios_emit: manualForm.relatorios_emit,
+          relatorios_prazo: manualForm.relatorios_prazo
+        }
+      };
+    }
 
     try {
       const response = await fetch(`${API_URL}/oee/history/manual`, {
@@ -330,17 +353,18 @@ const HistoryView = ({ logs, setToast }) => {
       const data = await response.json();
 
       if (data.sucesso || data.success) {
-        if (setToast) setToast({ message: "Histórico manual inserido com sucesso!", type: 'success' });
+        if (setToast) setToast({ message: "Histórico inserido com sucesso!", type: 'success' });
         setIsManualModalOpen(false);
         setManualForm({
           mes: '', ano: '', availability: '', performance: '', quality: '',
           up_dias: '', pq_dias: '', pp_dias: '', sd_dias: '',
           tempo_disp_calc: '', tempo_real_calc: '',
-          ensaios_solic: '', ensaios_exec: '', relatorios_emit: '', relatorios_prazo: ''
+          ensaios_solic: '', ensaios_exec: '', relatorios_emit: '', relatorios_prazo: '',
+          grid_text: ''
         });
         fetchHistory(); 
       } else {
-        alert("Erro ao salvar histórico manual.");
+        alert("Erro ao salvar: " + (data.erro || "Problema no servidor."));
       }
     } catch (error) {
       console.error(error);
@@ -415,7 +439,7 @@ const HistoryView = ({ logs, setToast }) => {
             ) : (
               <div className="p-12 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
                 <div className="text-slate-400 mb-2">Sem dados detalhados</div>
-                <p className="text-xs text-slate-400">Este fechamento manual não possui grid visual salvo.</p>
+                <p className="text-xs text-slate-400">Este fechamento (sem grid) foi inserido com valores diretos.</p>
               </div>
             )}
           </div>
@@ -423,6 +447,42 @@ const HistoryView = ({ logs, setToast }) => {
       </div>
     );
   }
+
+  // Lógica inteligente do gráfico
+  const isCompareMode = selectedYear === 'Todos';
+  const meses = [ 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const mesesAbreviados = [ 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  
+  let chartData = [];
+  let linesToRender = [];
+
+  if (isCompareMode) {
+    chartData = mesesAbreviados.map((nomeMes, index) => {
+      const mesNum = index + 1;
+      const mesObj = { name: nomeMes };
+      
+      availableYears.forEach(year => {
+        const record = historyList.find(h => parseInt(h.mes) === mesNum && h.ano.toString() === year);
+        if (record) {
+          mesObj[year] = Number(record.kpi.oee);
+        }
+      });
+      return mesObj;
+    });
+    linesToRender = availableYears;
+  } else {
+    chartData = filteredHistoryList
+      .sort((a, b) => parseInt(a.mes) - parseInt(b.mes))
+      .map(h => ({
+        name: mesesAbreviados[parseInt(h.mes) - 1],
+        oee: Number(h.kpi.oee)
+      }));
+    linesToRender = ['oee'];
+  }
+
+  const allOeeValues = historyList.map(item => Number(item.kpi.oee));
+  const yMin = allOeeValues.length > 0 ? Math.max(0, Math.floor(Math.min(...allOeeValues)) - 25) : 0;
+  const yMax = allOeeValues.length > 0 ? Math.min(100, Math.ceil(Math.max(...allOeeValues)) + 10) : 100;
 
   const kpimedio = filteredHistoryList.length > 0 ?
     filteredHistoryList.reduce((acc, item) => {
@@ -436,7 +496,6 @@ const HistoryView = ({ logs, setToast }) => {
     : { availability: 0, performance: 0, quality: 0 };
 
   const totalMeses = filteredHistoryList.length || 1;
-
   const mediaDisp = kpimedio.availability / totalMeses;
   const mediaPerf = kpimedio.performance / totalMeses;
   const mediaQual = kpimedio.quality / totalMeses;
@@ -448,24 +507,6 @@ const HistoryView = ({ logs, setToast }) => {
     quality: mediaQual.toFixed(2),
     oee: mediaOeeCalculada.toFixed(2)
   };
-
-  const meses = [ 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-
-  const chartData = [...filteredHistoryList] 
-  .sort((a,b)=>{
-    if(a.ano !== b.ano) return a.ano - b.ano;
-    return a.mes - b.mes; 
-  })
-  .map(h => ({
-    name: selectedYear === 'Todos' 
-          ? `${meses[parseInt(h.mes, 10) - 1].substring(0,3)}/${h.ano}` 
-          : meses[parseInt(h.mes, 10) - 1].substring(0,3), 
-    ...h.kpi
-  }));
-
-  const oeeValues = chartData.map(item => Number(item.oee));
-  const yMin = oeeValues.length > 0 ? Math.max(0, Math.floor(Math.min(...oeeValues)) - 25) : 0;
-  const yMax = oeeValues.length > 0 ? Math.min(100, Math.ceil(Math.max(...oeeValues)) + 10) : 100;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300 min-h-[800px] relative">
@@ -484,115 +525,147 @@ const HistoryView = ({ logs, setToast }) => {
 
       {isManualModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto custom-scrollbar">
-            <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex justify-between items-center z-10">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar flex flex-col">
+            <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex justify-between items-center z-10 shrink-0">
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <Plus size={20} className="text-blue-600" />
-                Inserção Manual de Histórico OEE
+                Inserção de Histórico
               </h2>
               <button onClick={() => setIsManualModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
                 <X size={20} />
               </button>
             </div>
             
-            <form onSubmit={handleManualSubmit} className="p-6 space-y-6">
-              <div>
-                <h3 className="text-xs font-bold text-slate-500 uppercase mb-3">Mês e Ano Referência</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Mês (1-12)</label>
-                    <input required type="number" min="1" max="12" name="mes" value={manualForm.mes} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Ano (ex: 2023)</label>
-                    <input required type="number" min="2000" name="ano" value={manualForm.ano} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                  </div>
-                </div>
+            <form onSubmit={handleManualSubmit} className="p-6 flex flex-col gap-6">
+              
+              <div className="flex bg-slate-100 p-1 rounded-lg w-fit">
+                <button 
+                  type="button"
+                  onClick={() => setInputMode('grid')}
+                  className={`px-4 py-2 text-xs font-bold rounded-md transition-all ${inputMode === 'grid' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Planilha Digatron (Grid)
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setInputMode('manual')}
+                  className={`px-4 py-2 text-xs font-bold rounded-md transition-all ${inputMode === 'manual' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Somente Valores Finais
+                </button>
               </div>
 
-              <div>
-                <h3 className="text-xs font-bold text-slate-500 uppercase mb-3">Indicadores Principais (%)</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Disponibilidade</label>
-                    <input required type="number" step="0.01" min="0" max="100" name="availability" value={manualForm.availability} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Performance</label>
-                    <input required type="number" step="0.01" min="0" max="100" name="performance" value={manualForm.performance} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Qualidade</label>
-                    <input required type="number" step="0.01" min="0" max="100" name="quality" value={manualForm.quality} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
-                  </div>
-                </div>
-                <p className="text-[10px] text-slate-400 mt-2">* O OEE Global será calculado automaticamente com base nesses 3 indicadores.</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 <div>
+                    <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 border-b border-slate-100 pb-2">Referência</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Mês (1-12)</label>
+                        <input required type="number" min="1" max="12" name="mes" value={manualForm.mes} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Ano</label>
+                        <input required type="number" min="2000" name="ano" value={manualForm.ano} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
+                    </div>
+                 </div>
+
+                 <div className="col-span-2">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 border-b border-slate-100 pb-2">Metas Operacionais</h3>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Ens. Solicitados</label>
+                        <input required={inputMode==='grid'} type="number" name="ensaios_solic" value={manualForm.ensaios_solic} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Ens. Executados</label>
+                        <input required={inputMode==='grid'} type="number" name="ensaios_exec" value={manualForm.ensaios_exec} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Rel. Emitidos</label>
+                        <input required={inputMode==='grid'} type="number" name="relatorios_emit" value={manualForm.relatorios_emit} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Rel. no Prazo</label>
+                        <input required={inputMode==='grid'} type="number" name="relatorios_prazo" value={manualForm.relatorios_prazo} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
+                    </div>
+                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-xs font-bold text-slate-500 uppercase mb-3">Médias de Dias</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Média UP</label>
-                      <input required type="number" step="0.1" name="up_dias" value={manualForm.up_dias} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Média PQ</label>
-                      <input required type="number" step="0.1" name="pq_dias" value={manualForm.pq_dias} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Média PP</label>
-                      <input required type="number" step="0.1" name="pp_dias" value={manualForm.pp_dias} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Média SD</label>
-                      <input required type="number" step="0.1" name="sd_dias" value={manualForm.sd_dias} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 mt-3">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Tempo Disp (ex: 240h)</label>
-                      <input required type="text" name="tempo_disp_calc" value={manualForm.tempo_disp_calc} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Tempo Real (ex: 200h)</label>
-                      <input required type="text" name="tempo_real_calc" value={manualForm.tempo_real_calc} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-                    </div>
-                  </div>
+              {inputMode === 'grid' ? (
+                <div className="flex-1 min-h-[250px] flex flex-col animate-in fade-in duration-300">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 border-b border-slate-100 pb-2">Área de Transferência do Excel</h3>
+                  <p className="text-xs text-slate-500 mb-2">Cole as linhas e colunas. Células em branco da semana recebem <strong>SD</strong>. Sáb/Dom recebem <strong>PP</strong>.</p>
+                  <textarea
+                      required
+                      name="grid_text"
+                      value={manualForm.grid_text}
+                      onChange={handleManualFormChange}
+                      placeholder="Ex: 418&#9;PP&#9;UP&#9;UP..."
+                      className="w-full flex-1 p-4 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all resize-none font-mono text-[10px] text-slate-600 leading-relaxed custom-scrollbar whitespace-pre"
+                  />
                 </div>
-
-                <div>
-                  <h3 className="text-xs font-bold text-slate-500 uppercase mb-3">Ensaios e Relatórios</h3>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Ensaios Solicitados</label>
-                      <input required type="number" name="ensaios_solic" value={manualForm.ensaios_solic} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+              ) : (
+                <div className="space-y-6 animate-in fade-in duration-300">
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 border-b border-slate-100 pb-2">Indicadores Principais (%)</h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Disponibilidade</label>
+                        <input required type="number" step="0.01" min="0" max="100" name="availability" value={manualForm.availability} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Performance</label>
+                        <input required type="number" step="0.01" min="0" max="100" name="performance" value={manualForm.performance} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Qualidade</label>
+                        <input required type="number" step="0.01" min="0" max="100" name="quality" value={manualForm.quality} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-xs font-semibold text-slate-600 mb-1 block">Ensaios Executados</label>
-                      <input required type="number" name="ensaios_exec" value={manualForm.ensaios_exec} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  </div>
+
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 border-b border-slate-100 pb-2">Médias de Dias e Tempos (Opcional)</h3>
+                    <div className="grid grid-cols-4 gap-3 mb-3">
+                      <div>
+                        <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Média UP</label>
+                        <input type="number" step="0.1" name="up_dias" value={manualForm.up_dias} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Média PQ</label>
+                        <input type="number" step="0.1" name="pq_dias" value={manualForm.pq_dias} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Média PP</label>
+                        <input type="number" step="0.1" name="pp_dias" value={manualForm.pp_dias} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Média SD</label>
+                        <input type="number" step="0.1" name="sd_dias" value={manualForm.sd_dias} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs font-semibold text-slate-600 mb-1 block">Relatórios Emitidos</label>
-                        <input required type="number" name="relatorios_emit" value={manualForm.relatorios_emit} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                        <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Tempo Disp. (Ex: 240.5)</label>
+                        <input type="number" step="0.1" name="tempo_disp_calc" value={manualForm.tempo_disp_calc} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                       </div>
                       <div>
-                        <label className="text-xs font-semibold text-slate-600 mb-1 block">Relatórios no Prazo</label>
-                        <input required type="number" name="relatorios_prazo" value={manualForm.relatorios_prazo} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                        <label className="text-[10px] font-semibold text-slate-600 mb-1 block">Tempo Real (Ex: 200)</label>
+                        <input type="number" step="0.1" name="tempo_real_calc" value={manualForm.tempo_real_calc} onChange={handleManualFormChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+              <div className="pt-4 border-t border-slate-100 flex justify-end gap-3 shrink-0">
                 <button type="button" onClick={() => setIsManualModalOpen(false)} className="px-5 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
                   Cancelar
                 </button>
                 <button type="submit" className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors flex items-center gap-2">
-                  <Save size={16} />
+                  <Database size={16} />
                   Salvar Histórico
                 </button>
               </div>
@@ -645,7 +718,7 @@ const HistoryView = ({ logs, setToast }) => {
           <div className="lg:col-span-3 h-[450px] bg-slate-50 rounded-2xl border border-slate-200 p-6 relative">
               <h3 className="font-bold text-slate-700 mb-6 uppercase text-xs tracking-wider flex items-center gap-2 absolute top-6 left-6">
                 <TrendingUp size={16} /> 
-                Tendência de OEE {selectedYear !== 'Todos' && selectedYear ? `- ${selectedYear}` : ''}
+                {selectedYear === 'Todos' ? 'Comparação Anual de OEE' : `Tendência de OEE - ${selectedYear}`}
               </h3>
               
               {isLoading ? (
@@ -654,45 +727,64 @@ const HistoryView = ({ logs, setToast }) => {
                 </div>
               ) : filteredHistoryList.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 40, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorOee" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#93c5fd" stopOpacity={0.6}/>
-                        <stop offset="95%" stopColor="#93c5fd" stopOpacity={0.1}/>
-                      </linearGradient>
-                    </defs>
+                  {isCompareMode ? (
+                    <LineChart data={chartData} margin={{ top: 40, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dy={10} />
+                      <YAxis domain={[yMin, yMax]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                      <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                      <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }} />
+                      
+                      {linesToRender.map((year, idx) => {
+                        const colors = ['#2563eb', '#ea580c', '#10b981', '#8b5cf6', '#f59e0b'];
+                        return (
+                          <Line 
+                            key={year} 
+                            type="monotone" 
+                            dataKey={year} 
+                            stroke={colors[idx % colors.length]} 
+                            strokeWidth={3} 
+                            activeDot={{ r: 6 }} 
+                            connectNulls={true}
+                          />
+                        )
+                      })}
+                    </LineChart>
+                  ) : (
+                    <AreaChart data={chartData} margin={{ top: 40, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorOee" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#93c5fd" stopOpacity={0.6}/>
+                          <stop offset="95%" stopColor="#93c5fd" stopOpacity={0.1}/>
+                        </linearGradient>
+                      </defs>
 
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dy={10} />
-                    
-                    <YAxis 
-                      domain={[yMin, yMax]} 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: '#94a3b8', fontSize: 11 }} 
-                    />
-                    
-                    <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                    <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }} />
-                    
-                    <Area 
-                      type="stepAfter" 
-                      dataKey="oee" 
-                      stroke="#2563eb" 
-                      strokeWidth={3} 
-                      fill="url(#colorOee)" 
-                      name="OEE %" 
-                      activeDot={{ r: 6 }} 
-                    >
-                      <LabelList 
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dy={10} />
+                      <YAxis domain={[yMin, yMax]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                      
+                      <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                      <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }} />
+                      
+                      <Area 
+                        type="stepAfter" 
                         dataKey="oee" 
-                        position="top" 
-                        offset={10}
-                        formatter={(value) => `${value}%`} 
-                        style={{ fill: '#475569', fontSize: 12, fontWeight: 'bold' }} 
-                      />
-                    </Area>
-                  </AreaChart>
+                        stroke="#2563eb" 
+                        strokeWidth={3} 
+                        fill="url(#colorOee)" 
+                        name="OEE %" 
+                        activeDot={{ r: 6 }} 
+                      >
+                        <LabelList 
+                          dataKey="oee" 
+                          position="top" 
+                          offset={10}
+                          formatter={(value) => `${value}%`} 
+                          style={{ fill: '#475569', fontSize: 12, fontWeight: 'bold' }} 
+                        />
+                      </Area>
+                    </AreaChart>
+                  )}
                 </ResponsiveContainer>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400">
@@ -705,7 +797,9 @@ const HistoryView = ({ logs, setToast }) => {
              {filteredHistoryList.length > 0 && (
             <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
               <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col items-center relative shadow-sm">
-                <span className="text-xs font-bold text-slate-500 uppercase mb-2 z-10 flex items-center gap-1">Média OEE</span>
+                <span className="text-xs font-bold text-slate-500 uppercase mb-2 z-10 flex items-center gap-1">
+                  Média OEE {selectedYear === 'Todos' ? '(Geral)' : ''}
+                </span>
                 <div className="w-full h-28 relative mt-2">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -800,8 +894,8 @@ const HistoryView = ({ logs, setToast }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[...filteredHistoryList]
                   .sort((a, b) => {
-                    if (a.ano !== b.ano) return b.ano - a.ano;
-                    return b.mes - a.mes;
+                    if (a.ano !== b.ano) return b.ano - a.ano; 
+                    return a.mes - b.mes; 
                   })
                   .map((item, idx) => (
                   <div
