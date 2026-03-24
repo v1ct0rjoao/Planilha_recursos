@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Zap, Factory, Settings, Clipboard, Calendar, Loader2, AlertTriangle,
-  LayoutDashboard, PieChart, History, // Importei icones novos para o menu
-  Menu
+  LayoutDashboard, PieChart, History, Menu
 } from 'lucide-react';
 
 import Toast from './components/ui/Toast';
@@ -34,7 +33,6 @@ const GlobalStyles = () => (
   `}</style>
 );
 
-// Componente auxiliar apenas para o botão do menu do header
 const MenuButton = ({ active, onClick, icon: Icon, label }) => (
   <button
     onClick={onClick}
@@ -306,6 +304,32 @@ export default function LabManagerApp() {
     }
   }, []);
 
+  // ==============================================================
+  // NOVOS HANDLERS: TOGGLE FULL / NO SPACE
+  // ==============================================================
+  const handleToggleBathFull = useCallback(async (bathId, isFull) => {
+    const { success, data } = await bathService.toggleBathFull(bathId, isFull);
+    if (success && data) {
+      const db = data.db_atualizado || data;
+      setBaths(db.baths || []);
+      setToast({ message: isFull ? `Local marcado como LOTADO.` : `Espaço do local restaurado.`, type: 'success' });
+    } else {
+      setToast({ message: "Erro ao atualizar espaço.", type: 'error' });
+    }
+  }, []);
+
+  const handleToggleCircuitNoSpace = useCallback(async (circuitId, noSpace) => {
+    const { success, data } = await bathService.toggleCircuitNoSpace(circuitId, noSpace);
+    if (success && data) {
+      const db = data.db_atualizado || data;
+      setBaths(db.baths || []);
+      setToast({ message: noSpace ? `Circuito sem espaço físico.` : `Espaço restaurado.`, type: 'success' });
+    } else {
+      setToast({ message: "Erro ao atualizar espaço.", type: 'error' });
+    }
+  }, []);
+  // ==============================================================
+
   const openMoveModal = useCallback((bathId, circuitId) => { setMoveData({ sourceBathId: bathId, circuitId }); setIsMoveOpen(true); }, []);
   const openLinkModal = useCallback((bath, circuitId) => { setLinkData({ bath, sourceId: circuitId }); setIsLinkOpen(true); }, []);
 
@@ -324,11 +348,9 @@ export default function LabManagerApp() {
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <ConfirmModal isOpen={confirmModal.isOpen} title={confirmModal.title} message={confirmModal.message} onConfirm={confirmModal.onConfirm} onCancel={confirmModal.onCancel} type={confirmModal.type} />
 
-      {/* HEADER ALTERADO CONFORME SOLICITADO (Estilo da imagem) */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shrink-0 h-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex justify-between items-center relative">
 
-          {/* Lado Esquerdo: Marca LabFísico */}
           <div className="flex items-center gap-3">
             <div className="bg-[#004D90] h-9 w-9 rounded-lg flex items-center justify-center shadow-sm">
               <Zap size={20} fill="currentColor" className="text-yellow-400" />
@@ -343,59 +365,27 @@ export default function LabManagerApp() {
             </div>
           </div>
 
-          {/* Centro: Navegação em Cápsula (Centralizado Absolutamente) */}
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex">
             <div className="bg-slate-50 border border-slate-200 p-1 rounded-xl flex items-center gap-1 shadow-sm">
-              <MenuButton
-                active={currentView === 'dashboard'}
-                onClick={() => setCurrentView('dashboard')}
-                icon={LayoutDashboard}
-                label="Visão Geral"
-              />
-              <MenuButton
-                active={currentView === 'oee'}
-                onClick={() => setCurrentView('oee')}
-                icon={Factory}
-                label="OEE"
-              />
-              <MenuButton
-                active={currentView === 'history'}
-                onClick={() => setCurrentView('history')}
-                icon={History}
-                label="Dashboard OEE"
-              />
-
-              <MenuButton
-                active={currentView === 'calendar'}
-                onClick={() => setCurrentView('calendar')}
-                icon={Calendar}
-                label="Agenda" />
+              <MenuButton active={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')} icon={LayoutDashboard} label="Visão Geral" />
+              <MenuButton active={currentView === 'oee'} onClick={() => setCurrentView('oee')} icon={Factory} label="OEE" />
+              <MenuButton active={currentView === 'history'} onClick={() => setCurrentView('history')} icon={History} label="Dashboard OEE" />
+              <MenuButton active={currentView === 'calendar'} onClick={() => setCurrentView('calendar')} icon={Calendar} label="Agenda" />
             </div>
           </div>
 
-
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsProtocolsOpen(true)}
-              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              title="Configurações"
-            >
+            <button onClick={() => setIsProtocolsOpen(true)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="Configurações">
               <Settings size={20} />
             </button>
-
             <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
-
-            <button
-              onClick={() => setIsImportOpen(true)}
-              className="bg-[#004D90] hover:bg-[#003870] text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all active:scale-[0.98]"
-            >
+            <button onClick={() => setIsImportOpen(true)} className="bg-[#004D90] hover:bg-[#003870] text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all active:scale-[0.98]">
               <Clipboard size={18} className="text-yellow-400" />
               <span>Importar Digatron</span>
             </button>
           </div>
         </div>
       </header>
-
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full overflow-hidden flex flex-col">
         {currentView === 'oee' && <div className="h-full overflow-y-auto pr-2 custom-scrollbar"><OEEDashboardView setToast={setToast} /></div>}
@@ -417,6 +407,8 @@ export default function LabManagerApp() {
               onLinkCircuit={openLinkModal}
               onEditBath={(id) => { setBathToEdit(id); setIsEditBathOpen(true); }}
               onOpenAddBathModal={() => setIsAddBathOpen(true)}
+              onToggleBathFull={handleToggleBathFull}        // <-- ADICIONADO E REPASSADO
+              onToggleCircuitNoSpace={handleToggleCircuitNoSpace} // <-- ADICIONADO E REPASSADO
             />
           </div>
         )}

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { 
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, 
-  Thermometer, CheckCircle2, Clock, Layers, BatteryCharging, ArrowLeft, Filter, SearchX
+  Thermometer, CheckCircle2, Clock, Layers, BatteryCharging, ArrowLeft, Filter, SearchX, PackageX
 } from 'lucide-react';
 import HighlightText from '../../components/ui/HighlightText'; 
 
@@ -58,7 +58,7 @@ const CircuitCalendarView = ({ baths = [], searchTerm }) => {
             const dateKey = getLocalDateString(dateObj);
             if (!groups[dateKey]) groups[dateKey] = [];
             const cleanBathId = bath.id.replace(/^(BANHO|SALA|THERMOTRON) - /, '');
-            groups[dateKey].push({ ...c, bathId: cleanBathId, temp: bath.temp, dateObj, rawBathId: bath.id });
+            groups[dateKey].push({ ...c, bathId: cleanBathId, temp: bath.temp, dateObj, rawBathId: bath.id, isFull: bath.isFull });
           }
         }
       });
@@ -68,8 +68,6 @@ const CircuitCalendarView = ({ baths = [], searchTerm }) => {
     });
     return groups;
   }, [baths]);
-
-  
 
   const calendarCells = useMemo(() => {
     const year = currentMonth.getFullYear();
@@ -133,7 +131,7 @@ const CircuitCalendarView = ({ baths = [], searchTerm }) => {
       : selectedCircuits.filter(c => String(c.temp) === String(tempFilter));
     const groups = {};
     displayedCircuits.forEach(c => {
-      if (!groups[c.bathId]) groups[c.bathId] = { bathId: c.bathId, rawBathId: c.rawBathId, temp: c.temp, circuits: [] };
+      if (!groups[c.bathId]) groups[c.bathId] = { bathId: c.bathId, rawBathId: c.rawBathId, temp: c.temp, isFull: c.isFull, circuits: [] };
       groups[c.bathId].circuits.push(c);
     });
     return Object.values(groups).sort((a, b) => a.bathId.localeCompare(b.bathId));
@@ -154,23 +152,28 @@ const CircuitCalendarView = ({ baths = [], searchTerm }) => {
   const CalendarBathCard = ({ group, onClick }) => {
     const theme = getTempTheme(group.temp);
     const type = getLocationType(group.rawBathId);
+    const isFull = group.isFull;
+
     return (
-      <div onClick={onClick} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-400 transition-all cursor-pointer group p-4 flex flex-col h-[120px] justify-between relative overflow-hidden">
-        <div className={`absolute top-0 right-0 w-20 h-20 rounded-bl-full opacity-10 pointer-events-none ${theme.blob} group-hover:scale-110 transition-transform duration-500`}></div>
+      <div onClick={onClick} className={`rounded-xl border shadow-sm hover:shadow-md transition-all cursor-pointer group p-4 flex flex-col h-[120px] justify-between relative overflow-hidden ${isFull ? 'bg-slate-50/80 border-slate-300' : 'bg-white border-slate-200 hover:border-blue-400'}`}>
+        <div className={`absolute top-0 right-0 w-20 h-20 rounded-bl-full opacity-10 pointer-events-none ${isFull ? 'bg-slate-600' : theme.blob} group-hover:scale-110 transition-transform duration-500`}></div>
         <div className="flex justify-between items-start z-10">
           <div className="flex flex-col">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{type}</span>
-            <span className="text-base font-black text-slate-800 leading-tight break-all max-w-[140px] group-hover:text-blue-700 transition-colors">{group.bathId}</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+              {type}
+              {isFull && <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-sm text-[8px] tracking-wider shadow-sm flex items-center gap-1"><PackageX size={10}/> LOTADO</span>}
+            </span>
+            <span className={`text-base font-black leading-tight break-all max-w-[140px] transition-colors ${isFull ? 'text-slate-600' : 'text-slate-800 group-hover:text-blue-700'}`}>{group.bathId}</span>
           </div>
         </div>
         <div className="flex items-end justify-between z-10 mt-2">
-          <div className={`flex items-center gap-1.5 border px-2.5 py-1 rounded-lg ${theme.cardBg} ${theme.cardBorder}`}>
-            <Thermometer size={14} className={theme.icon} />
-            <span className={`text-xs font-black ${theme.text}`}>{group.temp}ºC</span>
+          <div className={`flex items-center gap-1.5 border px-2.5 py-1 rounded-lg ${isFull ? 'bg-slate-100 border-slate-200 text-slate-500' : `${theme.cardBg} ${theme.cardBorder}`}`}>
+            <Thermometer size={14} className={isFull ? 'text-slate-400' : theme.icon} />
+            <span className={`text-xs font-black ${isFull ? 'text-slate-600' : theme.text}`}>{group.temp}ºC</span>
           </div>
           <div className="flex flex-col items-end">
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Liberando</span>
-            <span className="text-2xl font-black text-slate-800 leading-none mt-0.5">{group.circuits.length}</span>
+            <span className={`text-2xl font-black leading-none mt-0.5 ${isFull ? 'text-slate-500' : 'text-slate-800'}`}>{group.circuits.length}</span>
           </div>
         </div>
       </div>
@@ -205,27 +208,49 @@ const CircuitCalendarView = ({ baths = [], searchTerm }) => {
               const dayCircuits = getFilteredCircuits(groupedCircuits[dateKey]);
               const count = dayCircuits.length;
               const hasCircuits = count > 0;
+              
+              // ADICIONADO: Verifica se tem algum circuito desse dia vindo de um banho lotado
+              const hasFullBath = dayCircuits.some(c => c.isFull);
+              
               const today = isToday(dateKey);
+              
               const temps = {};
-              dayCircuits.forEach(c => { const t = c.temp !== undefined ? c.temp : 'N/A'; temps[t] = (temps[t] || 0) + 1; });
-              const summary = Object.keys(temps).sort((a, b) => parseFloat(a) - parseFloat(b)).map(t => ({ temp: t, count: temps[t] }));
+              dayCircuits.forEach(c => { 
+                const t = c.temp !== undefined ? c.temp : 'N/A'; 
+                if (!temps[t]) temps[t] = { count: 0, hasFull: false };
+                temps[t].count++;
+                if (c.isFull) temps[t].hasFull = true; // ADICIONADO: Marca a temperatura como contendo banho lotado
+              });
+              const summary = Object.keys(temps).sort((a, b) => parseFloat(a) - parseFloat(b)).map(t => ({ temp: t, ...temps[t] }));
+              
               let cellClass = "flex flex-col relative border-r border-b border-slate-200 min-h-[100px] transition-colors focus:outline-none focus:ring-inset focus:ring-2 focus:ring-blue-500 ";
               if (!cell.isCurrentMonth) cellClass += "bg-slate-50/50 text-slate-400 ";
               else if (hasCircuits) cellClass += "bg-white hover:bg-blue-50/30 cursor-pointer group ";
               else cellClass += "bg-white ";
               const Wrapper = hasCircuits ? 'button' : 'div';
+              
               return (
                 <Wrapper key={idx} className={cellClass} onClick={() => handleDayClick(dateKey, hasCircuits)}>
                   <div className="px-2 pt-2 flex justify-between items-start">
                     <span className={`text-sm font-bold flex items-center justify-center w-7 h-7 rounded-full ${today ? 'bg-blue-600 text-white shadow-md' : !cell.isCurrentMonth ? 'text-slate-400' : 'text-slate-700'}`}>{cell.date.getDate()}</span>
-                    {hasCircuits && <span className="text-[10px] font-bold text-slate-400 group-hover:text-blue-600 transition-colors mt-1">{count} pos</span>}
+                    {hasCircuits && (
+                      <div className="flex items-center gap-1 mt-1">
+                        {/* Ícone global do dia avisando que tem banho lotado liberando circuito */}
+                        {hasFullBath && <PackageX size={12} className="text-slate-400 group-hover:text-rose-500 transition-colors" title="Contém posições em local LOTADO" />}
+                        <span className="text-[10px] font-bold text-slate-400 group-hover:text-blue-600 transition-colors">{count} pos</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1 p-1.5 flex flex-col gap-[3px] overflow-hidden mt-1">
                     {summary.map((s, i) => {
                       const theme = getTempTheme(s.temp);
                       return (
                         <div key={i} className={`flex items-center justify-between px-1.5 py-0.5 rounded-sm border-l-2 ${theme.cardBg} ${theme.text} border-l-${theme.sideBorder.split('-')[2]}-500 text-[9px] font-bold`}>
-                          <span>{s.temp}ºC</span>
+                          <span className="flex items-center gap-1">
+                            {s.temp}ºC
+                            {/* Ícone específico na temperatura avisando que a vaga ali está num banho lotado */}
+                            {s.hasFull && <PackageX size={10} className="opacity-50" title="Contém circuitos sem espaço físico" />}
+                          </span>
                           <span>{s.count}</span>
                         </div>
                       )

@@ -18,6 +18,15 @@ export const bathService = {
     return await apiRequest('/baths/temp', 'POST', { bathId, temp: Number(temp) });
   },
 
+  // === AS DUAS ROTAS NOVAS AQUI ===
+  toggleBathFull: async (bathId, isFull) => {
+    return await apiRequest('/baths/toggle_full', 'POST', { bathId, isFull });
+  },
+  toggleCircuitNoSpace: async (circuitId, noSpace) => {
+    return await apiRequest('/circuits/nospace', 'POST', { circuitId, noSpace });
+  },
+  // ================================
+
   addCircuit: async (bathId, circuitId) => {
     return await apiRequest('/circuits/add', 'POST', { bathId, circuitId });
   },

@@ -291,21 +291,21 @@ const HistoryView = ({ logs, setToast }) => {
   // Separa magicamente todos os anos que existem no banco (ex: 2024, 2025, 2026) para montar o filtro
   const availableYears = useMemo(() => {
     const years = historyList.map(item => item.ano.toString());
-    return [...new Set(years)].sort((a, b) => b - a);
+    return [...new Set(years)].sort((a, b) => a - b); // Ordena anos crescente (2024, 2025, 2026)
   }, [historyList]);
 
   // Autoseleciona o ano mais recente quando carrega
   useEffect(() => {
     if (availableYears.length > 0) {
-      if (!selectedYear || (!availableYears.includes(selectedYear) && selectedYear !== 'Todos')) {
-        setSelectedYear(availableYears[0]);
+      if (!selectedYear || (!availableYears.includes(selectedYear) && selectedYear !== 'Todos' && selectedYear !== 'Por Anos')) {
+        setSelectedYear(availableYears[availableYears.length - 1]); // Pega o último (mais recente)
       }
     }
   }, [availableYears, selectedYear]);
 
   // Filtra a lista de relatórios de acordo com o ano escolhido no combo box
   const filteredHistoryList = useMemo(() => {
-    if (selectedYear === 'Todos' || !selectedYear) return historyList;
+    if (selectedYear === 'Todos' || selectedYear === 'Por Anos' || !selectedYear) return historyList;
     return historyList.filter(item => item.ano.toString() === selectedYear);
   }, [historyList, selectedYear]);
 
@@ -511,17 +511,45 @@ const HistoryView = ({ logs, setToast }) => {
     );
   }
 
-  // Daqui pra baixo é o código pra montar os gráficos da tela inicial de Históricos
-
+  // ==========================================================
+  // LÓGICA INTELIGENTE DOS GRÁFICOS (EIXO X E MÉDIAS)
+  // ==========================================================
   const isCompareMode = selectedYear === 'Todos';
+  const isYearlyMacroMode = selectedYear === 'Por Anos';
+  
   const meses = [ 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   const mesesAbreviados = [ 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   
   let chartData = [];
   let linesToRender = [];
 
-  // Se escolheu 'Todos' no filtro, eu monto o objeto do gráfico com linhas de todas as cores
-  if (isCompareMode) {
+  if (isYearlyMacroMode) {
+    // -------------------------------------------------------------
+    // GRÁFICO 1: "Por Anos" (Macro) - O eixo X são os ANOS (ex: 2024, 2025)
+    // Calcula a média anual do OEE para cada ano
+    // -------------------------------------------------------------
+    chartData = availableYears.map(year => {
+      const recordsOfYear = historyList.filter(h => h.ano.toString() === year);
+      
+      // Se não tiver registro no ano, OEE é 0. Senão, calcula a média dos meses daquele ano
+      let oeeMedioAnual = 0;
+      if (recordsOfYear.length > 0) {
+        const somaOee = recordsOfYear.reduce((acc, curr) => acc + Number(curr.kpi.oee), 0);
+        oeeMedioAnual = (somaOee / recordsOfYear.length).toFixed(2);
+      }
+
+      return {
+        name: year, // Ex: "2024"
+        oee: Number(oeeMedioAnual)
+      };
+    });
+    linesToRender = ['oee'];
+
+  } else if (isCompareMode) {
+    // -------------------------------------------------------------
+    // GRÁFICO 2: "Todos" - O eixo X são os MESES
+    // Mostra várias linhas sobrepostas, uma para cada ano.
+    // -------------------------------------------------------------
     chartData = mesesAbreviados.map((nomeMes, index) => {
       const mesNum = index + 1;
       const mesObj = { name: nomeMes };
@@ -536,7 +564,10 @@ const HistoryView = ({ logs, setToast }) => {
     });
     linesToRender = availableYears;
   } else {
-    // Se não, pinto aquele grafico bonitão azul preenchido
+    // -------------------------------------------------------------
+    // GRÁFICO 3: "Um Ano Específico" - O eixo X são os MESES
+    // Mostra a evolução de Jan a Dez apenas do ano escolhido
+    // -------------------------------------------------------------
     chartData = filteredHistoryList
       .sort((a, b) => parseInt(a.mes) - parseInt(b.mes))
       .map(h => ({
@@ -546,12 +577,14 @@ const HistoryView = ({ logs, setToast }) => {
     linesToRender = ['oee'];
   }
 
-  // Faz a matemática pra não deixar o gráfico cortado ou com um teto de 1000%
+  // Lógica para criar a "sobra" em cima e embaixo do gráfico (evita que a linha toque o teto)
+  // Se for 'Todos', ele não tem um array "oee" simples, tem que varrer todos os registros globais
   const allOeeValues = historyList.map(item => Number(item.kpi.oee));
   const yMin = allOeeValues.length > 0 ? Math.max(0, Math.floor(Math.min(...allOeeValues)) - 25) : 0;
   const yMax = allOeeValues.length > 0 ? Math.min(100, Math.ceil(Math.max(...allOeeValues)) + 10) : 100;
 
-  // Calcula a média das coisas que estão aparecendo no filtro atualmente
+  // Calcula a média das coisas que estão aparecendo no filtro atualmente 
+  // (Para os 4 gráficos de "rosquinha" abaixo do gráfico principal)
   const kpimedio = filteredHistoryList.length > 0 ?
     filteredHistoryList.reduce((acc, item) => {
       acc.availability += Number(item.kpi.availability);
@@ -575,6 +608,11 @@ const HistoryView = ({ logs, setToast }) => {
     quality: mediaQual.toFixed(2),
     oee: mediaOeeCalculada.toFixed(2)
   };
+
+  // Titulo dinamico do gráfico
+  let tituloGrafico = `Tendência de OEE - ${selectedYear}`;
+  if (isCompareMode) tituloGrafico = "Comparação Mensal de OEE (Todos os Anos)";
+  if (isYearlyMacroMode) tituloGrafico = "Evolução Histórica do Laboratório (Média Anual)";
 
   // Render da tela Inicial (Modo Chart)
   return (
@@ -746,7 +784,7 @@ const HistoryView = ({ logs, setToast }) => {
         </div>
       )}
 
-      {/* Controle visual dos filtros (Todos os Anos, 2024, etc) */}
+      {/* Controle visual dos filtros (Todos os Anos, Por Anos, 2024, etc) */}
       <div className="px-6 py-4 border-b border-slate-200 flex flex-wrap justify-between items-center bg-slate-50/50 gap-4">
         <div className="flex items-center gap-4">
           <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
@@ -758,13 +796,20 @@ const HistoryView = ({ logs, setToast }) => {
           {availableYears.length > 0 && (
             <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg border border-slate-200">
               <Filter size={14} className="text-slate-400 ml-2" />
-              <div className="flex gap-1">
+              <div className="flex gap-1 overflow-x-auto">
                 <button 
                   onClick={() => setSelectedYear('Todos')} 
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedYear === 'Todos' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200'}`}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap ${selectedYear === 'Todos' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200'}`}
                 >
-                  Todos
+                  Comparar Todos
                 </button>
+                <button 
+                  onClick={() => setSelectedYear('Por Anos')} 
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap ${selectedYear === 'Por Anos' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200'}`}
+                >
+                  Média Anual
+                </button>
+                <div className="w-[1px] bg-slate-300 mx-1"></div> {/* Separador Visual */}
                 {availableYears.map(year => (
                   <button 
                     key={year}
@@ -791,7 +836,7 @@ const HistoryView = ({ logs, setToast }) => {
           <div className="lg:col-span-3 h-[450px] bg-slate-50 rounded-2xl border border-slate-200 p-6 relative">
               <h3 className="font-bold text-slate-700 mb-6 uppercase text-xs tracking-wider flex items-center gap-2 absolute top-6 left-6">
                 <TrendingUp size={16} /> 
-                {selectedYear === 'Todos' ? 'Comparação Anual de OEE' : `Tendência de OEE - ${selectedYear}`}
+                {tituloGrafico}
               </h3>
               
               {isLoading ? (
@@ -827,8 +872,8 @@ const HistoryView = ({ logs, setToast }) => {
                     <AreaChart data={chartData} margin={{ top: 40, right: 10, left: -20, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorOee" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#93c5fd" stopOpacity={0.6}/>
-                          <stop offset="95%" stopColor="#93c5fd" stopOpacity={0.1}/>
+                          <stop offset="5%" stopColor={isYearlyMacroMode ? "#8b5cf6" : "#93c5fd"} stopOpacity={0.6}/>
+                          <stop offset="95%" stopColor={isYearlyMacroMode ? "#8b5cf6" : "#93c5fd"} stopOpacity={0.1}/>
                         </linearGradient>
                       </defs>
 
@@ -842,10 +887,10 @@ const HistoryView = ({ logs, setToast }) => {
                       <Area 
                         type="stepAfter" 
                         dataKey="oee" 
-                        stroke="#2563eb" 
+                        stroke={isYearlyMacroMode ? "#6d28d9" : "#2563eb"} 
                         strokeWidth={3} 
                         fill="url(#colorOee)" 
-                        name="OEE %" 
+                        name="OEE Médio %" 
                         activeDot={{ r: 6 }} 
                       >
                         <LabelList 
@@ -959,86 +1004,89 @@ const HistoryView = ({ logs, setToast }) => {
             </div>
           )}
 
-            <div className="lg:col-span-3">
-              <h3 className="font-bold text-slate-700 mb-4 uppercase text-xs tracking-wider flex items-center gap-2">
-                <Calendar size={16} /> Fechamentos Mensais
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[...filteredHistoryList]
-                  // CORREÇÃO DA ORDEM AQUI: a.mes - b.mes faz Janeiro aparecer antes de Fevereiro, etc.
-                  .sort((a, b) => {
-                    if (a.ano !== b.ano) return b.ano - a.ano; 
-                    return a.mes - b.mes; 
-                  })
-                  .map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="group bg-white p-5 rounded-2xl border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 relative overflow-hidden flex flex-col"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                     <div>
-                        <h4 className="font-bold text-xl text-slate-800 flex items-center gap-2 capitalize">
-                          {meses[parseInt(item.mes, 10) - 1]} / {item.ano}
-                        </h4>
-                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wide mt-1">
-                          {item.saved_at ? new Date(item.saved_at).toLocaleDateString() : 'Inserido Manualmente'}
-                        </p>
-                      </div>
-                      
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleRequestDelete(item); }}
-                        className="text-slate-300 hover:text-rose-500 p-2 rounded-full transition-colors"
-                        title="Excluir Histórico"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-
-                    <div onClick={() => handleOpenDetail(item)} className="cursor-pointer">
-                      <div className="mb-6 flex items-center gap-3">
-                        <div className="bg-blue-50 p-3 rounded-xl text-blue-600">
-                          <Activity size={24} />
+            {/* Listagem de Cards de Mês - Só aparece se NÃO estiver no modo Por Anos E NÃO estiver no modo Comparar Todos */}
+            {!isYearlyMacroMode && !isCompareMode && (
+              <div className="lg:col-span-3">
+                <h3 className="font-bold text-slate-700 mb-4 uppercase text-xs tracking-wider flex items-center gap-2">
+                  <Calendar size={16} /> Fechamentos Mensais
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[...filteredHistoryList]
+                    // ORDEM CRESCENTE: a.mes - b.mes faz Janeiro aparecer antes de Fevereiro, etc.
+                    .sort((a, b) => {
+                      if (a.ano !== b.ano) return b.ano - a.ano; 
+                      return a.mes - b.mes; 
+                    })
+                    .map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="group bg-white p-5 rounded-2xl border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 relative overflow-hidden flex flex-col"
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                       <div>
+                          <h4 className="font-bold text-xl text-slate-800 flex items-center gap-2 capitalize">
+                            {meses[parseInt(item.mes, 10) - 1]} / {item.ano}
+                          </h4>
+                          <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wide mt-1">
+                            {item.saved_at ? new Date(item.saved_at).toLocaleDateString() : 'Inserido Manualmente'}
+                          </p>
                         </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-slate-400 uppercase">OEE Global</span>
-                          <span className="text-3xl font-extrabold text-blue-600">{item.kpi.oee}%</span>
-                        </div>
+                        
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleRequestDelete(item); }}
+                          className="text-slate-300 hover:text-rose-500 p-2 rounded-full transition-colors"
+                          title="Excluir Histórico"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
 
-                      <div className="mt-auto pt-4 border-t border-slate-100 grid grid-cols-3 gap-2">
-                        <div className="flex flex-col items-center">
-                          <div className="flex items-center gap-1 mb-1">
-                            <Timer size={12} className="text-orange-500" />
-                            <span className="text-[9px] font-bold text-slate-400 uppercase">Disp.</span>
+                      <div onClick={() => handleOpenDetail(item)} className="cursor-pointer">
+                        <div className="mb-6 flex items-center gap-3">
+                          <div className="bg-blue-50 p-3 rounded-xl text-blue-600">
+                            <Activity size={24} />
                           </div>
-                          <span className="text-sm font-bold text-orange-600">{item.kpi.availability}%</span>
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase">OEE Global</span>
+                            <span className="text-3xl font-extrabold text-blue-600">{item.kpi.oee}%</span>
+                          </div>
                         </div>
-                        <div className="flex flex-col items-center border-l border-r border-slate-100">
-                          <div className="flex items-center gap-1 mb-1">
-                            <Zap size={12} className="text-purple-500" />
-                            <span className="text-[9px] font-bold text-slate-400 uppercase">Perf.</span>
+
+                        <div className="mt-auto pt-4 border-t border-slate-100 grid grid-cols-3 gap-2">
+                          <div className="flex flex-col items-center">
+                            <div className="flex items-center gap-1 mb-1">
+                              <Timer size={12} className="text-orange-500" />
+                              <span className="text-[9px] font-bold text-slate-400 uppercase">Disp.</span>
+                            </div>
+                            <span className="text-sm font-bold text-orange-600">{item.kpi.availability}%</span>
                           </div>
-                          <span className="text-sm font-bold text-purple-600">{item.kpi.performance}%</span>
-                        </div>
-                        <div className="flex flex-col items-center">
-                          <div className="flex items-center gap-1 mb-1">
-                            <CheckCircle2 size={12} className="text-emerald-500" />
-                            <span className="text-[9px] font-bold text-slate-400 uppercase">Qual.</span>
+                          <div className="flex flex-col items-center border-l border-r border-slate-100">
+                            <div className="flex items-center gap-1 mb-1">
+                              <Zap size={12} className="text-purple-500" />
+                              <span className="text-[9px] font-bold text-slate-400 uppercase">Perf.</span>
+                            </div>
+                            <span className="text-sm font-bold text-purple-600">{item.kpi.performance}%</span>
                           </div>
-                          <span className="text-sm font-bold text-emerald-600">{item.kpi.quality}%</span>
+                          <div className="flex flex-col items-center">
+                            <div className="flex items-center gap-1 mb-1">
+                              <CheckCircle2 size={12} className="text-emerald-500" />
+                              <span className="text-[9px] font-bold text-slate-400 uppercase">Qual.</span>
+                            </div>
+                            <span className="text-sm font-bold text-emerald-600">{item.kpi.quality}%</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-                {filteredHistoryList.length === 0 && (
-                   <div className="col-span-full text-center py-10 text-slate-400 text-sm">
-                      Nenhum fechamento registrado para este período.
-                   </div>
-                )}
+                  ))}
+                  {filteredHistoryList.length === 0 && (
+                     <div className="col-span-full text-center py-10 text-slate-400 text-sm">
+                        Nenhum fechamento registrado para este período.
+                     </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
      
     </div>

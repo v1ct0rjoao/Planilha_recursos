@@ -2,7 +2,6 @@
 # ARQUIVO: app.py
 # ==========================================
 
-# Aqui eu importo o Flask para criar o servidor web e as ferramentas para lidar com requisições JSON e arquivos estáticos.
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
@@ -250,7 +249,7 @@ def import_digatron_data():
                     if apenas_numeros(c['id']) == apenas_numeros(cid_num):
                         c.update({
                             'status': 'running', 'startTime': t_start, 'previsao': t_prev,
-                            'batteryId': bat_id, 'protocol': proto_name, 'progress': 0
+                            'batteryId': bat_id, 'protocol': proto_name, 'progress': 0, 'noSpace': False # Remove noSpace ao rodar
                         })
                         atualizados.append(c['id'])
                         detalhes_importacao.append(f"C-{cid_num} ({bat_id} | Solicitante: {dono})")
@@ -278,7 +277,7 @@ def import_digatron_data():
 def bath_add():
     d = request.json
     db = load_db()
-    db['baths'].append({"id": d['bathId'], "temp": d.get('temp', 25), "circuits": []})
+    db['baths'].append({"id": d['bathId'], "temp": d.get('temp', 25), "circuits": [], "isFull": False})
     db['baths'].sort(key=lambda x: x['id'])
     save_db(db)
     return jsonify({"sucesso": True, "db_atualizado": db})
@@ -327,6 +326,53 @@ def bath_update_temp():
     except Exception as e:
         return jsonify({"sucesso": False, "erro": str(e)}), 500
 
+# ======================================================================
+# NOVA ROTA: Marcar/Desmarcar Banho Inteiro como "Lotado"
+# ======================================================================
+@app.route('/api/baths/toggle_full', methods=['POST'])
+def bath_toggle_full():
+    try:
+        d = request.json
+        db = load_db()
+        bath_id = str(d['bathId'])
+        is_full = bool(d.get('isFull', True))
+
+        for b in db['baths']:
+            if str(b['id']) == bath_id:
+                b['isFull'] = is_full
+                # Se marcar o banho como lotado, reflete "Sem Espaço" em todos os circuitos livres
+                if is_full:
+                    for c in b.get('circuits', []):
+                        status = c.get('status', 'free')
+                        if status == 'free' or status == 'finished' or c.get('progress', 0) >= 100:
+                            c['noSpace'] = True
+                else:
+                    # Se desmarcar, tira o "Sem Espaço" de todos
+                    for c in b.get('circuits', []):
+                        c['noSpace'] = False
+                break
+        
+        save_db(db)
+        
+        # Log da ação
+        agora = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
+        status_log = "Lotado (Sem Espaço)" if is_full else "Com Espaço Restaurado"
+        new_log = {
+            "id": int(agora.timestamp() * 1000),
+            "action": "Espaço Físico",
+            "bath": bath_id,
+            "date": agora.strftime("%d/%m/%Y %H:%M"),
+            "details": f"Status físico do local alterado para: {status_log}"
+        }
+        save_log_to_db(new_log)
+        if 'logs' not in db: db['logs'] = []
+        db['logs'].insert(0, new_log)
+
+        return jsonify({"sucesso": True, "db_atualizado": db})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
+
 @app.route('/api/circuits/add', methods=['POST'])
 def circuit_add():
     try:
@@ -335,7 +381,9 @@ def circuit_add():
         cid = f"C-{d['circuitId']}" if not str(d['circuitId']).startswith("C-") else d['circuitId']
         for b in db['baths']:
             if str(b['id']) == str(d['bathId']):
-                b['circuits'].append({"id": cid, "status": "free", "batteryId": None, "previsao": "-"})
+                # Herda a propriedade isFull do banho caso seja adicionado em um banho lotado
+                is_no_space = b.get('isFull', False)
+                b['circuits'].append({"id": cid, "status": "free", "batteryId": None, "previsao": "-", "noSpace": is_no_space})
                 break
         agora = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
         new_log = {
@@ -388,9 +436,11 @@ def update_circuit_status():
                             c.update({
                                 'status': 'free', 'batteryId': None, 'protocol': None, 
                                 'previsao': '-', 'startTime': None, 'progress': 0, 'isParallel': False
+                                # Nota: Ao liberar, a gente não altera o noSpace. Continua como estava!
                             })
                         else:
                             c['status'] = new_status
+                            c['noSpace'] = False # Se for manutenção ou rodando, tira o noSpace
                         agora = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
                         new_log = {
                             "id": int(agora.timestamp() * 1000),
@@ -406,6 +456,48 @@ def update_circuit_status():
         save_db(db)
         return jsonify({"sucesso": True, "db_atualizado": db})
     except Exception as e:
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
+
+# ======================================================================
+# NOVA ROTA: Marcar/Desmarcar "Sem Espaço" de um Único Circuito
+# ======================================================================
+@app.route('/api/circuits/nospace', methods=['POST'])
+def circuit_toggle_no_space():
+    try:
+        d = request.json
+        db = load_db()
+        circuit_id = str(d.get('circuitId'))
+        no_space = bool(d.get('noSpace', True))
+        
+        ckt_num = apenas_numeros(circuit_id)
+        target_bath_id = "Desconhecido"
+
+        for b in db.get('baths', []):
+            for c in b.get('circuits', []):
+                if int(apenas_numeros(c['id'])) == int(ckt_num):
+                    c['noSpace'] = no_space
+                    target_bath_id = str(b['id'])
+                    break
+        
+        save_db(db)
+        
+        # Log da ação
+        agora = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=3)
+        status_log = "Sem Espaço Físico" if no_space else "Espaço Restaurado"
+        new_log = {
+            "id": int(agora.timestamp() * 1000),
+            "action": "Espaço Físico",
+            "bath": target_bath_id,
+            "date": agora.strftime("%d/%m/%Y %H:%M"),
+            "details": f"Circuito {circuit_id}: {status_log}"
+        }
+        save_log_to_db(new_log)
+        if 'logs' not in db: db['logs'] = []
+        db['logs'].insert(0, new_log)
+
+        return jsonify({"sucesso": True, "db_atualizado": db})
+    except Exception as e:
+        traceback.print_exc()
         return jsonify({"sucesso": False, "erro": str(e)}), 500
 
 @app.route('/api/circuits/move', methods=['POST'])

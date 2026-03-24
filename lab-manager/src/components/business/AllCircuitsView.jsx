@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Activity, Search } from 'lucide-react';
 import CircuitCard from './CircuitCard';
 
-const AllCircuitsView = ({ baths, searchTerm, onToggleMaintenance, onDeleteCircuit, onViewHistory }) => {
+const AllCircuitsView = ({ baths, searchTerm, onToggleMaintenance, onDeleteCircuit, onViewHistory, onToggleNoSpace }) => {
   const [filter, setFilter] = useState('ALL');
 
   const filtered = useMemo(() => {
@@ -66,7 +66,8 @@ const AllCircuitsView = ({ baths, searchTerm, onToggleMaintenance, onDeleteCircu
       </div>
 
       <div className="custom-scrollbar overflow-y-auto pr-2 pb-10 flex-1">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+        {/* AQUI ESTÁ A OTIMIZAÇÃO DO GRID: Mais espaçado e com colunas ajustadas */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
           {filtered.map(c => (
             <CircuitCard
               key={`${c.parentBathId}-${c.id}`}
@@ -76,6 +77,7 @@ const AllCircuitsView = ({ baths, searchTerm, onToggleMaintenance, onDeleteCircu
               onToggleMaintenance={(cid, isMaint) => onToggleMaintenance(c.parentBathId, cid, isMaint)}
               onViewHistory={onViewHistory}
               onMove={() => { }}
+              onToggleNoSpace={onToggleNoSpace} // <-- Repassado para o Card!
             />
           ))}
           
