@@ -25,8 +25,8 @@ const DashboardView = ({
   onLinkCircuit, 
   onEditBath,
   onOpenAddBathModal,
-  onToggleBathFull,          // <-- RECEBE AQUI DO APP.JSX
-  onToggleCircuitNoSpace     // <-- RECEBE AQUI DO APP.JSX
+  onToggleBathFull,          
+  onToggleCircuitNoSpace     
 }) => {
   const [dashViewMode, setDashViewMode] = useState('baths');
   const [expandedBathId, setExpandedBathId] = useState(null);
@@ -73,7 +73,6 @@ const DashboardView = ({
       if (!bath.circuits) return;
       bath.circuits.forEach(c => {
         const s = c.status ? c.status.toLowerCase().trim() : 'free';
-        // Note que aqui a gente não subtrai os sem espaço. Ele continua "free" para a estatística global.
         if (s === 'maintenance') {
           maint++;
         } else if (s === 'running' && c.progress < 100) {
@@ -97,7 +96,8 @@ const DashboardView = ({
         
         if (activeCategory === 'Salas' && upperId.includes('SALA')) isMatch = true;
         else if (activeCategory === 'Thermotrons' && upperId.includes('THERMO')) isMatch = true;
-        else if (activeCategory === 'Banhos' && !upperId.includes('SALA') && !upperId.includes('THERMO')) isMatch = true;
+        else if (activeCategory === 'Shakers' && upperId.includes('SHAKER')) isMatch = true; // ADICIONADO REGRA SHAKER
+        else if (activeCategory === 'Banhos' && !upperId.includes('SALA') && !upperId.includes('THERMO') && !upperId.includes('SHAKER')) isMatch = true;
         
         if (!isMatch) return false;
       }
@@ -195,7 +195,7 @@ const DashboardView = ({
             onDeleteCircuit={onDeleteCircuit} 
             onToggleMaintenance={onToggleMaintenance} 
             onViewHistory={onViewHistory} 
-            onToggleNoSpace={onToggleCircuitNoSpace} // <-- PASSA PARA O COMPONENTE ALL_CIRCUITS
+            onToggleNoSpace={onToggleCircuitNoSpace}
           />
         )}
 
@@ -203,7 +203,8 @@ const DashboardView = ({
           <div className="flex flex-col h-full animate-in fade-in duration-300">
             <div className="mb-6 flex gap-2 overflow-x-auto custom-scrollbar pb-2 items-center">
               <Filter size={16} className="text-slate-400 mr-2 shrink-0" />
-              {['Todos', 'Banhos', 'Salas', 'Thermotrons'].map(category => (
+              {/* ADICIONADO SHAKERS AQUI NO MAP DO FILTRO */}
+              {['Todos', 'Banhos', 'Salas', 'Thermotrons', 'Shakers'].map(category => (
                 <button
                   key={category}
                   onClick={() => setActiveCategory(category)}
@@ -231,7 +232,7 @@ const DashboardView = ({
                     bath={bath} 
                     onClick={() => setExpandedBathId(bath.id)} 
                     onDelete={onDeleteBath} 
-                    onToggleFull={onToggleBathFull} // <-- PASSA PARA O CARD DO BANHO
+                    onToggleFull={onToggleBathFull}
                   />
                 ))}
               </div>
@@ -242,7 +243,7 @@ const DashboardView = ({
                     bath={bath} 
                     onClick={() => setExpandedBathId(bath.id)} 
                     onDelete={onDeleteBath} 
-                    onToggleFull={onToggleBathFull} // <-- PASSA PARA O CARD DO BANHO
+                    onToggleFull={onToggleBathFull}
                   />
                 ))}
                 
@@ -294,7 +295,7 @@ const DashboardView = ({
                 onMoveCircuit={onMoveCircuit} 
                 onLinkCircuit={onLinkCircuit} 
                 onEditBath={onEditBath} 
-                onToggleNoSpace={onToggleCircuitNoSpace} // <-- PASSA PARA O CONTAINER (QUE MANDA PRO CIRCUIT CARD)
+                onToggleNoSpace={onToggleCircuitNoSpace}
               />
             ))}
           </div>

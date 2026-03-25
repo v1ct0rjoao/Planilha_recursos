@@ -357,11 +357,11 @@ export default function LabManagerApp() {
             </div>
             <div className="flex flex-col justify-center">
               <h1 className="text-lg font-bold tracking-tight text-slate-800 leading-none flex items-center gap-2">
-                LabFísico
+                CLM - Complexo laboratórial Moura
                 {isLoading && <Loader2 size={14} className="animate-spin text-blue-500" />}
                 {isError && <AlertTriangle size={14} className="text-red-500" title="Erro de conexão" />}
               </h1>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Controle de Recursos</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">LabFísico</span>
             </div>
           </div>
 
