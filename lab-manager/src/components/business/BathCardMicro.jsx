@@ -4,7 +4,7 @@ import LocationIcon from './LocationIcon';
 import { getLocationType } from '../../utils/helpers';
 
 const BathCardMicro = ({ bath, onClick, onDelete, onToggleFull }) => {
-  // Lógica para contar os status (Running, Free, Maintenance)
+  // Lógica para contar os status
   const running = bath.circuits ? bath.circuits.filter(c => { 
     const s = c.status ? c.status.toLowerCase().trim() : ''; 
     return s === 'running' && (c.progress < 100); 
@@ -20,7 +20,7 @@ const BathCardMicro = ({ bath, onClick, onDelete, onToggleFull }) => {
   // Verifica se a propriedade 'Lotado' foi ativada
   const isFull = bath.isFull === true;
 
-  // Lógica visual: Decide a cor baseada na maioria (agora com o estado Cinza para Lotado)
+  // Lógica visual: Decide a cor baseada na maioria 
   let statusColor = 'bg-slate-100 text-slate-600';
   if (isFull) statusColor = 'bg-slate-200 text-slate-700'; 
   else if (maint > 0 && maint >= running && maint >= free) statusColor = 'bg-rose-100 text-rose-700';
@@ -32,7 +32,7 @@ const BathCardMicro = ({ bath, onClick, onDelete, onToggleFull }) => {
       onClick={onClick} 
       className={`rounded-xl border shadow-sm hover:shadow-md transition-all cursor-pointer group p-3 flex flex-col h-28 justify-between relative overflow-hidden ${isFull ? 'bg-slate-50 border-slate-300' : 'bg-white border-slate-200 hover:border-blue-400'}`}
     >
-      {/* Elemento decorativo de fundo */}
+      
       <div className={`absolute top-0 right-0 w-16 h-16 rounded-bl-full opacity-10 pointer-events-none ${statusColor.replace('text', 'bg').replace('100', '500')}`}></div>
       
       <div className="flex justify-between items-start z-10">
