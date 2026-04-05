@@ -3,9 +3,6 @@ import {
   X, CheckCircle2, AlertTriangle, ArrowRight, FileText, Database, Loader2, Clock, Users 
 } from 'lucide-react';
 
-// =============================================================================
-// HELPERS
-// =============================================================================
 
 const normalizeStr = (str) => {
   if (!str) return '';
@@ -19,9 +16,7 @@ const normalizeStr = (str) => {
 
 const API_URL = 'https://planilha-recursos.onrender.com/api';
 
-// =============================================================================
-// MODAL DE PROTOCOLO DESCONHECIDO
-// =============================================================================
+
 const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
   const [duration, setDuration] = useState('');
   const [suggestedName, setSuggestedName] = useState('');
@@ -122,9 +117,7 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
   );
 };
 
-// =============================================================================
-// MODAL: SOLICITANTES OBRIGATÓRIOS
-// =============================================================================
+
 const MissingOwnersModal = ({ isOpen, missingCodes, onCancel, onSave }) => {
   const [form, setForm] = useState({});
 
@@ -191,9 +184,7 @@ const MissingOwnersModal = ({ isOpen, missingCodes, onCancel, onSave }) => {
   );
 };
 
-// =============================================================================
-// COMPONENTE PRINCIPAL (IMPORT MODAL)
-// =============================================================================
+
 const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterProtocol }) => {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -228,7 +219,7 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
     return missing;
   };
 
-  // Aqui eu injeto o Cache fresquinho da API ao invés de confiar no React do componente pai
+ 
   const preScanExperiences = (ownersAtualizados) => {
     if (!text) return [];
     const lines = text.split('\n');
@@ -260,22 +251,21 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
     return Array.from(missingSet);
   };
 
-  // FLUXO DE IMPORTAÇÃO BLINDADO
+ 
   const startImportProcess = async () => {
     if (!text || !text.trim()) return;
     setLoading(true);
 
     try {
-      // 1. ANTES DE TUDO: Busco a lista oficial e atualizada do banco de dados na API.
-      // Assim o React não "esquece" quem você acabou de cadastrar.
+
       const response = await fetch(`${API_URL}/data`);
       const dbData = await response.json();
       const donosFresquinhos = dbData.experienceOwners || {};
       
-      // Guardo isso num estado local pra usar nas próximas etapas, se precisar.
+  
       setFreshOwnersCache(donosFresquinhos);
 
-      // 2. Checagem de Protocolos
+
       const missingProtos = preScanText();
       if (missingProtos.length > 0) {
         setUnknownLines(missingProtos);
@@ -284,8 +274,7 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
         setLoading(false);
         return;
       }
-      
-      // 3. Checagem de Donos (Passando os dados em tempo real!)
+
       checkMissingOwnersAndImport(donosFresquinhos);
     } catch (e) {
       console.error(e);
