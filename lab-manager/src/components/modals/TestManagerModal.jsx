@@ -37,7 +37,7 @@ const TestManagerModal = ({ isOpen, onClose, protocols = [], onAddProtocol, onDe
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col md:flex-row h-[600px] border border-slate-200">
         
-        {/* LADO ESQUERDO: CRIAÇÃO (FORMULÁRIO) */}
+        
         <div className="w-full md:w-5/12 bg-slate-50 p-8 border-b md:border-b-0 md:border-r border-slate-200 flex flex-col relative">
           
           <div className="mb-8">
@@ -64,7 +64,7 @@ const TestManagerModal = ({ isOpen, onClose, protocols = [], onAddProtocol, onDe
                 </div>
             </div>
 
-            {/* Input Duração */}
+           
             <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Duração (Horas)</label>
                 <div className="relative group">
@@ -80,7 +80,7 @@ const TestManagerModal = ({ isOpen, onClose, protocols = [], onAddProtocol, onDe
                 </div>
             </div>
 
-            {/* Card Preview */}
+            
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center gap-4 mt-2">
                 <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
                     <CalendarDays size={20} />
@@ -102,17 +102,17 @@ const TestManagerModal = ({ isOpen, onClose, protocols = [], onAddProtocol, onDe
           </button>
         </div>
 
-        {/* LADO DIREITO: LISTAGEM */}
+        
         <div className="w-full md:w-7/12 bg-white p-6 flex flex-col h-full relative">
             
-            {/* --- CABEÇALHO CORRIGIDO (FLEX) --- */}
+            
             <div className="flex justify-between items-center mb-6 gap-3">
                 <div className="shrink-0">
                     <h3 className="font-bold text-slate-700 text-lg">Catálogo</h3>
                     <span className="text-xs text-slate-400 font-bold">{filteredProtocols.length} Disponíveis</span>
                 </div>
                 
-                {/* Grupo: Busca + Botão Fechar (lado a lado) */}
+               
                 <div className="flex items-center gap-2 flex-1 justify-end">
                     <div className="relative w-full max-w-[180px]">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
@@ -129,9 +129,9 @@ const TestManagerModal = ({ isOpen, onClose, protocols = [], onAddProtocol, onDe
                     </button>
                 </div>
             </div>
-            {/* ---------------------------------- */}
+          
 
-            {/* Lista com Scroll */}
+           
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2 pb-4">
                 {filteredProtocols.length > 0 ? (
                     filteredProtocols.map(p => {
@@ -173,7 +173,7 @@ const TestManagerModal = ({ isOpen, onClose, protocols = [], onAddProtocol, onDe
                 )}
             </div>
 
-            {/* Footer da Lista */}
+           
             <div className="pt-4 border-t border-slate-100 flex justify-between items-center text-xs text-slate-400">
                  <span>Total cadastrado: {protocols.length}</span>
             </div>
