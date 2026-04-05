@@ -1,5 +1,4 @@
-//centraliza a lógica de "qual ícone usar para cada tipo de máquina". Se amanhã você quiser trocar o ícone de "SALA" por um sofá, você muda em um lugar só e o sistema todo atualiza.
-
+//centraliza a lógica de "qual ícone usar para cada tipo de máquina".
 import React from 'react';
 import { Warehouse, Cpu, Thermometer } from 'lucide-react';
 // Importamos a função auxiliar que criamos lá no começo
