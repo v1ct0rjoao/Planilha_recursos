@@ -9,31 +9,24 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
   const extrairNomeDoTeste = (textoBruto) => {
     if (!textoBruto) return '';
 
-    // 1. TRANSFORMA EM ARRAY (Remove espaços extras e tabs vazios)
-    // O split(/\s+/) já elimina os buracos vazios que o TAB cria.
+   
     const arrayDaLinha = textoBruto.trim().split(/\s+/);
 
-    // 2. ACHA ONDE ESTÁ O CIRCUITO (Nossa âncora)
-    // Ex: Se a linha for "22180 Circuit145...", o indexCircuito será 1
-    // Ex: Se a linha for "Circuit353...", o indexCircuito será 0
+
     const indexCircuito = arrayDaLinha.findIndex(item => /^Circuit/i.test(item));
 
     // Se não achou circuito, aborta
     if (indexCircuito === -1) return '';
 
-    // 3. PROCURA O NOME A PARTIR DO CIRCUITO
-    // Começamos a olhar o array logo depois do circuito (indexCircuito + 1)
+   
+   
     for (let i = indexCircuito + 1; i < arrayDaLinha.length; i++) {
       const item = arrayDaLinha[i];
 
-      // É Data? (XX/XX/XXXX ou XX-XX-XXXX)
       if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(item)) continue;
       
-      // É Hora? (XX:XX ou XX:XX:XX)
       if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(item)) continue;
 
-      // SE NÃO É DATA E NÃO É HORA, É O NOME!
-      // Achamos! Retorna limpo.
       return item.replace(/[^a-zA-Z0-9_\-\.]/g, '');
     }
 
