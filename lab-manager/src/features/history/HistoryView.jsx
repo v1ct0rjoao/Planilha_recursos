@@ -188,10 +188,7 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
             {gridData.map((row, idx) => (
               <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
                 
-                {/* TRUQUE ANTI-FALHA (raw_id): 
-                  Se for um mês muito antigo, ele pode não ter o atributo 'raw_id', só o 'id'.
-                  Então usamos o '||' para pegar o 'id' caso o raw_id não exista, e colocamos os zeros à esquerda (001, 002...) 
-                */}
+                
                 <td className="px-3 py-1 font-mono font-bold text-slate-700 border-r border-slate-200 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] text-xs">
                   {row.id === 'iDevice' || row.raw_id === 'iDevice' ? (
                     <span className="text-blue-600 underline decoration-dotted decoration-blue-300">iDevice</span>
@@ -202,7 +199,7 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
                   )}
                 </td>
                 
-                {/* Renderização dos quadradinhos de dia */}
+               
                 <td className="p-1">
                   <div className="flex gap-[2px] px-1">
                     {/* Pega o array de dias que veio do banco e desenha as cores */}
@@ -215,7 +212,7 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
                         {status}
                       </div>
                     ))}
-                    {/* Se faltar dias para fechar o mês (por algum erro de upload antigo), ele preenche com vazio para a tabela não quebrar */}
+                   
                     {Array.from({ length: Math.max(0, daysInMonth - (row.days?.length || 0)) }).map((_, i) => (
                       <div key={`empty-${i}`} className="w-5 h-5 border border-slate-100 bg-white rounded-[2px]" />
                     ))}
@@ -235,22 +232,22 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
 // Objetivo: É o maestro que gerencia tudo na aba Histórico OEE
 // ==============================================================
 const HistoryView = ({ logs, setToast }) => {
-  // Controle de estado da tela (chart = gráfico, detail = olhando um mês específico)
+ 
   const [viewMode, setViewMode] = useState('chart');
   const [historyList, setHistoryList] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedYear, setSelectedYear] = useState('');
 
-  // Controles do modal de exclusão
+
   const [modalDeleteOpen, setModalDeleteOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
 
-  // Controles do modal de Inserção de OEE Passado (Manual)
+ 
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [inputMode, setInputMode] = useState('grid'); 
   
-  // Objeto de estado que guarda tudo o que foi digitado/colado no modal manual
+ 
   const [manualForm, setManualForm] = useState({
     mes: '', ano: '', 
     ensaios_solic: '', ensaios_exec: '', relatorios_emit: '', relatorios_prazo: '',
@@ -260,14 +257,14 @@ const HistoryView = ({ logs, setToast }) => {
     tempo_disp_calc: '', tempo_real_calc: ''
   });
 
-  // Vai buscar no banco Python os relatórios guardados
+
   const fetchHistory = () => {
     setIsLoading(true);
     fetch(`${API_URL}/oee/history`)
       .then(r => r.json())
       .then(data => {
         if (data.sucesso && Array.isArray(data.historico)) {
-          // Ordena os meses para o último salvo aparecer primeiro na listagem visual
+        
           const sorted = data.historico.sort((a, b) => new Date(b.saved_at) - new Date(a.saved_at));
           setHistoryList(sorted);
         } else {
@@ -281,20 +278,20 @@ const HistoryView = ({ logs, setToast }) => {
       .finally(() => setIsLoading(false));
   };
 
-  // Quando o usuário abre essa tela de Histórico, busca os dados
+
   useEffect(() => {
     if (viewMode === 'chart') {
       fetchHistory();
     }
   }, [viewMode]);
 
-  // Separa magicamente todos os anos que existem no banco (ex: 2024, 2025, 2026) para montar o filtro
+ 
   const availableYears = useMemo(() => {
     const years = historyList.map(item => item.ano.toString());
     return [...new Set(years)].sort((a, b) => a - b); // Ordena anos crescente (2024, 2025, 2026)
   }, [historyList]);
 
-  // Autoseleciona o ano mais recente quando carrega
+
   useEffect(() => {
     if (availableYears.length > 0) {
       if (!selectedYear || (!availableYears.includes(selectedYear) && selectedYear !== 'Todos' && selectedYear !== 'Por Anos')) {
@@ -303,13 +300,13 @@ const HistoryView = ({ logs, setToast }) => {
     }
   }, [availableYears, selectedYear]);
 
-  // Filtra a lista de relatórios de acordo com o ano escolhido no combo box
+ 
   const filteredHistoryList = useMemo(() => {
     if (selectedYear === 'Todos' || selectedYear === 'Por Anos' || !selectedYear) return historyList;
     return historyList.filter(item => item.ano.toString() === selectedYear);
   }, [historyList, selectedYear]);
 
-  // Quando clica no cardzinho do mês, abre os detalhes gigantes dele
+  
   const handleOpenDetail = (item) => {
     setSelectedMonth(item);
     setViewMode('detail');
@@ -320,13 +317,13 @@ const HistoryView = ({ logs, setToast }) => {
     setViewMode('chart');
   };
 
-  // Abre a lixeirinha de confirmação
+  
   const handleRequestDelete = (item) => {
     setItemToDelete(item);
     setModalDeleteOpen(true);
   };
 
-  // Dá a ordem pro Python matar aquele registro no Firebase
+ 
   const executeDelete = async () => {
     if (!itemToDelete) return;
     setModalDeleteOpen(false);
@@ -334,10 +331,10 @@ const HistoryView = ({ logs, setToast }) => {
     const { success } = await oeeService.deleteHistory(itemToDelete.mes, itemToDelete.ano);
 
     if (success) {
-      // Remove da tela sem precisar recarregar o banco
+     
       setHistoryList(prev => prev.filter(h => !(h.mes === itemToDelete.mes && h.ano === itemToDelete.ano)));
 
-      // Se eu estava olhando os detalhes do mês que apaguei, eu volto pra tela de gráficos
+      
       if (selectedMonth && selectedMonth.mes === itemToDelete.mes && selectedMonth.ano === itemToDelete.ano) {
         handleBack();
       }
@@ -349,19 +346,19 @@ const HistoryView = ({ logs, setToast }) => {
     setItemToDelete(null);
   };
 
-  // Atualiza o estado das variáveis do formulário manual
+ 
   const handleManualFormChange = (e) => {
     const { name, value } = e.target;
     setManualForm(prev => ({ ...prev, [name]: value }));
   };
 
-  // O botão verde "Salvar Histórico" na tela de Inserção de Mês Passado
+
   const handleManualSubmit = async (e) => {
     e.preventDefault();
     
     let payload = {};
 
-    // Se ele tiver usando a caixa grande de texto com colar excel, só precisa mandar isso
+    
     if (inputMode === 'grid') {
       payload = {
         mes: manualForm.mes,
@@ -373,7 +370,7 @@ const HistoryView = ({ logs, setToast }) => {
         grid_text: manualForm.grid_text
       };
     } else {
-      // Se ele tá digitando só valores, calcula na tela e manda as métricas mastigadas pro banco
+     
       const oeeCalculado = ((Number(manualForm.availability) / 100) * (Number(manualForm.performance) / 100) * (Number(manualForm.quality) / 100) * 100).toFixed(2);
       payload = {
         mes: manualForm.mes,
@@ -405,7 +402,7 @@ const HistoryView = ({ logs, setToast }) => {
     }
 
     try {
-      // Bate na rota da API do app.py
+     
       const response = await fetch(`${API_URL}/oee/history/manual`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -415,7 +412,7 @@ const HistoryView = ({ logs, setToast }) => {
 
       if (data.sucesso || data.success) {
         if (setToast) setToast({ message: "Histórico inserido com sucesso!", type: 'success' });
-        // Limpa tudo e fecha o modal
+       
         setIsManualModalOpen(false);
         setManualForm({
           mes: '', ano: '', availability: '', performance: '', quality: '',
@@ -511,9 +508,7 @@ const HistoryView = ({ logs, setToast }) => {
     );
   }
 
-  // ==========================================================
-  // LÓGICA INTELIGENTE DOS GRÁFICOS (EIXO X E MÉDIAS)
-  // ==========================================================
+ 
   const isCompareMode = selectedYear === 'Todos';
   const isYearlyMacroMode = selectedYear === 'Por Anos';
   
@@ -524,14 +519,11 @@ const HistoryView = ({ logs, setToast }) => {
   let linesToRender = [];
 
   if (isYearlyMacroMode) {
-    // -------------------------------------------------------------
-    // GRÁFICO 1: "Por Anos" (Macro) - O eixo X são os ANOS (ex: 2024, 2025)
-    // Calcula a média anual do OEE para cada ano
-    // -------------------------------------------------------------
+    
     chartData = availableYears.map(year => {
       const recordsOfYear = historyList.filter(h => h.ano.toString() === year);
       
-      // Se não tiver registro no ano, OEE é 0. Senão, calcula a média dos meses daquele ano
+     
       let oeeMedioAnual = 0;
       if (recordsOfYear.length > 0) {
         const somaOee = recordsOfYear.reduce((acc, curr) => acc + Number(curr.kpi.oee), 0);
@@ -546,10 +538,7 @@ const HistoryView = ({ logs, setToast }) => {
     linesToRender = ['oee'];
 
   } else if (isCompareMode) {
-    // -------------------------------------------------------------
-    // GRÁFICO 2: "Todos" - O eixo X são os MESES
-    // Mostra várias linhas sobrepostas, uma para cada ano.
-    // -------------------------------------------------------------
+   
     chartData = mesesAbreviados.map((nomeMes, index) => {
       const mesNum = index + 1;
       const mesObj = { name: nomeMes };
@@ -564,10 +553,7 @@ const HistoryView = ({ logs, setToast }) => {
     });
     linesToRender = availableYears;
   } else {
-    // -------------------------------------------------------------
-    // GRÁFICO 3: "Um Ano Específico" - O eixo X são os MESES
-    // Mostra a evolução de Jan a Dez apenas do ano escolhido
-    // -------------------------------------------------------------
+   
     chartData = filteredHistoryList
       .sort((a, b) => parseInt(a.mes) - parseInt(b.mes))
       .map(h => ({
@@ -577,14 +563,12 @@ const HistoryView = ({ logs, setToast }) => {
     linesToRender = ['oee'];
   }
 
-  // Lógica para criar a "sobra" em cima e embaixo do gráfico (evita que a linha toque o teto)
-  // Se for 'Todos', ele não tem um array "oee" simples, tem que varrer todos os registros globais
+ 
   const allOeeValues = historyList.map(item => Number(item.kpi.oee));
   const yMin = allOeeValues.length > 0 ? Math.max(0, Math.floor(Math.min(...allOeeValues)) - 25) : 0;
   const yMax = allOeeValues.length > 0 ? Math.min(100, Math.ceil(Math.max(...allOeeValues)) + 10) : 100;
 
-  // Calcula a média das coisas que estão aparecendo no filtro atualmente 
-  // (Para os 4 gráficos de "rosquinha" abaixo do gráfico principal)
+ 
   const kpimedio = filteredHistoryList.length > 0 ?
     filteredHistoryList.reduce((acc, item) => {
       acc.availability += Number(item.kpi.availability);
@@ -609,12 +593,12 @@ const HistoryView = ({ logs, setToast }) => {
     oee: mediaOeeCalculada.toFixed(2)
   };
 
-  // Titulo dinamico do gráfico
+ 
   let tituloGrafico = `Tendência de OEE - ${selectedYear}`;
   if (isCompareMode) tituloGrafico = "Comparação Mensal de OEE (Todos os Anos)";
   if (isYearlyMacroMode) tituloGrafico = "Evolução Histórica do Laboratório (Média Anual)";
 
-  // Render da tela Inicial (Modo Chart)
+  
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300 min-h-[800px] relative">
 
@@ -630,7 +614,7 @@ const HistoryView = ({ logs, setToast }) => {
         onConfirm={executeDelete}
       />
 
-      {/* MODAL DE INSERÇÃO MANUAL */}
+    
       {isManualModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar flex flex-col">
@@ -702,7 +686,7 @@ const HistoryView = ({ logs, setToast }) => {
                  </div>
               </div>
 
-              {/* Formulário Dinâmico: Depende do modo que o usuário escolheu em cima */}
+            
               {inputMode === 'grid' ? (
                 <div className="flex-1 min-h-[250px] flex flex-col animate-in fade-in duration-300">
                   <h3 className="text-xs font-bold text-slate-500 uppercase mb-3 border-b border-slate-100 pb-2">Área de Transferência do Excel</h3>
@@ -784,7 +768,7 @@ const HistoryView = ({ logs, setToast }) => {
         </div>
       )}
 
-      {/* Controle visual dos filtros (Todos os Anos, Por Anos, 2024, etc) */}
+    
       <div className="px-6 py-4 border-b border-slate-200 flex flex-wrap justify-between items-center bg-slate-50/50 gap-4">
         <div className="flex items-center gap-4">
           <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
@@ -1004,7 +988,7 @@ const HistoryView = ({ logs, setToast }) => {
             </div>
           )}
 
-            {/* Listagem de Cards de Mês - Só aparece se NÃO estiver no modo Por Anos E NÃO estiver no modo Comparar Todos */}
+          
             {!isYearlyMacroMode && !isCompareMode && (
               <div className="lg:col-span-3">
                 <h3 className="font-bold text-slate-700 mb-4 uppercase text-xs tracking-wider flex items-center gap-2">
