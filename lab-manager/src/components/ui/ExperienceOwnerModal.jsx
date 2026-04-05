@@ -114,8 +114,7 @@ const ExperienceOwnerModal = ({ isOpen, onClose, baths = [], experienceOwners = 
   const [selectedOwner, setSelectedOwner] = useState(null);
   const [activeIndex, setActiveIndex] = useState(null);
 
-  // MUDANÇA PRINCIPAL AQUI: O salvamento agora faz um 'fetch' direto no formato de Dicionário 
-  // Ex: Payload vira {"E123/26": "Adriana"} que é exatamente o que o Python lê no for key, value in data.items()
+
   const saveOwner = useCallback(async (expCode, name) => {
     const updatedName = name || "Sem Dono";
     
@@ -163,7 +162,7 @@ const ExperienceOwnerModal = ({ isOpen, onClose, baths = [], experienceOwners = 
         if (parts.length >= 2 && parts[1].toUpperCase().startsWith('E')) {
           expCode = parts[1].toUpperCase();
           
-          // Anexando o ano à experiência (Ex: E123/26) para evitar conflitos com anos anteriores
+        
           if (parts.length >= 3) {
             const anoLimpo = parts[2].split('_')[0]; 
             expCode = `${expCode}/${anoLimpo}`;
