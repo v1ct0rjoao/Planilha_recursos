@@ -47,7 +47,7 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
   return (
     <div className={`relative flex flex-col justify-between p-3 rounded-xl bg-white shadow-sm border transition-all hover:shadow-md h-full ${style.borderLeft} border-l-[4px] ${isHit ? 'bg-blue-50/50' : ''}`}>
       
-      {/* CABEÇALHO DO CARD (Corrigido o esmagamento) */}
+      
       <div className="flex justify-between items-start mb-3 gap-2">
         <h3 className="text-sm font-bold text-slate-700 leading-tight flex items-center gap-1.5 min-w-0 flex-1">
           <span className="text-[10px] text-slate-400 font-bold shrink-0">CIRC.</span>
@@ -109,7 +109,7 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
       {isRunning ? (
         <div className="flex-1 flex flex-col justify-end">
           
-          {/* BATERIA E PROTOCOLO (Com truncate para não quebrar linha) */}
+          
           <div className="flex items-center gap-1.5 mb-1 min-w-0">
             <BatteryCharging size={14} className={`shrink-0 ${style.iconColor}`} />
             <span className="font-bold text-xs text-slate-800 truncate" title={circuit.batteryId}>
@@ -124,7 +124,7 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
             </span>
           </div>
           
-          {/* BARRA DE PROGRESSO */}
+          
           <div className="mb-2">
             <div className="flex justify-between items-end mb-1 gap-2">
               <span className="text-[10px] font-bold text-slate-600 shrink-0">{circuit.progress}%</span>
@@ -140,7 +140,6 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
             </div>
           </div>
           
-          {/* DATAS (Com gap e truncate) */}
           <div className="flex justify-between items-center text-[9px] font-mono font-bold text-slate-400 border-t border-slate-100 pt-1.5 mt-auto gap-2">
             <span className="truncate" title={`Início: ${formatDataCurta(circuit.startTime)}`}>I: {formatDataCurta(circuit.startTime)}</span>
             <span className="truncate text-right" title={`Previsão: ${formatDataCurta(circuit.previsao)}`}>P: {formatDataCurta(circuit.previsao)}</span>
