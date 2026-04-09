@@ -19,7 +19,6 @@ import ClientBatteryTracking from './features/client/AcompanharBaterias';
 import GerenciadorLims from './features/lims/GerenciadorLims';
 
 import { bathService } from './services/bathService';
-// 🔥 IMPORTANTE: Adicionamos a importação da nossa API aqui!
 import { apiRequest } from './services/api'; 
 
 import ImportModal from './components/modals/ImportarDig';
@@ -45,9 +44,10 @@ const GlobalStyles = () => (
     ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     * { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
     
-    .dark body { background-color: #0f1115; }
-    .dark ::-webkit-scrollbar-thumb { background: #334155; }
-    .dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    /* Dark Mode com as cores institucionais Moura (Azul Profundo) */
+    .dark body { background-color: #000a1a; }
+    .dark ::-webkit-scrollbar-thumb { background: #006CB0; opacity: 0.5; }
+    .dark ::-webkit-scrollbar-thumb:hover { background: #157FBC; }
   `}</style>
 );
 
@@ -64,12 +64,12 @@ const MenuButton = ({ active, onClick, iconClass, label, isSidebarOpen }) => (
     className={`
       flex items-center gap-3 px-4 py-3 w-full text-sm font-bold transition-all duration-200 group focus:outline-none border-l-4
       ${active 
-        ? 'bg-[#002B5C] border-amber-400 text-white dark:bg-blue-900/40 dark:border-blue-400 dark:text-blue-300' 
-        : 'border-transparent text-blue-100 hover:bg-[#00336b] hover:text-white dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-slate-200'
+        ? 'bg-[#006CB0]/20 border-[#FFBF3C] text-white dark:bg-[#006CB0]/30 dark:border-[#FFBF3C] dark:text-white' 
+        : 'border-transparent text-[#8EB1D8] hover:bg-[#006CB0]/10 hover:text-white dark:text-[#8EB1D8] dark:hover:bg-[#006CB0]/10 dark:hover:text-white'
       }
     `}
   >
-    <i className={`fa-solid ${iconClass} text-base w-5 text-center transition-colors ${active ? 'text-amber-400 dark:text-blue-400' : 'text-blue-200 group-hover:text-white dark:text-slate-500 dark:group-hover:text-slate-300'}`}></i>
+    <i className={`fa-solid ${iconClass} text-base w-5 text-center transition-colors ${active ? 'text-[#FFBF3C] dark:text-[#FFBF3C]' : 'text-[#8EB1D8] group-hover:text-white'}`}></i>
     {isSidebarOpen && <span className="whitespace-nowrap overflow-hidden tracking-wide">{label}</span>}
   </button>
 );
@@ -200,7 +200,6 @@ const MainApp = () => {
     setCurrentView('nova_solicitacao');
   };
 
-  // 🔥 RESTAURAÇÃO DAS FUNÇÕES VAZIAS COM A NOSSA API 🔥
   
   const addCircuit = useCallback(async (bathId, startNum, endNum) => {
     const start = parseInt(startNum, 10);
@@ -331,26 +330,26 @@ const MainApp = () => {
   if (!user) return <LoginPage />;
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-[#0f1115] overflow-hidden font-sans text-slate-800 dark:text-slate-200 transition-colors duration-300">
+    <div className="flex h-screen bg-slate-50 dark:bg-[#000a1a] overflow-hidden font-sans text-slate-800 dark:text-slate-200 transition-colors duration-300">
       <GlobalStyles />
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       <ConfirmModal isOpen={confirmModal.isOpen} title={confirmModal.title} message={confirmModal.message} onConfirm={confirmModal.onConfirm} onCancel={confirmModal.onCancel} type={confirmModal.type} />
 
-      {/* PALETA DE COMANDOS */}
+      {/* PALETA DE COMANDOS (MODAL CTRL+K) COM CORES MOURA */}
       {isCommandOpen && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-start justify-center pt-[15vh] p-4 animate-in fade-in duration-200" onClick={() => setIsCommandOpen(false)}>
-          <div className="bg-white dark:bg-[#1e1f22] rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col border border-slate-200 dark:border-slate-800" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <Search className="text-slate-400 dark:text-slate-500 mr-4" size={20} />
+        <div className="fixed inset-0 z-[100] bg-[#00205C]/40 dark:bg-[#000a1a]/80 backdrop-blur-sm flex items-start justify-center pt-[15vh] p-4 animate-in fade-in duration-200" onClick={() => setIsCommandOpen(false)}>
+          <div className="bg-white dark:bg-[#00205C] rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col border border-slate-200 dark:border-[#006CB0]/30" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center px-6 py-4 border-b border-slate-100 dark:border-[#006CB0]/30">
+              <Search className="text-[#006CB0] dark:text-[#8EB1D8] mr-4" size={20} />
               <input
                 ref={searchInputRef}
                 type="text"
                 placeholder="Busque por módulos ou ações..."
                 value={commandQuery}
                 onChange={(e) => setCommandQuery(e.target.value)}
-                className="w-full bg-transparent text-lg font-medium text-slate-800 dark:text-white focus:outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                className="w-full bg-transparent text-lg font-medium text-slate-800 dark:text-white focus:outline-none placeholder:text-slate-400 dark:placeholder:text-[#8EB1D8]"
               />
-              <kbd className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 px-2 py-1 rounded text-xs font-bold uppercase ml-4">ESC</kbd>
+              <kbd className="bg-slate-100 dark:bg-[#006CB0]/20 border border-slate-200 dark:border-[#006CB0]/40 text-[#006CB0] dark:text-[#FFBF3C] px-2 py-1 rounded text-xs font-bold uppercase ml-4">ESC</kbd>
             </div>
             <div className="max-h-[50vh] overflow-y-auto custom-scrollbar p-2">
               {commandActions.length > 0 ? (
@@ -358,20 +357,20 @@ const MainApp = () => {
                   <button
                     key={action.id}
                     onClick={() => handleCommandSelect(action.id)}
-                    className="w-full flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-lg transition-colors group text-left focus:outline-none focus:bg-slate-50 dark:focus:bg-slate-800"
+                    className="w-full flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-[#006CB0]/20 rounded-lg transition-colors group text-left focus:outline-none focus:bg-slate-50 dark:focus:bg-[#006CB0]/20"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-8 h-8 rounded-md bg-transparent text-slate-400 dark:text-slate-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 flex items-center justify-center transition-colors">
+                      <div className="w-8 h-8 rounded-md bg-transparent text-[#006CB0] dark:text-[#8EB1D8] group-hover:text-[#00205C] dark:group-hover:text-[#FFBF3C] flex items-center justify-center transition-colors">
                         <i className={`fa-solid ${action.icon} text-base`}></i>
                       </div>
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{action.label}</span>
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-hover:text-[#00205C] dark:group-hover:text-white transition-colors">{action.label}</span>
                     </div>
-                    <ArrowRight className="text-slate-300 dark:text-slate-600 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100" size={16} />
+                    <ArrowRight className="text-slate-300 dark:text-[#006CB0] group-hover:text-[#006CB0] dark:group-hover:text-[#FFBF3C] transition-colors opacity-0 group-hover:opacity-100" size={16} />
                   </button>
                 ))
               ) : (
                 <div className="p-8 flex flex-col items-center justify-center text-slate-400">
-                  <p className="font-medium text-slate-500">Nenhum atalho encontrado</p>
+                  <p className="font-medium text-[#8EB1D8]">Nenhum atalho encontrado</p>
                 </div>
               )}
             </div>
@@ -379,17 +378,18 @@ const MainApp = () => {
         </div>
       )}
 
-      <aside className={`bg-[#004383] dark:bg-[#131418] flex flex-col transition-all duration-300 z-40 border-r border-slate-200 dark:border-slate-800/80 shrink-0 ${isSidebarOpen ? 'w-[260px]' : 'w-[80px]'}`}>
+      {/* SIDEBAR COM O AZUL ESCURO CORPORATIVO */}
+      <aside className={`bg-[#00205C] dark:bg-[#000a1a] flex flex-col transition-all duration-300 z-40 border-r border-[#006CB0]/30 dark:border-[#006CB0]/20 shrink-0 ${isSidebarOpen ? 'w-[260px]' : 'w-[80px]'}`}>
         
-        <div className="h-[72px] flex items-center justify-between px-6 border-b border-[#00386E] dark:border-slate-800/80 shrink-0">
+        <div className="h-[72px] flex items-center justify-between px-6 border-b border-[#006CB0]/30 dark:border-[#006CB0]/20 shrink-0">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="bg-amber-400 h-8 w-8 rounded flex items-center justify-center shrink-0">
-              <i className="fa-solid fa-bolt text-[#004383] text-sm font-black"></i>
+            <div className="bg-[#FFBF3C] h-8 w-8 rounded flex items-center justify-center shrink-0">
+              <i className="fa-solid fa-bolt text-[#00205C] text-sm font-black"></i>
             </div>
             {isSidebarOpen && (
               <div className="flex flex-col min-w-0">
                 <h1 className="text-sm font-black tracking-tight text-white truncate leading-tight">CLM Moura</h1>
-                <span className="text-[10px] font-bold text-blue-200 dark:text-slate-400 uppercase tracking-widest leading-tight">LabFísico Enterprise</span>
+                <span className="text-[10px] font-bold text-[#8EB1D8] uppercase tracking-widest leading-tight">LabFísico Enterprise</span>
               </div>
             )}
           </div>
@@ -397,7 +397,7 @@ const MainApp = () => {
 
         {isSidebarOpen && (
           <div className="px-6 py-5 flex flex-col gap-1 shrink-0">
-            <span className="text-[11px] font-bold text-blue-200 dark:text-slate-500 uppercase tracking-wider">{getGreeting()}</span>
+            <span className="text-[11px] font-bold text-[#8EB1D8] uppercase tracking-wider">{getGreeting()}</span>
             <span className="font-bold text-white text-sm truncate">{user.displayName || user.email}</span>
           </div>
         )}
@@ -410,7 +410,7 @@ const MainApp = () => {
           
           {(hasPermission('acompanhamento') || hasPermission('lims')) && isSidebarOpen && (
             <div className="pt-4 pb-2 px-6">
-              <span className="text-[10px] font-bold text-blue-300 dark:text-slate-500 uppercase tracking-widest">Laboratório / Admin</span>
+              <span className="text-[10px] font-bold text-[#5D96C9] dark:text-[#5D96C9] uppercase tracking-widest">Laboratório / Admin</span>
             </div>
           )}
           {hasPermission('acompanhamento') && <MenuButton active={currentView === 'acompanhamento'} onClick={() => setCurrentView('acompanhamento')} iconClass="fa-clipboard-check" label="Gestão Solicit." isSidebarOpen={isSidebarOpen} />}
@@ -418,7 +418,7 @@ const MainApp = () => {
           
           {(hasPermission('oee') || hasPermission('history') || hasPermission('calendar')) && isSidebarOpen && (
             <div className="pt-4 pb-2 px-6">
-              <span className="text-[10px] font-bold text-blue-300 dark:text-slate-500 uppercase tracking-widest">Gestão LIMS</span>
+              <span className="text-[10px] font-bold text-[#5D96C9] dark:text-[#5D96C9] uppercase tracking-widest">Gestão LIMS</span>
             </div>
           )}
           {hasPermission('oee') && <MenuButton active={currentView === 'oee'} onClick={() => setCurrentView('oee')} iconClass="fa-industry" label="Lançamento OEE" isSidebarOpen={isSidebarOpen} />}
@@ -428,24 +428,25 @@ const MainApp = () => {
           {hasPermission('users') && <MenuButton active={currentView === 'users'} onClick={() => setCurrentView('users')} iconClass="fa-users" label="Acessos" isSidebarOpen={isSidebarOpen} />}
         </nav>
 
-        <div className="py-4 border-t border-[#00386E] dark:border-slate-800/80 flex flex-col gap-1 shrink-0">
+        <div className="py-4 border-t border-[#006CB0]/30 dark:border-[#006CB0]/20 flex flex-col gap-1 shrink-0">
           {hasPermission('configuracoes') && <MenuButton active={currentView === 'configuracoes'} onClick={() => setCurrentView('configuracoes')} iconClass="fa-gear" label="Configurações" isSidebarOpen={isSidebarOpen} />}
-          <button onClick={logout} className={`flex items-center gap-3 px-4 py-3 text-sm font-bold text-rose-300 hover:text-rose-400 hover:bg-[#00336b] dark:hover:bg-rose-500/10 transition-colors w-full group focus:outline-none border-l-4 border-transparent`}>
+          <button onClick={logout} className={`flex items-center gap-3 px-4 py-3 text-sm font-bold text-rose-400 hover:text-white hover:bg-rose-600 dark:hover:bg-rose-500/20 transition-colors w-full group focus:outline-none border-l-4 border-transparent`}>
             <i className="fa-solid fa-right-from-bracket text-base w-5 text-center transition-colors"></i>
             {isSidebarOpen && <span>Sair do Sistema</span>}
           </button>
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen relative bg-slate-50 dark:bg-[#0f1115]">
+      <div className="flex-1 flex flex-col min-w-0 h-screen relative bg-slate-50 dark:bg-[#000a1a]">
         
-        <header className="bg-white dark:bg-[#131418] h-[72px] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0 z-30 transition-colors duration-300">
+        {/* HEADER COM AS BORDAS AZUL MOURA NO DARK MODE */}
+        <header className="bg-white dark:bg-[#00205C] h-[72px] border-b border-slate-200 dark:border-[#006CB0]/30 flex items-center justify-between px-6 shrink-0 z-30 transition-colors duration-300">
           <div className="flex items-center gap-6">
-            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors focus:outline-none">
+            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-[#006CB0] hover:text-[#00205C] dark:text-[#8EB1D8] dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#006CB0]/20 rounded-md transition-colors focus:outline-none">
                {isSidebarOpen ? <Menu size={20} /> : <X size={20} />}
             </button>
             <div className="hidden sm:flex items-center gap-3">
-              {isLoading && <span className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400"><Loader2 size={14} className="animate-spin text-blue-500"/> Sincronizando...</span>}
+              {isLoading && <span className="flex items-center gap-2 text-xs font-semibold text-[#006CB0] dark:text-[#8EB1D8]"><Loader2 size={14} className="animate-spin text-[#006CB0] dark:text-[#FFBF3C]"/> Sincronizando...</span>}
               {isError && <span className="flex items-center gap-2 text-xs font-semibold text-rose-500"><AlertTriangle size={14}/> Desconectado</span>}
             </div>
           </div>
@@ -453,24 +454,24 @@ const MainApp = () => {
           <div className="flex items-center gap-3">
             
             <div className="relative group hidden md:block">
-               <button onClick={() => setIsCommandOpen(true)} className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-md text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-medium transition-colors focus:outline-none">
+               <button onClick={() => setIsCommandOpen(true)} className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 dark:border-[#006CB0]/40 rounded-md text-slate-500 dark:text-[#8EB1D8] hover:bg-slate-50 dark:hover:bg-[#006CB0]/20 text-xs font-medium transition-colors focus:outline-none">
                  <Command size={14} /> <span className="hidden lg:inline">CTRL+K</span>
                </button>
             </div>
 
-            <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors focus:outline-none">
+            <button onClick={toggleTheme} className="p-2 text-[#006CB0] hover:text-[#00205C] dark:text-[#8EB1D8] dark:hover:text-[#FFBF3C] hover:bg-slate-100 dark:hover:bg-[#006CB0]/20 rounded-md transition-colors focus:outline-none">
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
             <div className="relative group">
-              <button className="p-2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors focus:outline-none relative">
+              <button className="p-2 text-[#006CB0] hover:text-[#00205C] dark:text-[#8EB1D8] dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#006CB0]/20 rounded-md transition-colors focus:outline-none relative">
                 <Bell size={20} />
                 <span className="absolute top-1.5 right-2 w-2 h-2 bg-rose-500 rounded-full"></span>
               </button>
             </div>
 
             {currentView === 'dashboard' && hasPermission('import_digatron') && (
-              <button onClick={() => setIsImportOpen(true)} className="ml-2 bg-[#004383] dark:bg-white text-white dark:text-[#004383] hover:bg-[#00336b] dark:hover:bg-slate-200 px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 transition-colors focus:outline-none">
+              <button onClick={() => setIsImportOpen(true)} className="ml-2 bg-[#006CB0] dark:bg-[#FFBF3C] text-white dark:text-[#00205C] hover:bg-[#00205C] dark:hover:bg-[#FFE082] px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 transition-colors focus:outline-none">
                 <i className="fa-solid fa-cloud-arrow-up"></i>
                 <span className="hidden sm:inline">Importar</span>
               </button>
@@ -478,7 +479,7 @@ const MainApp = () => {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto flex flex-col relative w-full h-full bg-slate-50 dark:bg-[#0f1115]">
+        <main className="flex-1 overflow-y-auto flex flex-col relative w-full h-full bg-slate-50 dark:bg-[#000a1a]">
           {currentView === 'nova_solicitacao' && (
             <ProtectedRoute requiredPermission="nova_solicitacao">
               <ClientSolicitationView user={user} logout={logout} setToast={setToast} initialData={reusedData} onClearInitialData={() => setReusedData(null)} />
@@ -517,8 +518,8 @@ const MainApp = () => {
             </ProtectedRoute>
           )}
 
-          <footer className="w-full text-center py-6 border-t border-slate-200 dark:border-slate-800/50 mt-auto bg-slate-50 dark:bg-[#0f1115]">
-            <p className="text-xs text-slate-500 dark:text-slate-500 font-medium">
+          <footer className="w-full text-center py-6 border-t border-slate-200 dark:border-[#006CB0]/20 mt-auto bg-slate-50 dark:bg-[#000a1a]">
+            <p className="text-xs text-slate-500 dark:text-[#5D96C9] font-medium">
               Desenvolvido por João Victor Gomes Meneses © 2026 • LabFísico v3.0
             </p>
           </footer>

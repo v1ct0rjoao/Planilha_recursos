@@ -45,7 +45,7 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
       : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700';
 
   return (
-    <div className={`relative flex flex-col rounded-[1.5rem] border ${bgColor} ${currentTheme.borderTop} border-t-4 shadow-sm hover:shadow-lg transition-all duration-300 min-h-[180px] group overflow-hidden`}>
+    <div className={`relative flex flex-col rounded-xl border border-slate-200 dark:border-slate-700/60 ${bgColor} ${currentTheme.borderTop} border-t-[3px] shadow-sm hover:shadow-md transition-all duration-300 min-h-[180px] group overflow-hidden`}>
       
       {isParallel && (
         <div className="absolute -top-1 -right-1 bg-purple-500 text-white text-[8px] font-black px-2 py-1 rounded-bl-lg shadow-sm z-10 uppercase tracking-widest">
