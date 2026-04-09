@@ -83,7 +83,7 @@ const DashboardView = ({
     return { totalRunning: running, totalFree: free, totalMaint: maint };
   }, [safeBaths]);
 
-  const { filteredBaths, leftBaths, rightBaths } = useMemo(() => {
+  const { filteredBaths } = useMemo(() => {
     const term = searchTerm.toUpperCase();
     
     const filtered = safeBaths.filter(b => {
@@ -111,65 +111,59 @@ const DashboardView = ({
       return true;
     });
     
-    const half = Math.ceil(filtered.length / 2);
-    return {
-      filteredBaths: filtered,
-      leftBaths: filtered.slice(0, half),
-      rightBaths: filtered.slice(half)
-    };
+    return { filteredBaths: filtered };
   }, [safeBaths, searchTerm, activeCategory]);
 
   return (
-    <div className="h-full flex flex-col transition-colors duration-300">
+    <div className="w-full flex flex-col transition-colors duration-300">
       
-      <div className="mb-8 flex flex-col gap-4 shrink-0">
-         
+
+      <div className="mb-6 flex flex-col gap-4 shrink-0">
          <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-            <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight shrink-0 flex items-center gap-3 transition-colors">
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-800 dark:text-white tracking-tight shrink-0 flex items-center gap-3 transition-colors">
                Visão Geral
             </h2>
             
             <div className="w-full md:w-80 lg:w-96 relative group">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400 transition-colors"></i>
+              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-600 dark:group-focus-within:text-[#0ea5e9] transition-colors"></i>
               <input 
                 type="text" 
                 placeholder="Buscar circuito ou local..." 
                 value={searchTerm} 
                 onChange={(e) => setSearchTerm(e.target.value)} 
-                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-900 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 placeholder:font-medium shadow-sm" 
+                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-white/[0.02] dark:backdrop-blur-md border border-slate-200 dark:border-white/10 rounded-xl text-sm font-semibold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#006CB0] focus:bg-white dark:focus:bg-white/[0.05] transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 placeholder:font-medium shadow-sm" 
               />
             </div>
          </div>
 
-         <div className="flex flex-col xl:flex-row justify-between xl:items-center gap-4 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+         <div className="flex flex-col xl:flex-row justify-between xl:items-center gap-4 bg-white dark:bg-white/[0.02] dark:backdrop-blur-md p-3 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm transition-colors">
             
             <div className="flex flex-wrap items-center gap-3">
-               
-               <div className="flex items-center bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-inner transition-colors">
+               <div className="flex items-center bg-slate-50 dark:bg-black/20 p-1.5 rounded-xl border border-slate-200 dark:border-white/5 shadow-inner transition-colors">
                  <button 
                    onClick={() => { setDashViewMode('baths'); setExpandedBathId(null); }} 
-                   className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${dashViewMode === 'baths' && !expandedBathId ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-md' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50'}`}
+                   className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${dashViewMode === 'baths' && !expandedBathId ? 'bg-white dark:bg-white/10 text-blue-600 dark:text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-white/5'}`}
                  >
                    <i className="fa-solid fa-border-all"></i> Painel
                  </button>
                  <button 
                    onClick={() => { setDashViewMode('all_circuits'); setExpandedBathId(null); }} 
-                   className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${dashViewMode === 'all_circuits' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-md' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50'}`}
+                   className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${dashViewMode === 'all_circuits' ? 'bg-white dark:bg-white/10 text-blue-600 dark:text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-white/5'}`}
                  >
                    <i className="fa-solid fa-expand"></i> Circuitos
                  </button>
                </div>
                
-               <div className="w-[1px] h-8 bg-slate-200 dark:bg-slate-800 hidden sm:block transition-colors"></div>
+               <div className="w-[1px] h-8 bg-slate-200 dark:bg-white/10 hidden sm:block transition-colors"></div>
 
                <div className="flex gap-1">
-                 <button onClick={() => setIsTempStatsOpen(true)} className="p-2.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all" title="Distribuição Térmica">
+                 <button onClick={() => setIsTempStatsOpen(true)} className="p-2.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/5 transition-all" title="Distribuição Térmica">
                    <i className="fa-solid fa-temperature-half text-lg"></i>
                  </button>
-                 <button onClick={() => setIsUsageStatsOpen(true)} className="p-2.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all" title="Gráfico de Ocupação Geral">
+                 <button onClick={() => setIsUsageStatsOpen(true)} className="p-2.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/5 transition-all" title="Gráfico de Ocupação Geral">
                    <i className="fa-solid fa-chart-simple text-lg"></i>
                  </button>
-                 <button onClick={() => setIsExpOwnerOpen(true)} className="p-2.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all" title="Gerenciar Solicitantes">
+                 <button onClick={() => setIsExpOwnerOpen(true)} className="p-2.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/5 transition-all" title="Gerenciar Solicitantes">
                    <i className="fa-solid fa-users text-lg"></i>
                  </button>
                </div>
@@ -189,11 +183,11 @@ const DashboardView = ({
                  <span className="text-sm font-bold text-rose-800 dark:text-rose-400">{stats.totalMaint} Manut.</span>
                </div>
             </div>
-            
          </div>
       </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col">
+
+      <div className="w-full flex flex-col">
         {dashViewMode === 'all_circuits' && (
           <AllCircuitsView 
             baths={filteredBaths} 
@@ -206,7 +200,7 @@ const DashboardView = ({
         )}
 
         {dashViewMode === 'baths' && !expandedBathId && (
-          <div className="flex flex-col h-full animate-in fade-in duration-300">
+          <div className="flex flex-col animate-in fade-in duration-300">
             <div className="mb-6 flex gap-3 overflow-x-auto custom-scrollbar pb-2 items-center">
               <i className="fa-solid fa-filter text-slate-400 dark:text-slate-500 mr-1 shrink-0"></i>
               {['Todos', 'Banhos', 'Salas', 'Thermotrons', 'Shakers'].map(category => (
@@ -215,13 +209,13 @@ const DashboardView = ({
                   onClick={() => setActiveCategory(category)}
                   className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap border-b-4 ${
                     activeCategory === category
-                      ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-600 dark:border-blue-500 shadow-sm'
-                      : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-transparent hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                      ? 'bg-blue-50 dark:bg-[#006CB0]/20 text-blue-700 dark:text-white border-[#006CB0] dark:border-[#0ea5e9] shadow-sm'
+                      : 'bg-white dark:bg-white/[0.02] text-slate-500 dark:text-slate-400 border-transparent hover:border-slate-300 dark:hover:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5'
                   }`}
                 >
                   {category}
                   {activeCategory === category && category !== 'Todos' && (
-                    <span className="ml-2 bg-blue-200/50 dark:bg-blue-500/30 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-md text-[10px] transition-colors">
+                    <span className="ml-2 bg-blue-200/50 dark:bg-[#006CB0]/40 text-blue-800 dark:text-blue-100 px-2 py-0.5 rounded-md text-[10px] transition-colors">
                       {filteredBaths.length}
                     </span>
                   )}
@@ -229,37 +223,28 @@ const DashboardView = ({
               ))}
             </div>
 
-            <div className="flex gap-8 overflow-y-auto pr-2 custom-scrollbar pb-6 flex-1">
-              <div className="flex-1 grid grid-cols-2 lg:grid-cols-3 gap-6 content-start">
-                {leftBaths.map(bath => (
-                  <BathCardMicro 
-                    key={bath.id} bath={bath} onClick={() => setExpandedBathId(bath.id)} 
-                    onDelete={onDeleteBath} onToggleFull={onToggleBathFull}
-                  />
-                ))}
-              </div>
-              <div className="flex-1 grid grid-cols-2 lg:grid-cols-3 gap-6 content-start">
-                {rightBaths.map(bath => (
-                  <BathCardMicro 
-                    key={bath.id} bath={bath} onClick={() => setExpandedBathId(bath.id)} 
-                    onDelete={onDeleteBath} onToggleFull={onToggleBathFull}
-                  />
-                ))}
-                
-                {!searchTerm && activeCategory === 'Todos' && (
-                  <button 
-                    onClick={onOpenAddBathModal} 
-                    className="flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-900 border-t-4 border-blue-500 dark:border-blue-500/80 rounded-xl shadow-md hover:shadow-lg transition-all group min-h-[140px] dark:shadow-none dark:hover:bg-slate-800"
-                  >
-                    <i className="fa-solid fa-plus text-blue-500 dark:text-blue-400 text-3xl mb-3 group-hover:scale-110 transition-transform"></i>
-                    <span className="font-bold text-sm text-slate-600 dark:text-slate-300 tracking-wide transition-colors">NOVA UNIDADE</span>
-                  </button>
-                )}
-              </div>
+            {/* O SEGREDO DO GRID INTELIGENTE: Single Grid fluido que empurra o conteúdo pra baixo em vez de forçar scroll interno */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6 pb-12">
+              {filteredBaths.map(bath => (
+                <BathCardMicro 
+                  key={bath.id} bath={bath} onClick={() => setExpandedBathId(bath.id)} 
+                  onDelete={onDeleteBath} onToggleFull={onToggleBathFull}
+                />
+              ))}
+              
+              {!searchTerm && activeCategory === 'Todos' && (
+                <button 
+                  onClick={onOpenAddBathModal} 
+                  className="flex flex-col items-center justify-center p-6 bg-white dark:bg-white/[0.02] dark:backdrop-blur-md border-t-4 border-[#006CB0] dark:border-[#0ea5e9] rounded-xl shadow-md hover:shadow-lg transition-all group min-h-[140px] dark:hover:bg-white/5"
+                >
+                  <i className="fa-solid fa-plus text-[#006CB0] dark:text-[#0ea5e9] text-3xl mb-3 group-hover:scale-110 transition-transform"></i>
+                  <span className="font-bold text-sm text-slate-600 dark:text-slate-300 tracking-wide transition-colors">NOVA UNIDADE</span>
+                </button>
+              )}
             </div>
             
             {filteredBaths.length === 0 && (
-              <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 mt-4 transition-colors">
+              <div className="w-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-white/[0.02] rounded-xl border border-dashed border-slate-300 dark:border-white/10 mt-4 transition-colors py-16">
                 <i className="fa-solid fa-border-all text-4xl mb-4 text-slate-300 dark:text-slate-600"></i>
                 <p className="font-medium">Nenhuma unidade encontrada para esta categoria ou busca.</p>
               </div>
@@ -268,10 +253,10 @@ const DashboardView = ({
         )}
 
         {expandedBathId && (
-          <div className="animate-in slide-in-from-right-4 fade-in duration-300 h-full overflow-y-auto custom-scrollbar pb-6">
+          <div className="animate-in slide-in-from-right-4 fade-in duration-300 pb-12">
             <button 
               onClick={() => setExpandedBathId(null)} 
-              className="mb-6 flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400 hover:shadow-md px-5 py-2.5 rounded-xl transition-all w-fit group"
+              className="mb-6 flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-white/[0.02] border border-slate-200 dark:border-white/10 hover:border-[#006CB0] dark:hover:border-[#0ea5e9] hover:text-[#006CB0] dark:hover:text-white hover:shadow-md px-5 py-2.5 rounded-xl transition-all w-fit group"
             >
               <i className="fa-solid fa-arrow-left group-hover:-translate-x-1 transition-transform"></i> 
               Voltar para painel
