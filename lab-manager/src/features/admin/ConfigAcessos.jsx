@@ -132,7 +132,7 @@ const UserManagementView = ({ setToast }) => {
      const response = await apiRequest('/criar_conta_local', 'POST', payload);
       
       if (response.success) {
-        setToast({ message: "Usuário de bancada criado com sucesso!", type: "success" });
+        setToast({ message: "Usuário criado com sucesso!", type: "success" });
         setIsCreateModalOpen(false);
         fetchUsers();
       } else {
@@ -281,7 +281,7 @@ const UserManagementView = ({ setToast }) => {
                 <option value="lider">👑 Líder</option>
                 <option value="programacao_adm">📋 Programação / Administração</option>
                 <option value="programacao_relatorio">📊 Programação / Relatórios</option>
-                <option value="tecnico">🔧 Técnico (Bancada)</option>
+                <option value="tecnico">🔧 Técnico</option>
                 <option value="cliente">👤 Cliente Padrão</option>
               </select>
             </div>
@@ -346,7 +346,7 @@ const UserManagementView = ({ setToast }) => {
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-2">Aplicar Template Rápido</label>
                 <select value={tempRole} onChange={(e) => handlePresetChange(e.target.value)} className="w-full bg-white border border-slate-300 text-sm font-bold text-slate-800 rounded-xl px-5 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer shadow-sm transition-all mb-4">
                   <option value="personalizado">🛠️ Personalizado (Livre)</option>
-                  <option value="tecnico">🔧 Técnico (Bancada)</option>
+                  <option value="tecnico">🔧 Técnico</option>
                   <option value="gestor">👑 Gestor</option>
                 </select>
 

@@ -32,7 +32,7 @@ def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
     
 def identificar_nome_padrao(linha, db_protocols=[]):
     #pega o log e trata pra gente saber qual é o teste
-    #tudo fira maisculo tirando os caracter que pode confundir
+    #tudo vira maisculo tirando os caracter que pode confundir
     texto_limpo = str(linha).upper().replace('_', '').replace('-', '').replace(' ', '')
     
     protocolos_ordenados = sorted(db_protocols, key=lambda p: len(p['name']), reverse=True)
