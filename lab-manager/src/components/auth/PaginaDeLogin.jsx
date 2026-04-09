@@ -333,7 +333,7 @@ const LoginPage = () => {
 
               <div className="grid grid-cols-1 gap-3">
                 <button onClick={() => setIsTechMode(true)} disabled={isLoading} className="w-full bg-slate-800 hover:bg-slate-700 text-white py-3.5 px-6 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-3 shadow-sm active:scale-[0.98]">
-                  <i className="fa-solid fa-desktop"></i> Acesso de Local
+                  <i className="fa-solid fa-desktop"></i> Acesso Local
                 </button>
                 <button onClick={handleGoogleLogin} disabled={isLoading} className="w-full bg-white hover:bg-slate-50 text-slate-600 py-3.5 px-6 rounded-xl font-bold text-sm border-2 border-slate-200 transition-all duration-200 flex items-center justify-center gap-3 active:scale-[0.98]">
                   <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" width="18" alt="Google" /> Acesso com conta Google
