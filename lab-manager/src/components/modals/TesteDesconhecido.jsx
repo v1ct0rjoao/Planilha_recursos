@@ -9,6 +9,7 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
   const extrairNomeDoTeste = (textoBruto) => {
     if (!textoBruto) return '';
 
+<<<<<<< HEAD:lab-manager/src/components/modals/TesteDesconhecido.jsx
     // 1. TRANSFORMA EM ARRAY 
     // O split(/\s+/) já elimina os buracos vazios que o TAB cria.
     const arrayDaLinha = textoBruto.trim().split(/\s+/);
@@ -16,16 +17,23 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
     // 2. ACHA ONDE ESTÁ O CIRCUITO 
     // Ex: Se a linha for "22180 Circuit145...", o indexCircuito será 1
     // Ex: Se a linha for "Circuit353...", o indexCircuito será 0
+=======
+   
+    const arrayDaLinha = textoBruto.trim().split(/\s+/);
+
+
+>>>>>>> fd131c1fe2bab35d05226c8663d1c7fe45158923:lab-manager/src/components/modals/UnknownProtocolModal.jsx
     const indexCircuito = arrayDaLinha.findIndex(item => /^Circuit/i.test(item));
 
     
     if (indexCircuito === -1) return '';
 
-    // 3. PROCURA O NOME A PARTIR DO CIRCUITO
-    // Começamos a olhar o array logo depois do circuito (indexCircuito + 1)
+   
+   
     for (let i = indexCircuito + 1; i < arrayDaLinha.length; i++) {
       const item = arrayDaLinha[i];
 
+<<<<<<< HEAD:lab-manager/src/components/modals/TesteDesconhecido.jsx
       
       if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(item)) continue;
       
@@ -33,6 +41,12 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
       if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(item)) continue;
 
       
+=======
+      if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(item)) continue;
+      
+      if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(item)) continue;
+
+>>>>>>> fd131c1fe2bab35d05226c8663d1c7fe45158923:lab-manager/src/components/modals/UnknownProtocolModal.jsx
       return item.replace(/[^a-zA-Z0-9_\-\.]/g, '');
     }
 

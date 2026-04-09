@@ -3,9 +3,6 @@ import {
   X, CheckCircle2, AlertTriangle, ArrowRight, FileText, Database, Loader2, Clock, Users 
 } from 'lucide-react';
 
-// =============================================================================
-// HELPERS
-// =============================================================================
 
 const normalizeStr = (str) => {
   if (!str) return '';
@@ -19,9 +16,7 @@ const normalizeStr = (str) => {
 
 const API_URL = 'https://planilha-recursos.onrender.com/api';
 
-// =============================================================================
-// MODAL DE PROTOCOLO DESCONHECIDO
-// =============================================================================
+
 const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
   const [duration, setDuration] = useState('');
   const [suggestedName, setSuggestedName] = useState('');
@@ -122,9 +117,7 @@ const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
   );
 };
 
-// =============================================================================
-// MODAL: SOLICITANTES OBRIGATÓRIOS
-// =============================================================================
+
 const MissingOwnersModal = ({ isOpen, missingCodes, onCancel, onSave }) => {
   const [form, setForm] = useState({});
 
@@ -191,9 +184,7 @@ const MissingOwnersModal = ({ isOpen, missingCodes, onCancel, onSave }) => {
   );
 };
 
-// =============================================================================
-// COMPONENTE PRINCIPAL (IMPORT MODAL)
-// =============================================================================
+
 const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterProtocol }) => {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -228,7 +219,11 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
     return missing;
   };
 
+<<<<<<< HEAD:lab-manager/src/components/modals/ImportarDig.jsx
   
+=======
+ 
+>>>>>>> fd131c1fe2bab35d05226c8663d1c7fe45158923:lab-manager/src/components/modals/ImportModal.jsx
   const preScanExperiences = (ownersAtualizados) => {
     if (!text) return [];
     const lines = text.split('\n');
@@ -260,21 +255,33 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
     return Array.from(missingSet);
   };
 
+<<<<<<< HEAD:lab-manager/src/components/modals/ImportarDig.jsx
   
+=======
+ 
+>>>>>>> fd131c1fe2bab35d05226c8663d1c7fe45158923:lab-manager/src/components/modals/ImportModal.jsx
   const startImportProcess = async () => {
     if (!text || !text.trim()) return;
     setLoading(true);
 
     try {
+<<<<<<< HEAD:lab-manager/src/components/modals/ImportarDig.jsx
       // 1.Busco a lista oficial e atualizada do banco de dados na API.
+=======
+
+>>>>>>> fd131c1fe2bab35d05226c8663d1c7fe45158923:lab-manager/src/components/modals/ImportModal.jsx
       const response = await fetch(`${API_URL}/data`);
       const dbData = await response.json();
       const donosFresquinhos = dbData.experienceOwners || {};
       
+<<<<<<< HEAD:lab-manager/src/components/modals/ImportarDig.jsx
       
+=======
+  
+>>>>>>> fd131c1fe2bab35d05226c8663d1c7fe45158923:lab-manager/src/components/modals/ImportModal.jsx
       setFreshOwnersCache(donosFresquinhos);
 
-      // 2. Checagem de Protocolos
+
       const missingProtos = preScanText();
       if (missingProtos.length > 0) {
         setUnknownLines(missingProtos);
@@ -283,8 +290,12 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
         setLoading(false);
         return;
       }
+<<<<<<< HEAD:lab-manager/src/components/modals/ImportarDig.jsx
       
       // 3. Checagem de Donos 
+=======
+
+>>>>>>> fd131c1fe2bab35d05226c8663d1c7fe45158923:lab-manager/src/components/modals/ImportModal.jsx
       checkMissingOwnersAndImport(donosFresquinhos);
     } catch (e) {
       console.error(e);

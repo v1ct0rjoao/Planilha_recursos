@@ -114,6 +114,10 @@ const ExperienceOwnerModal = ({ isOpen, onClose, baths = [], experienceOwners = 
   const [selectedOwner, setSelectedOwner] = useState(null);
   const [activeIndex, setActiveIndex] = useState(null);
 
+<<<<<<< HEAD:lab-manager/src/components/ui/GerenciadorDeSolicitantes.jsx
+=======
+
+>>>>>>> fd131c1fe2bab35d05226c8663d1c7fe45158923:lab-manager/src/components/ui/ExperienceOwnerModal.jsx
   const saveOwner = useCallback(async (expCode, name) => {
     const updatedName = name || "Sem Dono";
     
@@ -161,7 +165,11 @@ const ExperienceOwnerModal = ({ isOpen, onClose, baths = [], experienceOwners = 
         if (parts.length >= 2 && parts[1].toUpperCase().startsWith('E')) {
           expCode = parts[1].toUpperCase();
           
+<<<<<<< HEAD:lab-manager/src/components/ui/GerenciadorDeSolicitantes.jsx
           
+=======
+        
+>>>>>>> fd131c1fe2bab35d05226c8663d1c7fe45158923:lab-manager/src/components/ui/ExperienceOwnerModal.jsx
           if (parts.length >= 3) {
             const anoLimpo = parts[2].split('_')[0]; 
             expCode = `${expCode}/${anoLimpo}`;
