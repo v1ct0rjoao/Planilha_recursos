@@ -14,7 +14,7 @@ const GerenciadorLims = () => {
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-sm">
               <i className="fa-solid fa-flask-vial text-xl"></i>
             </div>
-            <span className="text-2xl font-black text-slate-900 tracking-tight">myLIMS</span>
+            <span className="text-2xl font-black text-slate-900 tracking-tight">LABLIMS</span>
          </div>
          
          <nav className="flex gap-8 overflow-x-auto custom-scrollbar h-full items-end">

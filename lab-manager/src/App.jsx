@@ -147,7 +147,7 @@ const MainApp = () => {
     { id: 'meus_acompanhamentos', label: 'Meus Acompanhamentos', icon: 'fa-list-check', perm: 'meus_acompanhamentos' },
     { id: 'baterias', label: 'Minhas Baterias', icon: 'fa-car-battery', perm: 'baterias' },
     { id: 'acompanhamento', label: 'Gestão de Solicitações', icon: 'fa-clipboard-check', perm: 'acompanhamento' },
-    { id: 'lims', label: 'Portal myLIMS', icon: 'fa-layer-group', perm: 'lims' },
+    { id: 'lims', label: 'Portal LABLIMS', icon: 'fa-layer-group', perm: 'lims' },
     { id: 'oee', label: 'Lançamento OEE', icon: 'fa-industry', perm: 'oee' },
     { id: 'history', label: 'Dashboard OEE', icon: 'fa-chart-line', perm: 'history' },
     { id: 'calendar', label: 'Agenda de Liberações', icon: 'fa-calendar-days', perm: 'calendar' },
@@ -299,7 +299,7 @@ const MainApp = () => {
             </div>
           )}
           {hasPermission('acompanhamento') && <MenuButton active={currentView === 'acompanhamento'} onClick={() => setCurrentView('acompanhamento')} iconClass="fa-clipboard-check" label="Gestão Solicit." isSidebarOpen={isSidebarOpen} />}
-          {hasPermission('lims') && <MenuButton active={currentView === 'lims'} onClick={() => setCurrentView('lims')} iconClass="fa-layer-group" label="Portal myLIMS" isSidebarOpen={isSidebarOpen} />}
+          {hasPermission('lims') && <MenuButton active={currentView === 'lims'} onClick={() => setCurrentView('lims')} iconClass="fa-layer-group" label="Portal LABLIMS" isSidebarOpen={isSidebarOpen} />}
           
           {(hasPermission('oee') || hasPermission('history') || hasPermission('calendar')) && isSidebarOpen && (
             <div className="pt-4 pb-2 px-6">
