@@ -1,6 +1,8 @@
-import { API_URL } from '../utils/constants';
 import { getAuth } from 'firebase/auth';
 import { app } from '../firebaseConfig';
+
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export const apiRequest = async (endpoint, method = 'GET', body = null, isFileUpload = false) => {
   const auth = getAuth(app);
@@ -28,7 +30,15 @@ export const apiRequest = async (endpoint, method = 'GET', body = null, isFileUp
   }
 
   try {
-    const response = await fetch(`${API_URL}${endpoint}`, options);
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+    
+  
+    if (!response.ok && response.status === 404) {
+      console.error(`A rota ${API_BASE_URL}${endpoint} não foi encontrada (404).`);
+      return { success: false, error: 'Servidor offline ou rota não encontrada.' };
+    }
+
     const data = await response.json();
     return { success: response.ok, data };
   } catch (error) {
