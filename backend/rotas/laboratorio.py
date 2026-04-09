@@ -10,7 +10,6 @@ import traceback
 
 bp_lab = Blueprint('laboratorio', __name__)
 
-
 def apenas_numeros(texto):
     return re.sub(r'\D', '', str(texto))
 
@@ -36,7 +35,6 @@ def calcular_previsao_fim(start_str, nome_protocolo, db_protocols):
         dt_end = dt_start + timedelta(hours=duracao)
         return dt_end.strftime("%d/%m/%Y %H:%M")
     except: return "-"
-
 
 @bp_lab.route('/data', methods=['GET'])
 @requer_autenticacao
@@ -64,8 +62,6 @@ def criar_conta_local():
     except Exception as e:
         return jsonify({"sucesso": False, "erro": str(e)}), 400
 
-
-
 @bp_lab.route('/import', methods=['POST', 'OPTIONS'], strict_slashes=False)
 @requer_autenticacao
 def importar_digatron():
@@ -76,6 +72,17 @@ def importar_digatron():
         if not text: return jsonify({'sucesso': False, 'erro': 'Texto vazio'}), 400
         
         db = carregar_bd()
+        
+        try:
+            doc = bd_firestore.collection('lab_data').document('main').get()
+            if doc.exists:
+                dados_nuvem = doc.to_dict()
+                db['protocols'] = dados_nuvem.get('protocols', [])
+                if 'experienceOwners' in dados_nuvem:
+                    db['experienceOwners'] = {str(k).replace('_', '/'): v for k, v in dados_nuvem['experienceOwners'].items()}
+        except Exception:
+            pass
+
         protocols = db.get('protocols', [])
         experience_owners = db.get('experienceOwners', {})
         atualizados = []
@@ -86,8 +93,10 @@ def importar_digatron():
             cid_num, t_start = m.group(1), m.group(2)
             end_line = text.find('\n', m.end())
             line = text[m.start():end_line if end_line != -1 else len(text)]
+            
             bat_match = re.search(r"(\d{5,}-[\w-]+)", line)
             bat_id = bat_match.group(1) if bat_match else "Desconhecido"
+            
             proto_name = identificar_nome_padrao(line, protocols)
             t_prev = calcular_previsao_fim(t_start, proto_name, protocols)
             
@@ -148,8 +157,6 @@ def salvar_owners():
     except Exception as e:
         return jsonify({"sucesso": False, "erro": str(e)}), 500
 
-
-
 @bp_lab.route('/baths/add', methods=['POST', 'OPTIONS'], strict_slashes=False)
 @requer_autenticacao
 def bath_add():
@@ -170,6 +177,85 @@ def bath_delete():
     db['baths'] = [b for b in db['baths'] if str(b['id']) != str(d['bathId'])]
     salvar_bd(db)
     return jsonify({"sucesso": True, "db_atualizado": db})
+
+@bp_lab.route('/baths/rename', methods=['POST', 'OPTIONS'], strict_slashes=False)
+@requer_autenticacao
+def bath_rename():
+    if request.method == 'OPTIONS': return jsonify({}), 200
+    try:
+        d = request.json
+        db = carregar_bd()
+        old_id = str(d['oldId'])
+        new_id = str(d['newId'])
+        found = False
+        for b in db.get('baths', []):
+            if str(b['id']) == old_id:
+                b['id'] = new_id
+                found = True
+                break
+        if found:
+            salvar_bd(db)
+            return jsonify({"sucesso": True, "db_atualizado": db})
+        return jsonify({"sucesso": False, "erro": "Banho não encontrado"}), 404
+    except Exception as e:
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
+
+@bp_lab.route('/baths/temp', methods=['POST', 'OPTIONS'], strict_slashes=False)
+@requer_autenticacao
+def bath_update_temp():
+    if request.method == 'OPTIONS': return jsonify({}), 200
+    try:
+        d = request.json
+        db = carregar_bd()
+        bath_id = str(d['bathId'])
+        new_temp = d['temp']
+        for b in db.get('baths', []):
+            if str(b['id']) == bath_id:
+                b['temp'] = new_temp
+                break
+        salvar_bd(db)
+        return jsonify({"sucesso": True, "db_atualizado": db})
+    except Exception as e:
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
+
+@bp_lab.route('/baths/toggle_full', methods=['POST', 'OPTIONS'], strict_slashes=False)
+@requer_autenticacao
+def bath_toggle_full():
+    if request.method == 'OPTIONS': return jsonify({}), 200
+    try:
+        d = request.json
+        db = carregar_bd()
+        bath_id = str(d['bathId'])
+        is_full = bool(d.get('isFull', True))
+        for b in db.get('baths', []):
+            if str(b['id']) == bath_id:
+                b['isFull'] = is_full
+                if is_full:
+                    for c in b.get('circuits', []):
+                        status = c.get('status', 'free')
+                        if status == 'free' or status == 'finished' or c.get('progress', 0) >= 100:
+                            c['noSpace'] = True
+                else:
+                    for c in b.get('circuits', []):
+                        c['noSpace'] = False
+                break
+        salvar_bd(db)
+        agora = obter_agora()
+        status_log = "Lotado (Sem Espaço)" if is_full else "Com Espaço Restaurado"
+        new_log = {
+            "id": int(agora.timestamp() * 1000),
+            "action": "Espaço Físico",
+            "bath": bath_id,
+            "date": agora.strftime("%d/%m/%Y %H:%M"),
+            "details": f"Status físico do local alterado para: {status_log}"
+        }
+        salvar_log_no_bd(new_log)
+        if 'logs' not in db: db['logs'] = []
+        db['logs'].insert(0, new_log)
+        return jsonify({"sucesso": True, "db_atualizado": db})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
 
 @bp_lab.route('/circuits/add', methods=['POST', 'OPTIONS'], strict_slashes=False)
 @requer_autenticacao
@@ -351,7 +437,6 @@ def protocol_add():
         d = request.json
         db = carregar_bd()
         
-        # Garante que a lista de protocolos existe antes de tentar adicionar
         if 'protocols' not in db:
             db['protocols'] = []
             
