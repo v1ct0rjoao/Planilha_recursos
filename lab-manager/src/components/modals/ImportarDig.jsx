@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, CheckCircle2, AlertTriangle, ArrowRight, FileText, Database, Loader2, Clock, Users 
 } from 'lucide-react';
-
+// Importamos a nossa API inteligente que manda o Token!
+import { apiRequest } from '../../services/api'; 
 
 const normalizeStr = (str) => {
   if (!str) return '';
@@ -13,9 +14,6 @@ const normalizeStr = (str) => {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]/g, '');
 };
-
-const API_URL = 'https://planilha-recursos.onrender.com/api';
-
 
 const UnknownProtocolModal = ({ isOpen, line, onClose, onRegister }) => {
   const [duration, setDuration] = useState('');
@@ -189,7 +187,6 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   
-  // Controle dos modais e Cache de donos em tempo real
   const [unknownLines, setUnknownLines] = useState([]);
   const [showUnknownModal, setShowUnknownModal] = useState(false);
   const [currentUnknownLine, setCurrentUnknownLine] = useState('');
@@ -241,7 +238,6 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
           }
           const baseCode = parts[1].toUpperCase(); 
           
-         
           if (!ownersAtualizados[expCode] && !ownersAtualizados[baseCode]) {
              missingSet.add(expCode);
           }
@@ -257,13 +253,18 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/data`);
-      const dbData = await response.json();
-      const donosFresquinhos = dbData.experienceOwners || {};
+      // Usando apiRequest em vez de fetch direto
+      const response = await apiRequest('/data', 'GET');
       
-  
-      setFreshOwnersCache(donosFresquinhos);
+      if (!response.success) {
+        alert("Erro ao tentar conectar com o servidor para buscar dados.");
+        setLoading(false);
+        return;
+      }
 
+      const dbData = response.data;
+      const donosFresquinhos = dbData.experienceOwners || {};
+      setFreshOwnersCache(donosFresquinhos);
 
       const missingProtos = preScanText();
       if (missingProtos.length > 0) {
@@ -323,13 +324,10 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
   const handleSaveMissingOwners = async (ownersDict) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/experience/owners`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ownersDict)
-      });
-      const data = await response.json();
-      if (data.sucesso) {
+      // Usando apiRequest
+      const response = await apiRequest('/experience/owners', 'POST', ownersDict);
+      
+      if (response.success && response.data?.sucesso) {
          setShowOwnersModal(false);
          executeImport(); 
       } else {
@@ -346,15 +344,11 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
   const executeImport = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/import`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-      });
+      // Usando apiRequest
+      const response = await apiRequest('/import', 'POST', { text });
       
-      const data = await response.json();
-      
-      if (data.sucesso) {
+      if (response.success && response.data?.sucesso) {
+        const data = response.data;
         const count = data.atualizados ? data.atualizados.length : 0;
         let msg = "Sincronização concluída com sucesso!";
         if (count > 0) {
@@ -362,11 +356,11 @@ const ImportModal = ({ isOpen, onClose, onImportSuccess, protocols, onRegisterPr
           const listaExibida = lista.length > 40 ? lista.substring(0, 40) + "..." : lista;
           msg = `Atualizados (${count}): ${listaExibida}`;
         }
-        onImportSuccess(data.db_atualizado, msg);
+        onImportSuccess(data.bd_atualizado || data.db_atualizado, msg);
         setText('');
         onClose();
       } else {
-        alert(`Erro: ${data.erro}`);
+        alert(`Erro: ${response.data?.erro || response.error}`);
       }
     } catch (e) {
       console.error(e);
