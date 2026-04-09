@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/Authenticador'; 
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { app } from '../../firebaseConfig';
 
 
-
-const getLabConfig = () => {
-  const saved = localStorage.getItem('moura_lab_config');
-  return saved ? JSON.parse(saved) : defaultLabConfig;
+const defaultLabConfig = {
+  sobre: "O Complexo Laboratorial Moura (CLM) é o centro de excelência focado em testes físicos, elétricos e mecânicos.",
+  principio: "",
+  acreditacoes: [],
+  equipe: []
 };
 
 const TreeStyles = () => (
@@ -69,12 +72,41 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
-  const config = getLabConfig();
+  
+  // Estado para armazenar as configurações do laboratório
+  const [config, setConfig] = useState(defaultLabConfig);
 
   const [isTechMode, setIsTechMode] = useState(false);
   const [techUsername, setTechUsername] = useState('');
   const [techPass, setTechPass] = useState('');
 
+  // Busca as configurações reais do Firebase quando a página carrega
+  useEffect(() => {
+    const fetchConfigFromDB = async () => {
+      try {
+        const db = getFirestore(app);
+        const docRef = doc(db, 'lab_data', 'config_login');
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          setConfig(docSnap.data());
+          // Salva backup local caso fique sem internet depois
+          localStorage.setItem('moura_lab_config', JSON.stringify(docSnap.data()));
+        } else {
+          // Se não tiver no Firebase, tenta o backup local
+          const local = localStorage.getItem('moura_lab_config');
+          if (local) setConfig(JSON.parse(local));
+        }
+      } catch (err) {
+        console.error("Erro ao buscar configs:", err);
+        const local = localStorage.getItem('moura_lab_config');
+        if (local) setConfig(JSON.parse(local));
+      }
+    };
+    fetchConfigFromDB();
+  }, []);
+
+  // Timer do Slide
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev === 2 ? 0 : prev + 1));
@@ -179,7 +211,7 @@ const LoginPage = () => {
     );
   };
 
-  const roots = config.equipe.filter(m => !m.liderId);
+  const roots = config.equipe ? config.equipe.filter(m => !m.liderId) : [];
 
   return (
     <div className="min-h-screen w-full flex flex-col lg:flex-row font-sans overflow-hidden bg-white">
@@ -200,15 +232,25 @@ const LoginPage = () => {
           <div className="relative flex-1 w-full flex items-center my-6">
             <div className={`absolute inset-0 flex flex-col justify-center transition-all duration-1000 transform ${currentSlide === 0 ? 'opacity-100 translate-y-0 z-10' : 'opacity-0 translate-y-8 pointer-events-none'}`}>
               <h2 className="text-5xl xl:text-6xl font-extrabold text-white leading-[1.1] mb-8 tracking-tight">Gestão inteligente <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-amber-500">para recursos físicos.</span></h2>
+              
               <div className="bg-white/10 backdrop-blur-md border border-white/10 p-8 rounded-3xl shadow-xl">
                 <h3 className="text-amber-400 text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2"><i className="fa-solid fa-bullseye"></i> Nossa Missão</h3>
                 <p className="text-blue-50 text-lg font-medium leading-relaxed">{config.sobre}</p>
+                
+                {/* Aqui está o Princípio Moura que havíamos adicionado! */}
+                {config.principio && (
+                  <div className="mt-6 pt-6 border-t border-white/10">
+                    <h3 className="text-emerald-400 text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-2"><i className="fa-solid fa-leaf"></i> Princípio Moura</h3>
+                    <p className="text-blue-100 text-sm font-medium">{config.principio}</p>
+                  </div>
+                )}
               </div>
+
             </div>
             <div className={`absolute inset-0 flex flex-col justify-center transition-all duration-1000 transform ${currentSlide === 1 ? 'opacity-100 translate-y-0 z-10' : 'opacity-0 translate-y-8 pointer-events-none'}`}>
               <h2 className="text-4xl xl:text-5xl font-extrabold text-white mb-10 tracking-tight">Acreditações de Excelência</h2>
               <div className="flex flex-col gap-5">
-                {config.acreditacoes.map(cert => (
+                {config.acreditacoes && config.acreditacoes.map(cert => (
                   <div key={cert.id} className="bg-white/10 backdrop-blur-md border border-white/10 p-5 rounded-2xl flex items-center gap-6 shadow-lg hover:bg-white/15 transition-all">
                     <div className={`w-14 h-14 rounded-full bg-white/10 flex items-center justify-center shrink-0 border border-white/20 ${cert.color}`}><i className={`fa-solid ${cert.icon} text-2xl`}></i></div>
                     <div>
@@ -217,11 +259,18 @@ const LoginPage = () => {
                     </div>
                   </div>
                 ))}
+                {config.acreditacoes?.length === 0 && (
+                   <p className="text-blue-200 italic">Nenhuma acreditação cadastrada ainda.</p>
+                )}
               </div>
             </div>
             <div className={`absolute inset-0 flex flex-col justify-center transition-all duration-1000 transform ${currentSlide === 2 ? 'opacity-100 translate-y-0 z-10' : 'opacity-0 translate-y-8 pointer-events-none'}`}>
               <h2 className="text-4xl font-extrabold text-white mb-6 tracking-tight text-center">Nossa Estrutura</h2>
-              <div className="org-tree-container"><div className="tree"><ul>{roots.map(root => renderOrgNode(root, config.equipe))}</ul></div></div>
+              {roots.length > 0 ? (
+                <div className="org-tree-container"><div className="tree"><ul>{roots.map(root => renderOrgNode(root, config.equipe))}</ul></div></div>
+              ) : (
+                <p className="text-center text-blue-200 italic">Organograma ainda não configurado no painel.</p>
+              )}
             </div>
           </div>
           <div className="flex items-center justify-between shrink-0 pt-6 border-t border-white/10">
