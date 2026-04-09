@@ -1,4 +1,3 @@
-
 import os
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
@@ -12,7 +11,9 @@ diretorio_base = os.path.dirname(os.path.abspath(__file__))
 DIRETORIO_DIST = os.path.join(diretorio_base, 'dist') 
 
 app = Flask(__name__, static_folder=DIRETORIO_DIST, static_url_path='')
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+
+
+CORS(app)
 
 app.register_blueprint(bp_lab, url_prefix='/api')
 app.register_blueprint(bp_solicitacoes, url_prefix='/api/solicitacoes')
