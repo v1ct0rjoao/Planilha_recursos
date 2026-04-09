@@ -30,6 +30,7 @@ def api_ping():
    
     return jsonify({"status": "online", "mensagem": "LabManager API v3.0 "})
 
+
 if __name__ == '__main__':
     porta = int(os.environ.get("PORT", 5000))
     app.run(debug=True, host='0.0.0.0', port=porta, use_reloader=False)

@@ -342,3 +342,48 @@ def circuit_link():
         return jsonify({"sucesso": False, "erro": "Circuitos não encontrados"}), 404
     except Exception as e:
         return jsonify({"sucesso": False, "erro": str(e)}), 500
+    
+@bp_lab.route('/protocols/add', methods=['POST', 'OPTIONS'], strict_slashes=False)
+@requer_autenticacao
+def protocol_add():
+    if request.method == 'OPTIONS': return jsonify({}), 200
+    try:
+        d = request.json
+        db = carregar_bd()
+        
+        # Garante que a lista de protocolos existe antes de tentar adicionar
+        if 'protocols' not in db:
+            db['protocols'] = []
+            
+        name = str(d.get('name', '')).upper()
+        duracao = int(d.get('duration', 0))
+        
+        db['protocols'].append({"id": name, "name": name, "duration": duracao})
+        salvar_bd(db)
+        
+        return jsonify({"sucesso": True, "db_atualizado": db})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
+
+@bp_lab.route('/protocols/delete', methods=['POST', 'OPTIONS'], strict_slashes=False)
+@requer_autenticacao
+def protocol_delete():
+    if request.method == 'OPTIONS': return jsonify({}), 200
+    try:
+        d = request.json
+        db = carregar_bd()
+        
+        if 'protocols' not in db:
+            db['protocols'] = []
+            
+        p_id = d.get('id')
+        db['protocols'] = [p for p in db['protocols'] if p.get('id') != p_id]
+        salvar_bd(db)
+        
+        return jsonify({"sucesso": True, "db_atualizado": db})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
