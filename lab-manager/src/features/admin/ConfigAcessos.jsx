@@ -248,7 +248,7 @@ const UserManagementView = ({ setToast }) => {
 
                 {u.role === 'admin' ? (
                   <button disabled className="w-full py-3 bg-slate-50 border border-slate-200 text-slate-400 rounded-xl text-sm font-bold flex items-center justify-center gap-2 cursor-not-allowed" title="O perfil de Administrador é blindado.">
-                    <i className="fa-solid fa-shield-halved text-blue-400"></i> Perfil Blindado
+                    <i className="fa-solid fa-shield-halved text-blue-400"></i> Perfil Bloqueado
                   </button>
                 ) : (
                   <button onClick={() => openEditModal(u)} className="w-full py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95">
