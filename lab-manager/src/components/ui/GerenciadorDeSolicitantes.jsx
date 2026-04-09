@@ -3,7 +3,7 @@ import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Label, Sector 
 } from 'recharts';
 import { Users, X, User, Tag, Save, Layers, PieChart as PieIcon, Search, ArrowRight, Activity, Edit2, ChevronLeft } from 'lucide-react';
-// IMPORTANTE: Importamos a API_URL para fazer a chamada direta pro back-end
+
 import { API_URL } from '../../utils/constants';
 
 const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#64748b'];
