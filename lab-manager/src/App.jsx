@@ -19,6 +19,9 @@ import ClientBatteryTracking from './features/client/AcompanharBaterias';
 import GerenciadorLims from './features/lims/GerenciadorLims';
 
 import { bathService } from './services/bathService';
+// 🔥 IMPORTANTE: Adicionamos a importação da nossa API aqui!
+import { apiRequest } from './services/api'; 
+
 import ImportModal from './components/modals/ImportarDig';
 import AddCircuitModal from './components/modals/AddCircuito';
 import AddBathModal from './components/modals/AddBanho';
@@ -35,7 +38,7 @@ const GlobalStyles = () => (
     
     html { font-size: 14px; } 
 
-    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; } /* slate-50 base */
+    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -197,19 +200,131 @@ const MainApp = () => {
     setCurrentView('nova_solicitacao');
   };
 
-  const addCircuit = useCallback(async () => { }, [fetchData, askConfirm]);
-  const deleteCircuit = useCallback(async () => { }, [askConfirm]);
-  const updateTemp = useCallback(async () => { }, []);
-  const toggleMaintenance = useCallback(async () => { }, []);
-  const addBath = useCallback(async () => { }, []);
-  const deleteBath = useCallback(async () => { }, [askConfirm]);
-  const handleRenameBath = useCallback(async () => { }, []);
-  const handleAddProtocol = useCallback(async () => { }, []);
-  const handleDeleteProtocol = useCallback(async () => { }, [askConfirm]);
-  const handleMoveCircuit = useCallback(async () => { }, []);
-  const handleLinkCircuit = useCallback(async () => { }, []);
-  const handleToggleBathFull = useCallback(async () => { }, []);
-  const handleToggleCircuitNoSpace = useCallback(async () => { }, []);
+  // 🔥 RESTAURAÇÃO DAS FUNÇÕES VAZIAS COM A NOSSA API 🔥
+  
+  const addCircuit = useCallback(async (bathId, startNum, endNum) => {
+    const start = parseInt(startNum, 10);
+    const end = endNum ? parseInt(endNum, 10) : start;
+    let successCount = 0;
+    
+    for (let i = start; i <= end; i++) {
+      const { success, data, error } = await apiRequest('/circuits/add', 'POST', { bathId, circuitId: i.toString() });
+      if (success) {
+        setBaths(data.db_atualizado?.baths || []);
+        successCount++;
+      } else {
+        setToast({ message: error || `Erro ao adicionar circuito ${i}`, type: 'error' });
+        return;
+      }
+    }
+    if (successCount > 0) {
+       setToast({ message: 'Circuito(s) adicionado(s) com sucesso!', type: 'success' });
+       setIsAddOpen(false);
+    }
+  }, []);
+
+  const deleteCircuit = useCallback((bathId, circuitId) => {
+    askConfirm('Excluir Circuito', `Tem certeza que deseja remover o circuito ${circuitId}?`, async () => {
+      const { success, data, error } = await apiRequest('/circuits/delete', 'POST', { bathId, circuitId });
+      if (success) {
+        setBaths(data.db_atualizado?.baths || []);
+        setToast({ message: 'Circuito removido!', type: 'success' });
+      } else setToast({ message: error || 'Erro ao remover', type: 'error' });
+    });
+  }, [askConfirm]);
+
+  const updateTemp = useCallback(async (bathId, temp) => {
+    const { success, data, error } = await apiRequest('/baths/temp', 'POST', { bathId, temp });
+    if (success) {
+      setBaths(data.db_atualizado?.baths || []);
+      setToast({ message: 'Temperatura atualizada!', type: 'success' });
+    } else setToast({ message: error || 'Erro ao atualizar', type: 'error' });
+  }, []);
+
+  const toggleMaintenance = useCallback(async (bathId, circuitId, status) => {
+    const { success, data, error } = await apiRequest('/circuits/status', 'POST', { bathId, circuitId, status });
+    if (success) {
+      setBaths(data.db_atualizado?.baths || []);
+    } else setToast({ message: error || 'Erro ao mudar status', type: 'error' });
+  }, []);
+
+  const addBath = useCallback(async (name, temp, type) => {
+    const fullId = `${type} - ${name}`;
+    const { success, data, error } = await apiRequest('/baths/add', 'POST', { bathId: fullId, temp });
+    if (success) {
+      setBaths(data.db_atualizado?.baths || []);
+      setToast({ message: 'Nova unidade criada!', type: 'success' });
+      setIsAddBathOpen(false);
+    } else setToast({ message: error || 'Erro ao criar', type: 'error' });
+  }, []);
+
+  const deleteBath = useCallback((bathId) => {
+    askConfirm('Excluir Unidade', `Isso removerá a unidade ${bathId} e todos os circuitos dela. Continuar?`, async () => {
+      const { success, data, error } = await apiRequest('/baths/delete', 'POST', { bathId });
+      if (success) {
+        setBaths(data.db_atualizado?.baths || []);
+        setToast({ message: 'Unidade removida!', type: 'success' });
+      } else setToast({ message: error || 'Erro', type: 'error' });
+    });
+  }, [askConfirm]);
+
+  const handleRenameBath = useCallback(async (oldId, newId) => {
+    const { success, data, error } = await apiRequest('/baths/rename', 'POST', { oldId, newId });
+    if (success) {
+      setBaths(data.db_atualizado?.baths || []);
+      setToast({ message: 'Renomeado com sucesso!', type: 'success' });
+      setIsEditBathOpen(false);
+    } else setToast({ message: error || 'Erro', type: 'error' });
+  }, []);
+
+  const handleAddProtocol = useCallback(async (name, duration) => {
+    const { success, data, error } = await apiRequest('/protocols/add', 'POST', { name, duration });
+    if (success) {
+      setProtocols(data.db_atualizado?.protocols || []);
+    } else setToast({ message: error || 'Erro ao adicionar protocolo', type: 'error' });
+  }, []);
+
+  const handleDeleteProtocol = useCallback((id) => {
+    askConfirm('Excluir Teste', `Remover o protocolo de teste ${id}?`, async () => {
+      const { success, data, error } = await apiRequest('/protocols/delete', 'POST', { id });
+      if (success) {
+         setProtocols(data.db_atualizado?.protocols || []);
+      } else setToast({ message: error || 'Erro', type: 'error' });
+    });
+  }, [askConfirm]);
+
+  const handleMoveCircuit = useCallback(async (sourceBathId, targetBathId, circuitId) => {
+    const { success, data, error } = await apiRequest('/circuits/move', 'POST', { sourceBathId, targetBathId, circuitId });
+    if (success) {
+      setBaths(data.db_atualizado?.baths || []);
+      setToast({ message: 'Circuito movido com sucesso!', type: 'success' });
+      setIsMoveOpen(false);
+    } else setToast({ message: error || 'Erro ao mover', type: 'error' });
+  }, []);
+
+  const handleLinkCircuit = useCallback(async (bathId, sourceId, targetId) => {
+    const { success, data, error } = await apiRequest('/circuits/link', 'POST', { bathId, sourceId, targetId });
+    if (success) {
+      setBaths(data.db_atualizado?.baths || []);
+      setToast({ message: 'Circuitos vinculados em paralelo!', type: 'success' });
+      setIsLinkOpen(false);
+    } else setToast({ message: error || 'Erro ao vincular', type: 'error' });
+  }, []);
+
+  const handleToggleBathFull = useCallback(async (bathId, isFull) => {
+    const { success, data, error } = await apiRequest('/baths/toggle_full', 'POST', { bathId, isFull });
+    if (success) {
+      setBaths(data.db_atualizado?.baths || []);
+    } else setToast({ message: error || 'Erro de conexão', type: 'error' });
+  }, []);
+
+  const handleToggleCircuitNoSpace = useCallback(async (circuitId, noSpace) => {
+    const { success, data, error } = await apiRequest('/circuits/nospace', 'POST', { circuitId, noSpace });
+    if (success) {
+      setBaths(data.db_atualizado?.baths || []);
+    } else setToast({ message: error || 'Erro', type: 'error' });
+  }, []);
+
   const openMoveModal = useCallback((bid, cid) => { setMoveData({ sourceBathId: bid, circuitId: cid }); setIsMoveOpen(true); }, []);
   const openLinkModal = useCallback((b, cid) => { setLinkData({ bath: b, sourceId: cid }); setIsLinkOpen(true); }, []);
 
@@ -352,23 +467,6 @@ const MainApp = () => {
                 <Bell size={20} />
                 <span className="absolute top-1.5 right-2 w-2 h-2 bg-rose-500 rounded-full"></span>
               </button>
-
-              <div className="absolute right-0 top-full mt-1 w-80 bg-white dark:bg-[#1e1f22] border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl py-1 hidden group-hover:flex flex-col z-50 animate-in fade-in">
-                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                  <span className="font-bold text-sm text-slate-800 dark:text-slate-200">Notificações</span>
-                  <button className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Marcar lidas</button>
-                </div>
-                
-                <div className="max-h-80 overflow-y-auto custom-scrollbar">
-                  <div className="px-4 py-3 border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors relative">
-                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full absolute left-2 top-5"></div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 pl-2">
-                      <span className="font-bold text-slate-800 dark:text-slate-200">João Victor</span> compartilhou o ensaio <span className="font-bold text-blue-600">REQ-84729</span>.
-                    </p>
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block pl-2">Há 5 minutos</span>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {currentView === 'dashboard' && hasPermission('import_digatron') && (
