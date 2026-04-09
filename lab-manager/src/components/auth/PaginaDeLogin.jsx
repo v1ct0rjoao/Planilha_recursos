@@ -1,27 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/Authenticador'; 
 
-const defaultLabConfig = {
-  sobre: "O Complexo Laboratorial Moura (CLM) é o centro de excelência focado em testes físicos, elétricos e mecânicos. Nossa missão é garantir a qualidade absoluta e impulsionar a inovação de todos os produtos, assegurando que cada bateria entregue a máxima performance e durabilidade exigidas pelo mercado.",
-  acreditacoes: [
-    { id: 1, nome: "ISO 9001", desc: "Gestão da Qualidade", icon: "fa-certificate", color: "text-amber-400" },
-    { id: 2, nome: "ISO/IEC 17025", desc: "Competência de Laboratórios", icon: "fa-award", color: "text-blue-400" },
-    { id: 3, nome: "IATF 16949", desc: "Qualidade Automotiva", icon: "fa-car-side", color: "text-emerald-400" }
-  ],
-  equipe: [
-    { id: 1, nome: "Renato Oliveira", cargo: "Supervisor", liderId: null, imgUrl: "https://i.pravatar.cc/150?img=11" },
-    { id: 2, nome: "Davyd Mauro", cargo: "Líder de Testes", liderId: 1, imgUrl: "https://i.pravatar.cc/150?img=12" },
-    { id: 7, nome: "Maria Luciana", cargo: "Assistente Adm.", liderId: 1, imgUrl: "https://i.pravatar.cc/150?img=5" },
-    { id: 8, nome: "André Luiz", cargo: "Assistente Adm.", liderId: 1, imgUrl: "https://i.pravatar.cc/150?img=8" },
-    { id: 3, nome: "Wellissom", cargo: "Técnico de Lab.", liderId: 2, imgUrl: "https://i.pravatar.cc/150?img=15" },
-    { id: 4, nome: "Felipe Gleybson", cargo: "Técnico de Lab.", liderId: 2, imgUrl: "https://i.pravatar.cc/150?img=60" },
-    { id: 5, nome: "Kleberson Victor", cargo: "Técnico de Lab.", liderId: 2, imgUrl: "https://i.pravatar.cc/150?img=33" },
-    { id: 6, nome: "João Victor", cargo: "Estagiário", liderId: 2, imgUrl: "https://i.pravatar.cc/150?img=14" },
-    { id: 9, nome: "Arthur", cargo: "Estagiário", liderId: 2, imgUrl: "https://i.pravatar.cc/150?img=68" },
-    { id: 10, nome: "Lucas Rafael", cargo: "Técnico Jr.", liderId: 2, imgUrl: "https://i.pravatar.cc/150?img=69" },
-    { id: 11, nome: "Mariana", cargo: "Estagiária", liderId: 2, imgUrl: "https://i.pravatar.cc/150?img=47" }
-  ]
-};
+
 
 const getLabConfig = () => {
   const saved = localStorage.getItem('moura_lab_config');
