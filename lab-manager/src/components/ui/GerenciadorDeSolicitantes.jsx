@@ -114,8 +114,6 @@ const ExperienceOwnerModal = ({ isOpen, onClose, baths = [], experienceOwners = 
   const [selectedOwner, setSelectedOwner] = useState(null);
   const [activeIndex, setActiveIndex] = useState(null);
 
-  // MUDANÇA PRINCIPAL AQUI: O salvamento agora faz um 'fetch' direto no formato de Dicionário 
-  // Ex: Payload vira {"E123/26": "Adriana"} que é exatamente o que o Python lê no for key, value in data.items()
   const saveOwner = useCallback(async (expCode, name) => {
     const updatedName = name || "Sem Dono";
     
@@ -163,7 +161,7 @@ const ExperienceOwnerModal = ({ isOpen, onClose, baths = [], experienceOwners = 
         if (parts.length >= 2 && parts[1].toUpperCase().startsWith('E')) {
           expCode = parts[1].toUpperCase();
           
-          // Anexando o ano à experiência (Ex: E123/26) para evitar conflitos com anos anteriores
+          
           if (parts.length >= 3) {
             const anoLimpo = parts[2].split('_')[0]; 
             expCode = `${expCode}/${anoLimpo}`;
@@ -194,7 +192,7 @@ const ExperienceOwnerModal = ({ isOpen, onClose, baths = [], experienceOwners = 
         .map(([name, qtd]) => ({ name, qtd }))
         .sort((a, b) => b.qtd - a.qtd);
 
-      // Puxamos a lógica do "fallback": Tenta achar E123/26. Se não tiver, puxa a base (E123).
+     
       const baseCode = code.includes('/') ? code.split('/')[0] : code;
       const ownerName = ownersFromDb[code] || ownersFromDb[baseCode] || "Sem Dono";
 
@@ -355,9 +353,9 @@ const ExperienceOwnerModal = ({ isOpen, onClose, baths = [], experienceOwners = 
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-200 flex flex-col md:flex-row max-h-[90vh]">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[80rem] overflow-hidden border border-slate-200 flex flex-col md:flex-row max-h-[90vh]">
         
-        <div className="w-full md:w-1/2 p-8 bg-slate-50 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-slate-200 relative min-h-[450px]">
+        <div className="w-full md:w-1/2 p-8 bg-slate-50 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-slate-200 relative min-h-[500px]">
             
             <div className="absolute top-6 left-6 right-6 flex justify-between items-start z-10">
               <h3 className="font-bold text-slate-400 text-xs uppercase tracking-wider flex items-center gap-2 max-w-[70%] mt-1">
@@ -378,7 +376,7 @@ const ExperienceOwnerModal = ({ isOpen, onClose, baths = [], experienceOwners = 
               )}
             </div>
             
-            <div className="h-80 w-80 relative mt-8 outline-none focus:outline-none" style={{ outline: 'none' }}>
+            <div className="h-96 w-96 relative mt-8 outline-none focus:outline-none" style={{ outline: 'none' }}>
                 {displayTotal > 0 ? (
                   <ResponsiveContainer width="100%" height="100%" className="outline-none focus:outline-none">
                     <PieChart style={{ outline: 'none' }} className="outline-none focus:outline-none">

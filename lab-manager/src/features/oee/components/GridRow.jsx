@@ -14,107 +14,78 @@ const GridRow = ({
 }) => {
   
   const getColor = (status) => {
-    if (!status || status === '') return 'bg-white border border-slate-200'; 
+    if (!status || status === '') return 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700'; 
     switch (status) {
-      case 'UP': return 'bg-emerald-500 border border-emerald-600';
-      case 'PQ': return 'bg-rose-500 border border-rose-600';
-      case 'PP': return 'bg-purple-600 border border-purple-700';
-      case 'SD': return 'bg-amber-400 border border-amber-500';
-      default: return 'bg-slate-200';
+      case 'UP': return 'bg-emerald-500 border border-emerald-600 dark:border-emerald-400 text-white';
+      case 'PQ': return 'bg-rose-500 border border-rose-600 dark:border-rose-400 text-white';
+      case 'PP': return 'bg-purple-600 border border-purple-700 dark:border-purple-400 text-white';
+      case 'SD': return 'bg-amber-400 border border-amber-500 dark:border-amber-300 text-white';
+      default: return 'bg-slate-200 dark:bg-slate-700';
     }
   };
 
   const stats = row.stats || { pct_up: 0, disponibilidade: 0 };
-  // Removi as regras de bonus/is_zero_up. Agora, só apaga se o cara explicitly clicar na lixeira.
   const isEmpty = row.is_ignored;
 
   const handleCopyRow = () => {
     const dayString = row.day_data ? row.day_data.join('\t') : '';
-    const gridString = dayString;
-
-    navigator.clipboard.writeText(gridString).then(() => { 
-        if (setToast) setToast({ message: `Grid do ${row.id} copiado!`, type: 'success' }); 
-    });
+    navigator.clipboard.writeText(dayString);
+    if (setToast) setToast({ message: 'Copiado para área de transferência!', type: 'info' });
   };
 
-  let rowClass = "transition-colors border-b border-slate-100 last:border-0 ";
-  if (row.is_ignored) rowClass += "bg-slate-50 opacity-60 ";
-  else if (isSelected) rowClass += "bg-blue-50 ";
-  else rowClass += "hover:bg-slate-50 ";
-
   return (
-    <tr className={rowClass}>
-      
-      {isSelectionMode && (
-        <td className="px-3 py-2 border-r border-slate-200 w-10 text-center sticky left-0 bg-white z-[35]">
-          <button onClick={(e) => { e.stopPropagation(); onToggleSelect(); }} className="flex items-center justify-center w-full h-full cursor-pointer">
-            {isSelected ? <CheckSquare size={18} className="text-blue-600" /> : <Square size={18} className="text-slate-300 hover:text-blue-400" />}
-          </button>
-        </td>
-      )}
-
-      <td className={`px-3 py-2 font-mono font-bold text-slate-700 border-r border-slate-200 w-32 sticky bg-white z-[30] shadow-sm ${isSelectionMode ? 'left-10' : 'left-0'}`}>
-        <div className="flex flex-col">
-          <span className={`flex items-center gap-1 ${isEmpty ? 'text-slate-400' : 'text-blue-600 underline decoration-dotted decoration-blue-300'}`}>
-            {row.id}
-          </span>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {row.is_ignored && <span className="text-[9px] text-rose-600 font-bold border border-rose-200 px-1 rounded bg-rose-50">EXCLUÍDO</span>}
-          </div>
-        </div>
+    <tr className={`transition-colors group ${isSelected ? 'bg-blue-50/50 dark:bg-blue-500/10' : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50'} ${isEmpty ? 'opacity-50 grayscale' : ''}`}>
+      <td className="px-3 py-1 font-mono font-bold text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 z-10 text-xs transition-colors flex items-center gap-2">
+        {isSelectionMode && (
+           <button onClick={() => onToggleSelect(row.raw_id)} className="text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none">
+             {isSelected ? <CheckSquare size={16} className="text-blue-600 dark:text-blue-400"/> : <Square size={16}/>}
+           </button>
+        )}
+        {row.id === 'iDevice' || row.raw_id === 'iDevice' ? (
+          <span className="text-blue-600 dark:text-blue-400 underline decoration-dotted decoration-blue-300 dark:decoration-blue-500/50">iDevice</span>
+        ) : (
+          <span>Circuit{String(row.raw_id || row.id).replace('Circuit', '').padStart(3, '0')}</span>
+        )}
       </td>
       
-      <td className="p-1 border-r border-slate-200 overflow-hidden">
+      <td className="p-1 border-r border-slate-200 dark:border-slate-700">
         <div className="flex gap-[2px] px-1">
-          {isEmpty ? (
-            Array.from({ length: daysInMonth }).map((_, i) => (
-              <div key={i} className="w-5 h-6 border border-slate-100 bg-white rounded-[2px]" />
-            ))
-          ) : (
-            row.day_data && row.day_data.map((status, i) => (
-              <div 
-                key={i} 
-                className={`w-5 h-6 flex items-center justify-center text-[9px] font-bold text-white rounded-[2px] shrink-0 ${getColor(status)}`} 
-                title={`Dia ${i + 1}: ${status}`}
-              >
-                {status}
-              </div>
-            ))
-          )}
+          {row.day_data && row.day_data.map((status, i) => (
+            <div
+              key={i}
+              className={`w-6 h-6 flex items-center justify-center text-[8px] font-bold rounded-[3px] shrink-0 transition-transform hover:scale-110 cursor-default ${getColor(status)}`}
+              title={`Dia ${i + 1}: ${status || 'Vazio'}`}
+            >
+              {status}
+            </div>
+          ))}
+          {Array.from({ length: Math.max(0, daysInMonth - (row.day_data?.length || 0)) }).map((_, i) => (
+            <div key={`empty-${i}`} className="w-6 h-6 border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-[3px] opacity-50" />
+          ))}
         </div>
       </td>
-      
-      <td className="px-1 py-2 text-center border-r border-emerald-100 bg-emerald-50/30">
-        {!isEmpty ? <div className="flex flex-col"><span className="text-xs font-bold text-emerald-700">{row.UP}</span><span className="text-[9px] text-emerald-600/70">{stats.pct_up}%</span></div> : <span className="text-slate-200">-</span>}
-      </td>
-      <td className="px-1 py-2 text-center border-r border-rose-100 bg-rose-50/30">
-        {!isEmpty ? <div className="flex flex-col"><span className="text-xs font-bold text-rose-700">{row.PQ}</span><span className="text-[9px] text-rose-600/70">{stats.pct_pq}%</span></div> : <span className="text-slate-200">-</span>}
-      </td>
-      <td className="px-1 py-2 text-center border-r border-purple-100 bg-purple-50/30">
-        {!isEmpty ? <div className="flex flex-col"><span className="text-xs font-bold text-purple-700">{row.PP}</span><span className="text-[9px] text-purple-600/70">{stats.pct_pp}%</span></div> : <span className="text-slate-200">-</span>}
-      </td>
-      <td className="px-1 py-2 text-center border-r border-slate-200 bg-amber-50/30">
-        {!isEmpty ? <div className="flex flex-col"><span className="text-xs font-bold text-amber-700">{row.SD}</span><span className="text-[9px] text-amber-600/70">{stats.pct_sd}%</span></div> : <span className="text-slate-200">-</span>}
-      </td>
-      
-      <td className="px-2 py-2 text-right w-48">
-        {!row.is_ignored ? (
-          <div className="flex justify-end gap-1 items-center">
-            {/* O Botão EXT foi removido, deixamos apenas os forceis de STD e UP */}
-            <button onClick={() => onPreset(row.raw_id, 'force_std')} title="Semana Padrão (Seg-Sex UP)" className="px-2 py-1 text-[9px] font-bold text-blue-600 bg-white hover:bg-blue-50 rounded border border-blue-200 transition-all">STD</button>
-            <button onClick={() => onPreset(row.raw_id, 'force_up')} title="Forçar Tudo UP" className="px-2 py-1 text-[9px] font-bold text-emerald-600 bg-white hover:bg-emerald-50 rounded border border-emerald-200 transition-all">UP</button>
-            
-            <div className="w-[1px] bg-slate-200 h-4 mx-1"></div>
 
-            <button onClick={handleCopyRow} title="Copiar Grid (Excel)" className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"><Copy size={14} /></button>
-            <button onClick={() => onDelete(row.raw_id)} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors" title="Excluir"><Trash2 size={14} /></button>
+      <td className="px-2 py-1 border-r border-slate-200 dark:border-slate-700 text-center font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50/30 dark:bg-emerald-500/5">{stats.up_dias}</td>
+      <td className="px-2 py-1 border-r border-slate-200 dark:border-slate-700 text-center font-mono text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50/30 dark:bg-rose-500/5">{stats.pq_dias}</td>
+      <td className="px-2 py-1 border-r border-slate-200 dark:border-slate-700 text-center font-mono text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-50/30 dark:bg-purple-500/5">{stats.pp_dias}</td>
+      <td className="px-2 py-1 border-r border-slate-200 dark:border-slate-700 text-center font-mono text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50/30 dark:bg-amber-500/5">{stats.sd_dias}</td>
+      
+      <td className="px-2 py-1 text-right sticky right-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 transition-colors">
+        {!isEmpty ? (
+          <div className="flex justify-end gap-1 items-center">
+            <button onClick={() => onPreset(row.raw_id, 'force_std')} title="Semana Padrão (Seg-Sex UP)" className="px-2 py-1 text-[9px] font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded border border-blue-200 dark:border-blue-500/30 transition-all focus:outline-none">STD</button>
+            <button onClick={() => onPreset(row.raw_id, 'force_up')} title="Forçar Tudo UP" className="px-2 py-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 rounded border border-emerald-200 dark:border-emerald-500/30 transition-all focus:outline-none">UP</button>
+            <div className="w-[1px] bg-slate-200 dark:bg-slate-700 h-4 mx-1"></div>
+            <button onClick={handleCopyRow} title="Copiar Grid (Excel)" className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded transition-colors focus:outline-none"><Copy size={14} /></button>
+            <button onClick={() => onDelete(row.raw_id)} className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/20 rounded transition-colors focus:outline-none" title="Excluir"><Trash2 size={14} /></button>
           </div>
         ) : (
-          <button onClick={() => onRestore(row.raw_id)} className="ml-auto px-2 py-1 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded font-bold text-[10px] flex items-center gap-1 border border-emerald-200 transition-all"><RefreshCw size={10} /> Restaurar</button>
+          <div className="flex justify-end">
+            <button onClick={() => onRestore(row.raw_id)} className="p-1 text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-1 text-[10px] font-bold transition-colors focus:outline-none"><RefreshCw size={12} /> RESTAURAR</button>
+          </div>
         )}
       </td>
     </tr>
   );
 };
-
 export default GridRow;

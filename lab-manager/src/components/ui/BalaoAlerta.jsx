@@ -9,20 +9,20 @@ const Toast = ({ message, type, onClose }) => {
   const [progress, setProgress] = useState(100);
 
   useEffect(() => {
-    // Começa a animar a barrinha de tempo diminuindo
+    
     requestAnimationFrame(() => setProgress(0));
 
-    // Define o tempo de vida do aviso (3 segundos)
+    
     const timer = setTimeout(() => {
       setVisible(false);
-      // Espera a animação de saída terminar para fechar de vez
+      
       setTimeout(onClose, 300);
     }, 3000);
 
     return () => clearTimeout(timer);
   }, [onClose]);
 
-  // Define as cores baseadas no tipo (sucesso, erro, etc)
+  
   const styles = {
     success: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-800', icon: 'text-emerald-600', bar: 'bg-emerald-500', Icon: CheckCircle },
     error:   { bg: 'bg-rose-50',    border: 'border-rose-200',    text: 'text-rose-800',    icon: 'text-rose-600',    bar: 'bg-rose-500',    Icon: AlertTriangle },

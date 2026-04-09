@@ -1,12 +1,8 @@
-//export: Permite que essa função seja importada e usada em outros arquivos
-
 export const normalizeStr = (str) => {
     return String(str).toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
-//essa função é apenas para melhoria de ex de usuario em telefones e tablets
 export const formatDataCurta = (datastr) => {
-    // Adicionei uma verificação extra para garantir que não quebre
     if(!datastr || datastr === '-' || datastr === 'A calcular') return '--/-- --:--';
     try {
         const [data, hora] = datastr.split(' '); 
@@ -17,11 +13,22 @@ export const formatDataCurta = (datastr) => {
     }
 };
 
-
-export const getLocationType = (id) => { //Recebe o id do local e retorna o tipo de local
-  const upperId = id ? id.toUpperCase() : ''; //Converte o id para maiúsculas
-    if (upperId.includes("SALA")) return "SALA"; //Se o id contém "SALA", retorna "SALA"
+export const getLocationType = (id) => {
+    const upperId = id ? id.toUpperCase() : '';
+    if (upperId.includes("SALA")) return "SALA";
     if (upperId.includes('THERMOTRON') || upperId.includes('TERMO')) return 'THERMOTRON';
     return 'BANHO';
 };
 
+export const formatPercent = (value) => {
+    if (value === null || value === undefined) return '0%';
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    return `${num.toFixed(1)}%`;
+};
+
+export const formatTime = (decimalHours) => {
+    if (!decimalHours || isNaN(decimalHours)) return '0h 00m';
+    const hours = Math.floor(decimalHours);
+    const minutes = Math.round((decimalHours - hours) * 60);
+    return `${hours}h ${minutes.toString().padStart(2, '0')}m`;
+};

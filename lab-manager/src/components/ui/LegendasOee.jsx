@@ -1,4 +1,3 @@
-//HTML (JSX) estático para mostrar o que significa cada cor (UP, PQ, PP, SD).
 
 
 import React from 'react';

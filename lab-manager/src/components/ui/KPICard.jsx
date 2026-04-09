@@ -4,7 +4,6 @@ import React from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 const KPICard = ({ title, value, icon: Icon, color, suffix = '%' }) => {
-  // Mapa de cores para facilitar o uso. Em vez de passar classes CSS, passamos 'blue', 'green', etc.
   const colorClasses = { 
     blue: 'text-blue-600 bg-blue-50', 
     green: 'text-green-600 bg-green-50', 

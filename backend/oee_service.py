@@ -1,7 +1,3 @@
-# ==========================================
-# ARQUIVO: oee_service.py
-# ==========================================
-
 import pandas as pd
 import numpy as np
 from calendar import monthrange
@@ -9,8 +5,8 @@ from datetime import datetime
 import re
 import traceback
 import math
-import firebase_admin
-from firebase_admin import firestore
+
+from configuracao import bd_firestore
 
 GLOBAL_DB = {
     "processed_data": {},   
@@ -19,17 +15,6 @@ GLOBAL_DB = {
     "latest_medias": {}     
 }
 
-def get_firebase():
-    try:
-        return firestore.client()
-    except:
-        return None
-
-# =========================================================
-# O GRANDE CULPADO CORRIGIDO AQUI: 
-# Transforma '001' em 1 (para tirar os zeros) e depois 
-# volta para texto '1' para casar com a matriz 1 a 450!
-# =========================================================
 def apenas_numeros(texto):
     numeros = re.sub(r'\D', '', str(texto))
     return str(int(numeros)) if numeros else str(texto).strip()
@@ -46,9 +31,9 @@ def processar_upload_oee(file_path, target_mes, target_ano):
         dfs_validos = []
 
         alias_map = {
-            'circuito': ['circuito', 'circuit', 'ckt', 'id'],
-            'start': ['start time', 'starttime', 'inicio', 'início', 'data inicial'],
-            'stop': ['stop time', 'stoptime', 'fim', 'data final']
+            'circuito': ['circuit'],
+            'start': ['start time', 'starttime'],
+            'stop': ['stop time', 'stoptime']
         }
 
         for nome_aba, df in dict_dfs.items():
@@ -321,9 +306,11 @@ def calcular_indicadores_oee(params):
         traceback.print_exc()
         return {"sucesso": False, "erro": str(e)}
 
-def save_history(kpi, mes, ano):
-    db = get_firebase()
-    if not db: return {"sucesso": False, "erro": "Firebase Off"}
+def save_history(kpi, mes, ano, justificativa= ""):
+    if not bd_firestore: 
+        return {"sucesso": False, "erro": "Firebase Off"}
+    doc_id = f"{mes}_{ano}"
+    history_ref = bd_firestore.collection('lab_data').document('history').collection('oee_monthly')
     
     try:
         db_data = GLOBAL_DB.get("processed_data", {})
@@ -359,7 +346,7 @@ def save_history(kpi, mes, ano):
                         elif override_action == 'force_std': status = 'PP' if is_weekend else 'UP'
                         elif override_action == 'SET_IGNORE': status = 'IGNORE'
 
-                    day_data.append(status)
+                        day_data.append(status)
 
             grid_snapshot.append({
                 "id": cid,
@@ -368,7 +355,7 @@ def save_history(kpi, mes, ano):
             })
 
         doc_id = f"{mes}_{ano}"
-        history_ref = db.collection('lab_data').document('history').collection('oee_monthly')
+        history_ref = bd_firestore.collection('lab_data').document('history').collection('oee_monthly')
         
         history_ref.document(doc_id).set({
             "mes": int(mes),
@@ -376,6 +363,7 @@ def save_history(kpi, mes, ano):
             "kpi": kpi,
             "medias": medias_data,
             "grid": grid_snapshot,
+            "justificativa": justificativa,
             "saved_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }, merge=True)
         
@@ -386,8 +374,8 @@ def save_history(kpi, mes, ano):
         return {"sucesso": False, "erro": str(e)}
 
 def save_manual_history(payload):
-    db = get_firebase()
-    if not db: return {"sucesso": False, "erro": "Firebase Off"}
+    if not bd_firestore: 
+        return {"sucesso": False, "erro": "Firebase Off"}
     
     try:
         mes = int(payload.get('mes'))
@@ -395,7 +383,7 @@ def save_manual_history(payload):
         grid_text = payload.get('grid_text', '')
         
         doc_id = f"{mes}_{ano}"
-        history_ref = db.collection('lab_data').document('history').collection('oee_monthly')
+        history_ref = bd_firestore.collection('lab_data').document('history').collection('oee_monthly')
 
         if grid_text.strip():
             executados = float(payload.get('ensaios_executados', 0))
@@ -551,10 +539,10 @@ def save_manual_history(payload):
         return {"sucesso": False, "erro": str(e)}
 
 def listar_historico():
-    db = get_firebase()
-    if not db: return {"sucesso": False, "erro": "Firebase Off"}
+    if not bd_firestore: 
+        return {"sucesso": False, "erro": "Firebase Off"}
     try:
-        docs = db.collection('lab_data').document('history').collection('oee_monthly').stream()
+        docs = bd_firestore.collection('lab_data').document('history').collection('oee_monthly').stream()
         lista = []
         for doc in docs:
             dado = doc.to_dict()
@@ -565,17 +553,14 @@ def listar_historico():
         return {"sucesso": False, "erro": str(e)}
 
 def delete_history_record(mes, ano):
-    db = get_firebase()
-    if not db: return {"sucesso": False, "erro": "Firebase Off"}
+    if not bd_firestore: 
+        return {"sucesso": False, "erro": "Firebase Off"}
     try:
         doc_id = f"{mes}_{ano}"
-        db.collection('lab_data').document('history').collection('oee_monthly').document(doc_id).delete()
+        bd_firestore.collection('lab_data').document('history').collection('oee_monthly').document(doc_id).delete()
         return {"sucesso": True}
     except Exception as e:
         return {"sucesso": False, "erro": str(e)}
 
-def aplicar_regra_extras_automatica(limite_fixo):
-     return {"sucesso": False, "erro": "A regra de circuitos extras/bônus foi desativada no sistema atual."}
 
-def limpar_extras():
-     return {"sucesso": False, "erro": "A regra de circuitos extras/bônus foi desativada no sistema atual."}
+

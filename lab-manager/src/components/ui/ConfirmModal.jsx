@@ -3,8 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 
 const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = "Confirmar", cancelText = "Cancelar", type = "danger" }) => {
   
-  // Esse useEffect serve para ouvir o teclado.
-  // Se o modal estiver aberto e o usuário apertar Enter, confirma. Se apertar Esc, cancela.
+  
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!isOpen) return;
@@ -13,7 +12,7 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText
     };
     window.addEventListener('keydown', handleKeyDown);
     
-    // Limpeza: remove o ouvinte quando o modal fecha para não pesar a memória
+    
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onConfirm, onCancel]);
 

@@ -37,7 +37,7 @@ const TestManagerModal = ({ isOpen, onClose, protocols = [], onAddProtocol, onDe
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col md:flex-row h-[600px] border border-slate-200">
         
-        {/* LADO ESQUERDO: CRIAÇÃO (FORMULÁRIO) */}
+   
         <div className="w-full md:w-5/12 bg-slate-50 p-8 border-b md:border-b-0 md:border-r border-slate-200 flex flex-col relative">
           
           <div className="mb-8">
@@ -64,7 +64,7 @@ const TestManagerModal = ({ isOpen, onClose, protocols = [], onAddProtocol, onDe
                 </div>
             </div>
 
-            {/* Input Duração */}
+            
             <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Duração (Horas)</label>
                 <div className="relative group">

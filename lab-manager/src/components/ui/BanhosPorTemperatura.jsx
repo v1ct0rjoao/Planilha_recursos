@@ -108,14 +108,15 @@ const TemperatureStatsModal = ({ isOpen, onClose, baths = [] }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-200 flex flex-col md:flex-row max-h-[90vh] animate-in zoom-in-95 duration-300">
+      
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[55rem] overflow-hidden border border-slate-200 flex flex-col md:flex-row max-h-[85vh] animate-in zoom-in-95 duration-300">
         
-        <div className="w-full md:w-1/2 p-6 md:p-8 bg-slate-50 flex flex-col justify-center border-b md:border-b-0 md:border-r border-slate-200 relative min-h-[300px]">
-            <h3 className="absolute top-6 left-6 font-bold text-slate-400 text-xs uppercase tracking-wider flex items-center gap-2">
-                <Thermometer size={14} /> Distribuição Térmica
+        <div className="w-full md:w-1/2 p-6 md:p-8 bg-slate-50 flex flex-col justify-center border-b md:border-b-0 md:border-r border-slate-200 relative min-h-[25rem]">
+            <h3 className="absolute top-6 left-6 font-bold text-slate-400 text-[0.7rem] uppercase tracking-wider flex items-center gap-2">
+                 <Thermometer size={14} /> Distribuição Térmica
             </h3>
             
-            <div className="h-56 w-full mt-6">
+            <div className="h-64 w-full mt-6">
                 {stats.totalCircuits > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={stats.chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
@@ -154,49 +155,44 @@ const TemperatureStatsModal = ({ isOpen, onClose, baths = [] }) => {
             </div>
         </div>
 
-        <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col">
-            <div className="flex justify-between items-start mb-4">
+        <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col bg-white">
+            <div className="flex justify-between items-start mb-6">
                 <div>
-                    <h2 className="text-lg font-bold text-slate-800">Temperaturas</h2>
-                    <p className="text-xs text-slate-500">Capacidade e ocupação atual.</p>
+                    <h2 className="text-xl font-black text-slate-800 tracking-tight">Temperaturas</h2>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Capacidade e ocupação</p>
                 </div>
-                <button onClick={onClose} className="p-1.5 -mr-2 -mt-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
-                    <X size={18} />
+                <button onClick={onClose} className="p-2 -mr-2 -mt-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
+                    <X size={20} />
                 </button>
             </div>
 
-            <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-2">
+            <div className="space-y-4 flex-1 overflow-y-auto custom-scrollbar pr-2">
                 {stats.chartData.map((item) => {
                     const occupationPercent = item.total > 0 ? ((item.running / item.total) * 100).toFixed(1) : 0;
                     
                     return (
                         <div key={item.name} className="group">
-                            <div className="flex justify-between items-end mb-1.5">
-                                <div className="flex items-center gap-2.5">
-                                    <div className={`p-1.5 rounded-lg ${item.bg} ${item.textColor}`}>
-                                        <item.Icon size={16} />
+                            <div className="flex justify-between items-end mb-2">
+                                <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-xl ${item.bg} ${item.textColor} shadow-sm`}>
+                                        <item.Icon size={18} />
                                     </div>
                                     <div>
-                                        <span className="block text-xs font-bold text-slate-700">{item.name}</span>
-                                        <span className="text-[10px] text-slate-400 font-mono">{occupationPercent}%</span>
+                                        <span className="block text-sm font-black text-slate-700">{item.name}</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{occupationPercent}% em uso</span>
                                     </div>
                                 </div>
                                 
-                                <div className="text-right flex flex-col items-end">
+                                <div className="text-right">
                                     <div className="flex items-baseline gap-1">
                                       <span className={`text-xl font-black ${item.textColor}`}>{item.running}</span>
-                                      <span className="text-base font-bold text-slate-300">/</span>
-                                      <span className="text-base font-bold text-slate-500">{item.total}</span>
+                                      <span className="text-sm font-bold text-slate-200">/</span>
+                                      <span className="text-sm font-bold text-slate-400">{item.total}</span>
                                     </div>
-                                    {item.free > 0 && (
-                                      <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-sm uppercase tracking-widest mt-0.5">
-                                        {item.free} Livres
-                                      </span>
-                                    )}
                                 </div>
                             </div>
                             
-                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
                                 <div 
                                     className="h-full rounded-full transition-all duration-1000 ease-out"
                                     style={{ 
@@ -210,16 +206,15 @@ const TemperatureStatsModal = ({ isOpen, onClose, baths = [] }) => {
                 })}
             </div>
 
-            <div className="mt-4 pt-3 border-t-2 border-slate-100 border-dashed shrink-0">
+            <div className="mt-6 pt-4 border-t-2 border-slate-100 border-dashed shrink-0">
                 <div className="flex justify-between items-end">
-                    <div className="flex items-center gap-1.5 text-slate-500 mb-0.5">
-                        <Layers size={16} />
-                        <span className="text-[11px] font-bold uppercase tracking-wider">Capacidade Total</span>
+                    <div className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                        <Layers size={14} /> Capacidade Total
                     </div>
                     <div className="text-right flex items-baseline gap-1">
-                      <span className="text-2xl font-extrabold text-blue-600">{stats.totalRunning}</span>
-                      <span className="text-lg font-bold text-slate-300">/</span>
-                      <span className="text-lg font-bold text-slate-600">{stats.totalCircuits}</span>
+                      <span className="text-3xl font-black text-blue-600 tracking-tighter">{stats.totalRunning}</span>
+                      <span className="text-lg font-bold text-slate-200">/</span>
+                      <span className="text-lg font-bold text-slate-400">{stats.totalCircuits}</span>
                     </div>
                 </div>
             </div>
