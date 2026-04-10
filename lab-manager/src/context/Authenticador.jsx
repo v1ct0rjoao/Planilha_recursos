@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-// IMPORTANTE: Adicionado o signInWithEmailAndPassword aqui na primeira linha!
+
 import { getAuth, onAuthStateChanged, signInWithPopup, OAuthProvider, GoogleAuthProvider, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import { app } from '../firebaseConfig';

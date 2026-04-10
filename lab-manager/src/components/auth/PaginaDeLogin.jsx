@@ -10,6 +10,67 @@ const defaultLabConfig = {
   equipe: []
 };
 
+const OrgTreeStyles = () => (
+  <style>{`
+    html { font-size: 16px; }
+    @media (max-width: 1600px) { html { font-size: 14px; } }
+    @media (max-width: 1366px), (max-height: 800px) { html { font-size: 12px; } }
+    @media (max-width: 1024px) { html { font-size: 14px; } }
+
+    .modal-tree-container { 
+      width: 100%; 
+      height: 100%; 
+      overflow: auto; 
+      text-align: center; 
+      padding: 2.5rem 1.25rem; 
+    }
+    .modal-tree-container::-webkit-scrollbar { height: 0.5rem; width: 0.5rem; }
+    .modal-tree-container::-webkit-scrollbar-track { background: transparent; }
+    .modal-tree-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 0.625rem; }
+    .modal-tree-container::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+    .tree-wrapper { 
+      display: inline-block; 
+      margin: 0 auto; 
+      padding-bottom: 3.75rem; 
+      text-align: center;
+    }
+    .tree { display: inline-block; white-space: nowrap; }
+    .tree ul { padding-top: 1.5rem; position: relative; transition: all 0.5s; display: flex; justify-content: center; padding-left: 0; margin: 0; }
+    .tree li { text-align: center; list-style-type: none; position: relative; padding: 1.5rem 0.375rem 0 0.375rem; transition: all 0.5s; }
+    
+    .tree li::before, .tree li::after { content: ''; position: absolute; top: 0; right: 50%; border-top: 0.125rem solid rgba(255,255,255,0.15); width: 50%; height: 1.5rem; }
+    .tree li::after { right: auto; left: 50%; border-left: 0.125rem solid rgba(255,255,255,0.15); }
+    .tree li:only-child::after, .tree li:only-child::before { display: none; }
+    .tree li:only-child { padding-top: 0; }
+    .tree li:first-child::before, .tree li:last-child::after { border: 0 none; }
+    .tree li:last-child::before { border-right: 0.125rem solid rgba(255,255,255,0.15); border-radius: 0 0.5rem 0 0; }
+    .tree li:first-child::after { border-radius: 0.5rem 0 0 0; }
+    .tree ul ul::before { content: ''; position: absolute; top: 0; left: 50%; border-left: 0.125rem solid rgba(255,255,255,0.15); width: 0; height: 1.5rem; transform: translateX(-1px); }
+    
+    .org-card { 
+      display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(0, 32, 92, 0.6); 
+      border: 1px solid rgba(0, 108, 176, 0.4); 
+      backdrop-filter: blur(12px); border-radius: 0.75rem; padding: 0.75rem 0.875rem; 
+      min-width: 8.125rem; max-width: 9.375rem; transition: all 0.2s; position: relative; z-index: 10;
+      box-shadow: 0 0.25rem 1.25rem rgba(0,0,0,0.2);
+    }
+    .org-card:hover { transform: translateY(-3px); background: rgba(0, 108, 176, 0.2); border-color: #FFBF3C; }
+    .org-avatar { width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 0.125rem solid #FFBF3C; margin: 0 auto 0.5rem auto; object-fit: cover; }
+    .org-name { color: white; font-size: 0.75rem; font-weight: 700; white-space: normal; line-height: 1.2; margin-bottom: 0.125rem;}
+    .org-role { color: #8EB1D8; font-size: 0.5625rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; white-space: normal; line-height: 1.1;}
+  `}</style>
+);
+
+const chunkArray = (arr, size) => {
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+};
+
 const LoginPage = () => {
   const { loginWithMicrosoft, loginWithGoogle, loginWithEmail } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -43,7 +104,7 @@ const LoginPage = () => {
   const handleAuth = async (providerFunc) => {
     setIsLoading(true); setError('');
     try { await providerFunc(); }
-    catch (err) { setError('Falha na autenticação. Tente novamente.'); setIsLoading(false); }
+    catch (err) { setError('Falha na autenticação.'); setIsLoading(false); }
   };
 
   const handleTechLogin = async (e) => {
@@ -57,128 +118,38 @@ const LoginPage = () => {
     }
   };
 
-  const renderTeamBlocks = () => {
-    if (!config.equipe || config.equipe.length === 0) {
-      return <div className="text-slate-500 text-center py-20">Estrutura não configurada.</div>;
-    }
-
-    const supervisor = config.equipe.find(m => !m.liderId) || config.equipe[0];
-    if (!supervisor) return null;
-
-    const leaders = config.equipe.filter(m => 
-      m.id !== supervisor.id && config.equipe.some(child => child.liderId === m.id)
-    );
-
-    const cellMembersIds = new Set();
-    const getDeepTeam = (leaderId) => {
-      let team = [];
-      const direct = config.equipe.filter(m => m.liderId === leaderId);
-      team = [...direct];
-      direct.forEach(d => { team = [...team, ...getDeepTeam(d.id)]; });
-      return team;
-    };
-
-    leaders.forEach(l => {
-      getDeepTeam(l.id).forEach(m => cellMembersIds.add(m.id));
-    });
-
-    const directStaff = config.equipe.filter(m => 
-      m.id !== supervisor.id && 
-      !leaders.find(l => l.id === m.id) && 
-      !cellMembersIds.has(m.id)
-    );
+  const renderOrgNode = (member, allMembers) => {
+    const children = allMembers.filter(m => m.liderId === member.id);
+    const childChunks = chunkArray(children, 4);
 
     return (
-      <div className="max-w-5xl mx-auto flex flex-col gap-10 pb-20">
-        
-        <div className="flex flex-col items-center">
-         
-          <div className="bg-[#00205C]/40 border border-[#006CB0]/40 p-6 rounded-3xl backdrop-blur-md flex flex-col sm:flex-row items-center gap-6 w-full max-w-2xl shadow-[0_0_40px_rgba(0,32,92,0.3)] relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-            <img 
-              src={supervisor.imgUrl} 
-              alt={supervisor.nome} 
-              className="w-24 h-24 rounded-full border-4 border-[#FFBF3C] object-cover shadow-lg" 
-              onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${supervisor.nome}&background=0f172a&color=fff` }} 
-            />
-            <div className="text-center sm:text-left">
-              <span className="text-[#FFBF3C] text-[10px] font-bold uppercase tracking-widest mb-1 block">Gestão Geral</span>
-              <h3 className="text-2xl font-bold text-white mb-1">{supervisor.nome}</h3>
-              <p className="text-slate-300 text-sm">{supervisor.cargo}</p>
-            </div>
-          </div>
+      <li key={member.id}>
+        <div className="org-card">
+          <img src={member.imgUrl} alt={member.nome} className="org-avatar" onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${member.nome}&background=0f172a&color=fff` }} />
+          <h3 className="org-name" title={member.nome}>{member.nome}</h3>
+          <p className="org-role" title={member.cargo}>{member.cargo}</p>
         </div>
-
-        {directStaff.length > 0 && (
-          <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex flex-wrap justify-center gap-4 max-w-4xl">
-              {directStaff.map(staff => (
-                <div key={staff.id} className="bg-white/5 border border-white/10 rounded-2xl p-3 pr-5 flex items-center gap-4 hover:bg-white/10 transition-colors">
-                  <img 
-                    src={staff.imgUrl} alt={staff.nome} 
-                    className="w-11 h-11 rounded-full border-2 border-slate-600 object-cover" 
-                    onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${staff.nome}&background=0f172a&color=fff` }} 
-                  />
-                  <div>
-                    <h4 className="text-white text-sm font-semibold leading-tight">{staff.nome}</h4>
-                    <p className="text-slate-400 text-[10px] uppercase tracking-wider">{staff.cargo}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {childChunks.length > 0 && (
+          <div className="flex flex-col items-center w-full">
+            {childChunks.map((chunk, index) => (
+              <React.Fragment key={index}>
+                {index > 0 && <div className="w-[0.125rem] h-6 bg-[rgba(255,255,255,0.15)] relative z-0 mx-auto"></div>}
+                <ul className="relative z-10">
+                  {chunk.map(child => renderOrgNode(child, allMembers))}
+                </ul>
+              </React.Fragment>
+            ))}
           </div>
         )}
-
-        {leaders.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mt-6">
-            {leaders.map(leader => {
-              const teamMembers = getDeepTeam(leader.id);
-              return (
-                <div key={leader.id} className="bg-white/[0.02] border border-white/10 rounded-3xl p-6 flex flex-col shadow-xl hover:bg-white/[0.04] transition-colors">
-                  
-                  <div className="flex items-center gap-5 pb-5 border-b border-white/10 mb-5">
-                    <img 
-                      src={leader.imgUrl} alt={leader.nome} 
-                      className="w-16 h-16 rounded-full border-2 border-[#006CB0] object-cover shadow-md" 
-                      onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${leader.nome}&background=0f172a&color=fff` }} 
-                    />
-                    <div>
-                      <span className="text-[#5D96C9] text-[9px] font-bold uppercase tracking-widest block mb-1">Liderança</span>
-                      <h4 className="text-lg font-bold text-white leading-tight">{leader.nome}</h4>
-                      <p className="text-slate-400 text-xs">{leader.cargo}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {teamMembers.map(member => (
-                      <div key={member.id} className="flex items-center gap-3 bg-white/5 rounded-xl p-2.5 hover:bg-white/10 transition-colors group">
-                        <img 
-                          src={member.imgUrl} alt={member.nome} 
-                          className="w-8 h-8 rounded-full border border-slate-600 group-hover:border-[#FFBF3C] transition-colors object-cover" 
-                          onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${member.nome}&background=0f172a&color=fff` }} 
-                        />
-                        <div className="overflow-hidden">
-                          <h5 className="text-slate-200 text-xs font-semibold truncate">{member.nome}</h5>
-                          <p className="text-slate-400 text-[9px] uppercase tracking-wider truncate">{member.cargo}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      </li>
     );
   };
 
-  return (
+  const roots = config.equipe ? config.equipe.filter(m => !m.liderId) : [];
 
+  return (
     <div className="min-h-screen bg-[#000a1a] text-white p-4 md:p-8 flex items-center justify-center relative overflow-hidden font-sans selection:bg-[#006CB0]">
-      
-     
+      <OrgTreeStyles />
       <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] bg-[#00205C] rounded-full blur-[150px] opacity-40 pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-[#006CB0] rounded-full blur-[150px] opacity-20 pointer-events-none"></div>
       <div className="absolute inset-0 opacity-[0.02] bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none"></div>
@@ -187,7 +158,6 @@ const LoginPage = () => {
   
         <div className="lg:col-span-8 bg-white/[0.03] border border-white/10 backdrop-blur-md rounded-3xl p-8 lg:p-12 flex flex-col justify-between shadow-2xl">
           <div className="flex items-center gap-4 mb-10">
-            {/* Ícone com degradê institucional */}
             <div className="w-14 h-14 bg-gradient-to-br from-[#00205C] to-[#006CB0] rounded-2xl flex items-center justify-center shadow-lg border border-[#006CB0]/40">
               <i className="fa-solid fa-bolt text-2xl text-[#FFBF3C]"></i>
             </div>
@@ -200,7 +170,6 @@ const LoginPage = () => {
           <div>
             <h2 className="text-4xl lg:text-5xl font-semibold tracking-tight leading-[1.15] mb-6">
               Plataforma de Gestão<br/>
-              {/* Degradê Amarelo Moura brilhante */}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFBF3C] to-[#FFE082]">LabFísico.</span>
             </h2>
             <p className="text-slate-300 text-lg max-w-2xl leading-relaxed mb-6">
@@ -215,7 +184,6 @@ const LoginPage = () => {
         </div>
 
         <div className="lg:col-span-4 lg:row-span-2 bg-white border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden flex flex-col justify-center">
-
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#00205C] to-[#FFBF3C]"></div>
           
           <h3 className="text-2xl font-bold text-slate-900 tracking-tight mb-2">
@@ -296,7 +264,6 @@ const LoginPage = () => {
             <div className="space-y-3">
               {config.acreditacoes?.slice(0, 3).map(cert => (
                 <div key={cert.id} className="flex items-center gap-3">
-                  {/* Removido as cores genéricas dinâmicas para forçar um azul corporativo neutro e elegante */}
                   <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-[#8EB1D8]">
                     <i className={`fa-solid ${cert.icon} text-sm`}></i>
                   </div>
@@ -341,17 +308,26 @@ const LoginPage = () => {
           <div className="w-full flex items-center justify-between p-6 border-b border-white/10 bg-[#000a1a] sticky top-0 z-10 shadow-lg">
             <div>
               <h2 className="text-2xl font-bold text-white">Organograma</h2>
-              <p className="text-slate-400 text-sm mt-1">Organização de Lideranças e Apoio Direto</p>
+              <p className="text-slate-400 text-sm mt-1">Estrutura Operacional do Laboratório</p>
             </div>
-            <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 bg-white/5 hover:bg-rose-500/20 text-white hover:text-rose-400 rounded-full flex items-center justify-center transition-all border border-white/10 shadow-sm">
-              <i className="fa-solid fa-xmark text-lg"></i>
+            <button onClick={() => setIsModalOpen(false)} className="bg-white/5 hover:bg-rose-500/20 text-white hover:text-rose-400 px-4 py-2 rounded-xl flex items-center justify-center transition-all border border-white/10 shadow-sm text-sm font-bold">
+              <i className="fa-solid fa-arrow-left mr-2"></i> Voltar
             </button>
           </div>
    
-          <div className="flex-1 overflow-y-auto p-6 sm:p-10 scroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20">
-            {renderTeamBlocks()}
+          <div className="flex-1 overflow-hidden">
+            <div className="modal-tree-container">
+              {roots.length > 0 ? (
+                <div className="tree-wrapper">
+                  <div className="tree">
+                    <ul>{roots.map(root => renderOrgNode(root, config.equipe))}</ul>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center text-slate-500">Estrutura não configurada.</div>
+              )}
+            </div>
           </div>
-          
         </div>
       )}
     </div>

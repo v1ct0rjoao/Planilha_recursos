@@ -19,7 +19,7 @@ import ClientBatteryTracking from './features/client/AcompanharBaterias';
 import GerenciadorLims from './features/lims/GerenciadorLims';
 
 import { bathService } from './services/bathService';
-import { apiRequest } from './services/api';
+import { apiRequest } from './services/api'; 
 
 import ImportModal from './components/modals/ImportarDig';
 import AddCircuitModal from './components/modals/AddCircuito';
@@ -35,27 +35,25 @@ const GlobalStyles = () => (
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
     @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
     
-    html { font-size: 14px; } 
-    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+    html { font-size: 16px; }
+    @media (max-width: 1600px) { html { font-size: 14px; } }
+    @media (max-width: 1366px), (max-height: 800px) { html { font-size: 12px; } }
+    @media (max-width: 1024px) { html { font-size: 14px; } }
+
+    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; overflow: hidden; }
+    
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-    * { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+    * { scrollbar-color: #cbd5e1 transparent; }
     
     .dark body { background-color: #020617; }
     .dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
     .dark ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
-    
-    .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-
-    .no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
   `}</style>
 );
 
@@ -70,15 +68,15 @@ const MenuButton = ({ active, onClick, iconClass, label, isSidebarOpen }) => (
   <button
     onClick={onClick}
     className={`
-      flex items-center gap-3 px-4 py-3 w-full text-sm font-bold transition-all duration-200 group focus:outline-none border-l-4
-      ${active
-        ? 'bg-[#002B5C] border-[#FFBF3C] text-white dark:bg-white/[0.05] dark:border-[#FFBF3C] dark:text-white'
+      flex items-center gap-3 px-4 py-2.5 w-full text-sm font-bold transition-all duration-200 group focus:outline-none border-l-4
+      ${active 
+        ? 'bg-[#002B5C] border-[#FFBF3C] text-white dark:bg-white/[0.05] dark:border-[#FFBF3C] dark:text-white' 
         : 'border-transparent text-blue-100 hover:bg-[#00336b] hover:text-white dark:text-slate-400 dark:hover:bg-white/[0.02] dark:hover:text-slate-200'
       }
     `}
     title={!isSidebarOpen ? label : ""}
   >
-    <i className={`fa-solid ${iconClass} text-base w-5 text-center transition-colors ${active ? 'text-[#FFBF3C] dark:text-[#FFBF3C]' : 'text-blue-200 group-hover:text-white dark:text-slate-500 dark:group-hover:text-slate-300'}`}></i>
+    <i className={`fa-solid ${iconClass} text-sm w-5 text-center transition-colors ${active ? 'text-[#FFBF3C] dark:text-[#FFBF3C]' : 'text-blue-200 group-hover:text-white dark:text-slate-500 dark:group-hover:text-slate-300'}`}></i>
     {isSidebarOpen && <span className="whitespace-nowrap overflow-hidden tracking-wide">{label}</span>}
   </button>
 );
@@ -125,7 +123,7 @@ const MainApp = () => {
       else setIsSidebarOpen(true);
     };
     window.addEventListener('resize', handleResize);
-    handleResize();
+    handleResize(); 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
@@ -211,7 +209,7 @@ const MainApp = () => {
     let successCount = 0;
     for (let i = start; i <= end; i++) {
       const { success, data, error } = await apiRequest('/circuits/add', 'POST', { bathId, circuitId: i.toString() });
-      if (success) { setBaths(data.db_atualizado?.baths || []); successCount++; }
+      if (success) { setBaths(data.db_atualizado?.baths || []); successCount++; } 
       else { setToast({ message: error || `Erro ao adicionar circuito ${i}`, type: 'error' }); return; }
     }
     if (successCount > 0) { setToast({ message: 'Circuito(s) adicionado(s) com sucesso!', type: 'success' }); setIsAddOpen(false); }
@@ -220,79 +218,79 @@ const MainApp = () => {
   const deleteCircuit = useCallback((bathId, circuitId) => {
     askConfirm('Excluir Circuito', `Tem certeza que deseja remover o circuito ${circuitId}?`, async () => {
       const { success, data, error } = await apiRequest('/circuits/delete', 'POST', { bathId, circuitId });
-      if (success) { setBaths(data.db_atualizado?.baths || []); setToast({ message: 'Circuito removido!', type: 'success' }); }
+      if (success) { setBaths(data.db_atualizado?.baths || []); setToast({ message: 'Circuito removido!', type: 'success' }); } 
       else setToast({ message: error || 'Erro ao remover', type: 'error' });
     });
   }, [askConfirm]);
 
   const updateTemp = useCallback(async (bathId, temp) => {
     const { success, data, error } = await apiRequest('/baths/temp', 'POST', { bathId, temp });
-    if (success) { setBaths(data.db_atualizado?.baths || []); setToast({ message: 'Temperatura atualizada!', type: 'success' }); }
+    if (success) { setBaths(data.db_atualizado?.baths || []); setToast({ message: 'Temperatura atualizada!', type: 'success' }); } 
     else setToast({ message: error || 'Erro ao atualizar', type: 'error' });
   }, []);
 
   const toggleMaintenance = useCallback(async (bathId, circuitId, status) => {
     const { success, data, error } = await apiRequest('/circuits/status', 'POST', { bathId, circuitId, status });
-    if (success) setBaths(data.db_atualizado?.baths || []);
+    if (success) setBaths(data.db_atualizado?.baths || []); 
     else setToast({ message: error || 'Erro ao mudar status', type: 'error' });
   }, []);
 
   const addBath = useCallback(async (name, temp, type) => {
     const fullId = `${type} - ${name}`;
     const { success, data, error } = await apiRequest('/baths/add', 'POST', { bathId: fullId, temp });
-    if (success) { setBaths(data.db_atualizado?.baths || []); setToast({ message: 'Nova unidade criada!', type: 'success' }); setIsAddBathOpen(false); }
+    if (success) { setBaths(data.db_atualizado?.baths || []); setToast({ message: 'Nova unidade criada!', type: 'success' }); setIsAddBathOpen(false); } 
     else setToast({ message: error || 'Erro ao criar', type: 'error' });
   }, []);
 
   const deleteBath = useCallback((bathId) => {
     askConfirm('Excluir Unidade', `Isso removerá a unidade ${bathId} e todos os circuitos dela. Continuar?`, async () => {
       const { success, data, error } = await apiRequest('/baths/delete', 'POST', { bathId });
-      if (success) { setBaths(data.db_atualizado?.baths || []); setToast({ message: 'Unidade removida!', type: 'success' }); }
+      if (success) { setBaths(data.db_atualizado?.baths || []); setToast({ message: 'Unidade removida!', type: 'success' }); } 
       else setToast({ message: error || 'Erro', type: 'error' });
     });
   }, [askConfirm]);
 
   const handleRenameBath = useCallback(async (oldId, newId) => {
     const { success, data, error } = await apiRequest('/baths/rename', 'POST', { oldId, newId });
-    if (success) { setBaths(data.db_atualizado?.baths || []); setToast({ message: 'Renomeado com sucesso!', type: 'success' }); setIsEditBathOpen(false); }
+    if (success) { setBaths(data.db_atualizado?.baths || []); setToast({ message: 'Renomeado com sucesso!', type: 'success' }); setIsEditBathOpen(false); } 
     else setToast({ message: error || 'Erro', type: 'error' });
   }, []);
 
   const handleAddProtocol = useCallback(async (name, duration) => {
     const { success, data, error } = await apiRequest('/protocols/add', 'POST', { name, duration });
-    if (success) setProtocols(data.db_atualizado?.protocols || []);
+    if (success) setProtocols(data.db_atualizado?.protocols || []); 
     else setToast({ message: error || 'Erro ao adicionar protocolo', type: 'error' });
   }, []);
 
   const handleDeleteProtocol = useCallback((id) => {
     askConfirm('Excluir Teste', `Remover o protocolo de teste ${id}?`, async () => {
       const { success, data, error } = await apiRequest('/protocols/delete', 'POST', { id });
-      if (success) setProtocols(data.db_atualizado?.protocols || []);
+      if (success) setProtocols(data.db_atualizado?.protocols || []); 
       else setToast({ message: error || 'Erro', type: 'error' });
     });
   }, [askConfirm]);
 
   const handleMoveCircuit = useCallback(async (sourceBathId, targetBathId, circuitId) => {
     const { success, data, error } = await apiRequest('/circuits/move', 'POST', { sourceBathId, targetBathId, circuitId });
-    if (success) { setBaths(data.db_atualizado?.baths || []); setToast({ message: 'Circuito movido com sucesso!', type: 'success' }); setIsMoveOpen(false); }
+    if (success) { setBaths(data.db_atualizado?.baths || []); setToast({ message: 'Circuito movido com sucesso!', type: 'success' }); setIsMoveOpen(false); } 
     else setToast({ message: error || 'Erro ao mover', type: 'error' });
   }, []);
 
   const handleLinkCircuit = useCallback(async (bathId, sourceId, targetId) => {
     const { success, data, error } = await apiRequest('/circuits/link', 'POST', { bathId, sourceId, targetId });
-    if (success) { setBaths(data.db_atualizado?.baths || []); setToast({ message: 'Circuitos vinculados em paralelo!', type: 'success' }); setIsLinkOpen(false); }
+    if (success) { setBaths(data.db_atualizado?.baths || []); setToast({ message: 'Circuitos vinculados em paralelo!', type: 'success' }); setIsLinkOpen(false); } 
     else setToast({ message: error || 'Erro ao vincular', type: 'error' });
   }, []);
 
   const handleToggleBathFull = useCallback(async (bathId, isFull) => {
     const { success, data, error } = await apiRequest('/baths/toggle_full', 'POST', { bathId, isFull });
-    if (success) setBaths(data.db_atualizado?.baths || []);
+    if (success) setBaths(data.db_atualizado?.baths || []); 
     else setToast({ message: error || 'Erro de conexão', type: 'error' });
   }, []);
 
   const handleToggleCircuitNoSpace = useCallback(async (circuitId, noSpace) => {
     const { success, data, error } = await apiRequest('/circuits/nospace', 'POST', { circuitId, noSpace });
-    if (success) setBaths(data.db_atualizado?.baths || []);
+    if (success) setBaths(data.db_atualizado?.baths || []); 
     else setToast({ message: error || 'Erro', type: 'error' });
   }, []);
 
@@ -312,7 +310,7 @@ const MainApp = () => {
       <div className="hidden dark:block absolute inset-0 opacity-[0.02] bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none z-0"></div>
 
       {isSidebarOpen && (
-        <div
+        <div 
           className="lg:hidden fixed inset-0 bg-slate-900/50 dark:bg-[#020617]/80 backdrop-blur-sm z-40 transition-opacity"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -321,10 +319,10 @@ const MainApp = () => {
       <aside className={`
         fixed lg:relative top-0 left-0 h-full z-50
         bg-[#004D90] dark:bg-white/[0.02] dark:backdrop-blur-2xl 
-        flex flex-col transition-all duration-300 border-r border-slate-200 dark:border-white/5 shrink-0 shadow-2xl lg:shadow-none
-        ${isSidebarOpen ? 'w-[260px] translate-x-0' : 'w-[260px] -translate-x-full lg:w-[80px] lg:translate-x-0'}
+        flex flex-col transition-all duration-300 border-r border-slate-200 dark:border-white/5 shrink-0 shadow-2xl lg:shadow-none overflow-hidden
+        ${isSidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full lg:w-20 lg:translate-x-0'}
       `}>
-        <div className="h-[72px] flex items-center justify-between px-6 border-b border-[#00386E] dark:border-white/5 shrink-0">
+        <div className="h-16 flex items-center justify-between px-5 border-b border-[#00386E] dark:border-white/5 shrink-0">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="bg-[#FFBF3C] dark:bg-gradient-to-br dark:from-[#004D90] dark:to-blue-600 h-8 w-8 rounded-lg flex items-center justify-center shrink-0 dark:shadow-lg dark:border dark:border-blue-400/30">
               <i className="fa-solid fa-bolt text-[#004D90] dark:text-white text-sm font-black"></i>
@@ -336,85 +334,71 @@ const MainApp = () => {
               </div>
             )}
           </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-white/70 hover:text-white">
-            <X size={20} />
-          </button>
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-white/70 hover:text-white"><X size={18} /></button>
         </div>
 
-        {isSidebarOpen && (
-          <div className="px-6 py-5 flex flex-col gap-1 shrink-0 animate-in fade-in duration-300">
-            <span className="text-[11px] font-bold text-blue-200 dark:text-slate-500 uppercase tracking-wider">{getGreeting()}</span>
-            <span className="font-bold text-white text-sm truncate">{user.displayName || user.email}</span>
-          </div>
-        )}
-
-<nav className={`flex-1 overflow-y-auto py-2 no-scrollbar space-y-1 ${isSidebarOpen ? 'px-0' : 'px-0 pt-6'}`}>          {hasPermission('dashboard') && <MenuButton active={currentView === 'dashboard'} onClick={() => { setCurrentView('dashboard'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} iconClass="fa-chart-pie" label="Visão Geral" isSidebarOpen={isSidebarOpen} />}
-          {hasPermission('nova_solicitacao') && <MenuButton active={currentView === 'nova_solicitacao'} onClick={() => { setCurrentView('nova_solicitacao'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} iconClass="fa-file-signature" label="Nova Solicitação" isSidebarOpen={isSidebarOpen} />}
-          {hasPermission('meus_acompanhamentos') && <MenuButton active={currentView === 'meus_acompanhamentos'} onClick={() => { setCurrentView('meus_acompanhamentos'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} iconClass="fa-list-check" label="Acompanhamentos" isSidebarOpen={isSidebarOpen} />}
-          {hasPermission('baterias') && <MenuButton active={currentView === 'baterias'} onClick={() => { setCurrentView('baterias'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} iconClass="fa-car-battery" label="Minhas Baterias" isSidebarOpen={isSidebarOpen} />}
-
+        <nav className={`flex-1 flex flex-col justify-start py-2 space-y-0.5 overflow-hidden no-scrollbar ${isSidebarOpen ? 'px-0' : 'px-0 pt-4'}`}>
+          {hasPermission('dashboard') && <MenuButton active={currentView === 'dashboard'} onClick={() => {setCurrentView('dashboard'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-chart-pie" label="Visão Geral" isSidebarOpen={isSidebarOpen} />}
+          {hasPermission('nova_solicitacao') && <MenuButton active={currentView === 'nova_solicitacao'} onClick={() => {setCurrentView('nova_solicitacao'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-file-signature" label="Nova Solicitação" isSidebarOpen={isSidebarOpen} />}
+          {hasPermission('meus_acompanhamentos') && <MenuButton active={currentView === 'meus_acompanhamentos'} onClick={() => {setCurrentView('meus_acompanhamentos'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-list-check" label="Acompanhamentos" isSidebarOpen={isSidebarOpen} />}
+          {hasPermission('baterias') && <MenuButton active={currentView === 'baterias'} onClick={() => {setCurrentView('baterias'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-car-battery" label="Minhas Baterias" isSidebarOpen={isSidebarOpen} />}
+          
           {(hasPermission('acompanhamento') || hasPermission('lims')) && isSidebarOpen && (
-            <div className="pt-4 pb-2 px-6">
-              <span className="text-[10px] font-bold text-blue-300 dark:text-slate-500 uppercase tracking-widest">Laboratório / Admin</span>
+            <div className="pt-3 pb-1 px-5">
+              <span className="text-[10px] font-bold text-blue-300 dark:text-slate-500 uppercase tracking-widest">Lab / Admin</span>
             </div>
           )}
-          {hasPermission('acompanhamento') && <MenuButton active={currentView === 'acompanhamento'} onClick={() => { setCurrentView('acompanhamento'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} iconClass="fa-clipboard-check" label="Gestão Solicit." isSidebarOpen={isSidebarOpen} />}
-          {hasPermission('lims') && <MenuButton active={currentView === 'lims'} onClick={() => { setCurrentView('lims'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} iconClass="fa-layer-group" label="Portal LABLIMS" isSidebarOpen={isSidebarOpen} />}
-
+          {hasPermission('acompanhamento') && <MenuButton active={currentView === 'acompanhamento'} onClick={() => {setCurrentView('acompanhamento'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-clipboard-check" label="Gestão Solicit." isSidebarOpen={isSidebarOpen} />}
+          {hasPermission('lims') && <MenuButton active={currentView === 'lims'} onClick={() => {setCurrentView('lims'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-layer-group" label="Portal LABLIMS" isSidebarOpen={isSidebarOpen} />}
+          
           {(hasPermission('oee') || hasPermission('history') || hasPermission('calendar')) && isSidebarOpen && (
-            <div className="pt-4 pb-2 px-6">
+            <div className="pt-3 pb-1 px-5">
               <span className="text-[10px] font-bold text-blue-300 dark:text-slate-500 uppercase tracking-widest">Gestão LIMS</span>
             </div>
           )}
-          {hasPermission('oee') && <MenuButton active={currentView === 'oee'} onClick={() => { setCurrentView('oee'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} iconClass="fa-industry" label="Lançamento OEE" isSidebarOpen={isSidebarOpen} />}
-          {hasPermission('history') && <MenuButton active={currentView === 'history'} onClick={() => { setCurrentView('history'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} iconClass="fa-chart-line" label="Dashboard OEE" isSidebarOpen={isSidebarOpen} />}
-          {hasPermission('protocolos') && <MenuButton active={isProtocolsOpen} onClick={() => { setIsProtocolsOpen(true); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} iconClass="fa-flask-vial" label="Protocolos" isSidebarOpen={isSidebarOpen} />}
-          {hasPermission('calendar') && <MenuButton active={currentView === 'calendar'} onClick={() => { setCurrentView('calendar'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} iconClass="fa-calendar-days" label="Agenda" isSidebarOpen={isSidebarOpen} />}
-          {hasPermission('users') && <MenuButton active={currentView === 'users'} onClick={() => { setCurrentView('users'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} iconClass="fa-users" label="Acessos" isSidebarOpen={isSidebarOpen} />}
+          {hasPermission('oee') && <MenuButton active={currentView === 'oee'} onClick={() => {setCurrentView('oee'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-industry" label="Lançamento OEE" isSidebarOpen={isSidebarOpen} />}
+          {hasPermission('history') && <MenuButton active={currentView === 'history'} onClick={() => {setCurrentView('history'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-chart-line" label="Dashboard OEE" isSidebarOpen={isSidebarOpen} />}
+          {hasPermission('protocolos') && <MenuButton active={isProtocolsOpen} onClick={() => {setIsProtocolsOpen(true); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-flask-vial" label="Protocolos" isSidebarOpen={isSidebarOpen} />}
+          {hasPermission('calendar') && <MenuButton active={currentView === 'calendar'} onClick={() => {setCurrentView('calendar'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-calendar-days" label="Agenda" isSidebarOpen={isSidebarOpen} />}
+          {hasPermission('users') && <MenuButton active={currentView === 'users'} onClick={() => {setCurrentView('users'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-users" label="Acessos" isSidebarOpen={isSidebarOpen} />}
         </nav>
 
-        <div className="py-4 border-t border-[#00386E] dark:border-white/5 flex flex-col gap-1 shrink-0">
-          {hasPermission('configuracoes') && <MenuButton active={currentView === 'configuracoes'} onClick={() => { setCurrentView('configuracoes'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} iconClass="fa-gear" label="Configurações" isSidebarOpen={isSidebarOpen} />}
-          <button onClick={logout} className={`flex items-center gap-3 px-4 py-3 text-sm font-bold text-rose-300 hover:text-white hover:bg-rose-500 dark:hover:bg-rose-500/10 transition-colors w-full group focus:outline-none border-l-4 border-transparent`}>
+        <div className="py-3 border-t border-[#00386E] dark:border-white/5 flex flex-col gap-0.5 shrink-0">
+          {hasPermission('configuracoes') && <MenuButton active={currentView === 'configuracoes'} onClick={() => {setCurrentView('configuracoes'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-gear" label="Configurações" isSidebarOpen={isSidebarOpen} />}
+          <button onClick={logout} className={`flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-rose-300 hover:text-white hover:bg-rose-500 dark:hover:bg-rose-500/10 transition-colors w-full group focus:outline-none border-l-4 border-transparent`}>
             <i className="fa-solid fa-right-from-bracket text-base w-5 text-center transition-colors"></i>
             {isSidebarOpen && <span>Sair do Sistema</span>}
           </button>
         </div>
       </aside>
 
-      {/* HEADER + SCROLL PRINCIPAL DA PÁGINA */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen relative z-10">
-        <header className="bg-white dark:bg-white/[0.02] dark:backdrop-blur-2xl h-[72px] border-b border-slate-200 dark:border-white/5 flex items-center justify-between px-4 md:px-6 shrink-0 z-30 transition-colors duration-300">
-          <div className="flex items-center gap-4 md:gap-6">
+      <div className="flex-1 flex flex-col min-w-0 h-full relative z-10 overflow-hidden">
+        <header className="bg-white dark:bg-white/[0.02] dark:backdrop-blur-2xl h-16 border-b border-slate-200 dark:border-white/5 flex items-center justify-between px-4 md:px-6 shrink-0 z-30 transition-colors duration-300">
+          <div className="flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-md transition-colors focus:outline-none">
-              <Menu size={20} />
+               <Menu size={20} />
             </button>
             <div className="hidden sm:flex items-center gap-3">
-              {isLoading && <span className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400"><Loader2 size={14} className="animate-spin text-[#006CB0] dark:text-[#0ea5e9]" /> Sincronizando...</span>}
-              {isError && <span className="flex items-center gap-2 text-xs font-semibold text-rose-500"><AlertTriangle size={14} /> Desconectado</span>}
+              {isLoading && <span className="flex items-center gap-2 text-xs font-semibold text-slate-500"><Loader2 size={14} className="animate-spin text-blue-500 dark:text-[#0ea5e9]"/> Sincronizando...</span>}
             </div>
           </div>
-
           <div className="flex items-center gap-2 md:gap-3">
             <div className="relative group hidden md:block">
-              <button onClick={() => setIsCommandOpen(true)} className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 dark:border-white/10 rounded-md text-slate-400 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-medium transition-colors focus:outline-none">
-                <Command size={14} /> <span className="hidden lg:inline">CTRL+K</span>
-              </button>
+               <button onClick={() => setIsCommandOpen(true)} className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 dark:border-white/10 rounded-md text-slate-400 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 text-xs font-medium transition-colors focus:outline-none">
+                 <Command size={14} /> <span className="hidden lg:inline">CTRL+K</span>
+               </button>
             </div>
-
             <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-md transition-colors focus:outline-none">
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
-
             <div className="relative group">
               <button className="p-2 text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 rounded-md transition-colors focus:outline-none relative">
                 <Bell size={20} />
-                <span className="absolute top-1.5 right-2 w-2 h-2 bg-rose-500 rounded-full"></span>
+                <span className="absolute top-1 right-2 w-2 h-2 bg-rose-500 rounded-full"></span>
               </button>
             </div>
-
             {currentView === 'dashboard' && hasPermission('import_digatron') && (
-              <button onClick={() => setIsImportOpen(true)} className="ml-1 md:ml-2 bg-[#004D90] dark:bg-white/10 dark:border dark:border-white/10 text-white dark:text-white hover:bg-[#003870] dark:hover:bg-white/20 px-3 md:px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 transition-colors focus:outline-none">
+              <button onClick={() => setIsImportOpen(true)} className="ml-1 md:ml-2 bg-[#004D90] dark:bg-white/10 dark:border dark:border-white/10 text-white hover:bg-[#003870] dark:hover:bg-white/20 px-3 md:px-4 py-2 rounded-md text-xs font-bold flex items-center gap-2 transition-colors focus:outline-none">
                 <i className="fa-solid fa-cloud-arrow-up text-[#FFBF3C]"></i>
                 <span className="hidden sm:inline">Importar</span>
               </button>
@@ -422,24 +406,13 @@ const MainApp = () => {
           </div>
         </header>
 
-        {/* O scroll mestre da página inteira! */}
-        <main className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative w-full bg-slate-50 dark:bg-transparent">
-          <div className="flex-1 w-full max-w-[1600px] mx-auto flex flex-col min-h-full">
-            {currentView === 'nova_solicitacao' && <ProtectedRoute requiredPermission="nova_solicitacao"><ClientSolicitationView user={user} logout={logout} setToast={setToast} initialData={reusedData} onClearInitialData={() => setReusedData(null)} /></ProtectedRoute>}
-            {currentView === 'lims' && <ProtectedRoute requiredPermission="lims"><GerenciadorLims /></ProtectedRoute>}
-            {currentView === 'acompanhamento' && <ProtectedRoute requiredPermission="acompanhamento"><SolicitationsManagementView setToast={setToast} /></ProtectedRoute>}
-            {currentView === 'meus_acompanhamentos' && <ProtectedRoute requiredPermission="meus_acompanhamentos"><div className="p-4 md:p-6 lg:p-8 w-full"><ClientTrackingView user={user} baths={baths} setToast={setToast} onReuse={handleReuseSolicitation} /></div></ProtectedRoute>}
-            {currentView === 'baterias' && <ProtectedRoute requiredPermission="baterias"><div className="p-4 md:p-6 lg:p-8 w-full"><ClientBatteryTracking user={user} baths={baths} experienceOwners={experienceOwners} /></div></ProtectedRoute>}
-            {currentView === 'calendar' && <ProtectedRoute requiredPermission="calendar"><div className="p-4 md:p-6 lg:p-8 w-full flex flex-col"><CircuitCalendarView baths={baths} searchTerm={""} /></div></ProtectedRoute>}
-            {currentView === 'history' && <ProtectedRoute requiredPermission="history"><div className="p-4 md:p-6 lg:p-8 w-full"><HistoryView logs={logs} setToast={setToast} /></div></ProtectedRoute>}
-            {currentView === 'configuracoes' && <ProtectedRoute requiredPermission="configuracoes"><div className="p-4 md:p-6 lg:p-8 w-full"><LabSettingsView setToast={setToast} /></div></ProtectedRoute>}
-            {currentView === 'users' && <ProtectedRoute requiredPermission="users"><div className="p-4 md:p-6 lg:p-8 w-full"><UserManagementView setToast={setToast} /></div></ProtectedRoute>}
-            {currentView === 'oee' && <ProtectedRoute requiredPermission="oee"><div className="p-4 md:p-6 lg:p-8 w-full"><OEEDashboardView setToast={setToast} /></div></ProtectedRoute>}
-
-
+        {/* CONTROLE MESTRE DE SCROLL: Se for Dashboard, trava. Se não, permite o scroll no <main>! */}
+        <main className={`flex-1 flex flex-col relative w-full bg-slate-50 dark:bg-transparent min-h-0 ${currentView === 'dashboard' ? 'overflow-hidden' : 'overflow-y-auto no-scrollbar'}`}>
+          <div className={`flex-1 w-full max-w-[1600px] mx-auto flex flex-col ${currentView === 'dashboard' ? 'h-full overflow-hidden min-h-0' : 'min-h-full'}`}>
+            
             {currentView === 'dashboard' && (
               <ProtectedRoute requiredPermission="dashboard">
-                <div className="p-4 md:p-6 lg:p-8 w-full flex flex-col">
+                <div className="p-4 lg:p-6 h-full w-full flex flex-col overflow-hidden min-h-0">
                   <DashboardView
                     baths={baths} experienceOwners={experienceOwners} onRefreshData={fetchData}
                     onAddCircuit={(bid) => { setTargetBath(bid); setIsAddOpen(true); }}
@@ -455,17 +428,30 @@ const MainApp = () => {
                 </div>
               </ProtectedRoute>
             )}
+            
+            {currentView === 'nova_solicitacao' && <ProtectedRoute requiredPermission="nova_solicitacao"><div className="w-full h-full"><ClientSolicitationView user={user} logout={logout} setToast={setToast} initialData={reusedData} onClearInitialData={() => setReusedData(null)} /></div></ProtectedRoute>}
+            {currentView === 'lims' && <ProtectedRoute requiredPermission="lims"><div className="w-full h-full"><GerenciadorLims /></div></ProtectedRoute>}
+            {currentView === 'acompanhamento' && <ProtectedRoute requiredPermission="acompanhamento"><div className="w-full h-full"><SolicitationsManagementView setToast={setToast} /></div></ProtectedRoute>}
+            {currentView === 'meus_acompanhamentos' && <ProtectedRoute requiredPermission="meus_acompanhamentos"><div className="p-4 lg:p-6 w-full"><ClientTrackingView user={user} baths={baths} setToast={setToast} onReuse={handleReuseSolicitation} /></div></ProtectedRoute>}
+            {currentView === 'baterias' && <ProtectedRoute requiredPermission="baterias"><div className="p-4 lg:p-6 w-full"><ClientBatteryTracking user={user} baths={baths} experienceOwners={experienceOwners} /></div></ProtectedRoute>}
+            {currentView === 'calendar' && <ProtectedRoute requiredPermission="calendar"><div className="p-4 lg:p-6 w-full flex flex-col"><CircuitCalendarView baths={baths} searchTerm={""} /></div></ProtectedRoute>}
+            {currentView === 'history' && <ProtectedRoute requiredPermission="history"><div className="p-4 lg:p-6 w-full"><HistoryView logs={logs} setToast={setToast} /></div></ProtectedRoute>}
+            {currentView === 'configuracoes' && <ProtectedRoute requiredPermission="configuracoes"><div className="p-4 lg:p-6 w-full"><LabSettingsView setToast={setToast} /></div></ProtectedRoute>}
+            {currentView === 'users' && <ProtectedRoute requiredPermission="users"><div className="p-4 lg:p-6 w-full"><UserManagementView setToast={setToast} /></div></ProtectedRoute>}
+            {currentView === 'oee' && <ProtectedRoute requiredPermission="oee"><div className="p-4 lg:p-6 w-full"><OEEDashboardView setToast={setToast} /></div></ProtectedRoute>}
+            
           </div>
-
-          <footer className="w-full text-center py-6 border-t border-slate-200 dark:border-white/5 mt-auto bg-slate-50 dark:bg-transparent shrink-0">
-            <p className="text-xs text-slate-500 dark:text-slate-500 font-medium">
-              Desenvolvido por João Victor Gomes Meneses © 2026 • Sistema de gestão LabFísco v3.0
-            </p>
-          </footer>
+          
+          {currentView !== 'dashboard' && (
+            <footer className="w-full text-center py-6 border-t border-slate-200 dark:border-white/5 mt-auto bg-slate-50 dark:bg-transparent shrink-0">
+              <p className="text-xs text-slate-500 dark:text-slate-500 font-medium">
+                Desenvolvido por João Victor Gomes Meneses © 2026 • LabFísico Enterprise
+              </p>
+            </footer>
+          )}
         </main>
       </div>
 
-      {/* PALETA DE COMANDOS */}
       {isCommandOpen && (
         <div className="fixed inset-0 z-[100] bg-slate-900/40 dark:bg-[#020617]/80 dark:backdrop-blur-md flex items-start justify-center pt-[15vh] p-4 animate-in fade-in duration-200" onClick={() => setIsCommandOpen(false)}>
           <div className="bg-white dark:bg-white/[0.03] dark:backdrop-blur-2xl rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col border border-slate-200 dark:border-white/10" onClick={(e) => e.stopPropagation()}>
@@ -481,7 +467,7 @@ const MainApp = () => {
               />
               <kbd className="bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/20 text-slate-400 dark:text-slate-300 px-2 py-1 rounded text-xs font-bold uppercase ml-4">ESC</kbd>
             </div>
-            <div className="max-h-[50vh] overflow-y-auto custom-scrollbar p-2">
+            <div className="max-h-[50vh] overflow-y-auto no-scrollbar p-2">
               {commandActions.length > 0 ? (
                 commandActions.map((action) => (
                   <button key={action.id} onClick={() => handleCommandSelect(action.id)} className="w-full flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-lg transition-colors group text-left focus:outline-none dark:focus:bg-white/5">
@@ -502,7 +488,6 @@ const MainApp = () => {
         </div>
       )}
 
-      {/* MODALS GLOBAIS */}
       <ImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImportSuccess={(db, m) => { setBaths(db.baths); setLogs(db.logs); setToast({ message: m || 'Sincronizado!', type: 'success' }); }} protocols={protocols} onRegisterProtocol={handleAddProtocol} />
       <AddCircuitModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onConfirm={addCircuit} bathId={targetBath} baths={baths} setToast={setToast} />
       <AddBathModal isOpen={isAddBathOpen} onClose={() => setIsAddBathOpen(false)} onConfirm={addBath} />

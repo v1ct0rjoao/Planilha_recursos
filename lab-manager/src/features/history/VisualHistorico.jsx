@@ -25,7 +25,7 @@ const ReportKPICard = ({ title, value, icon: Icon, color }) => {
   return (
     <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-start justify-between transition-colors">
       <div>
-        <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 transition-colors">{title}</p>
+        <p className="text-[0.6875rem] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 transition-colors">{title}</p>
         <h3 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight transition-colors">{value}%</h3>
       </div>
       <div className={`p-3 rounded-lg border transition-colors ${theme}`}>
@@ -51,23 +51,23 @@ const DetailedStats = ({ data }) => {
           </h4>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-4 rounded-lg flex flex-col transition-colors">
-              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Média UP</span>
+              <span className="text-[0.625rem] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Média UP</span>
               <span className="text-xl font-black text-slate-800 dark:text-slate-200 mt-1">{data.up_dias || '-'}</span>
             </div>
             <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-4 rounded-lg flex flex-col transition-colors">
-              <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest">Média PQ</span>
+              <span className="text-[0.625rem] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest">Média PQ</span>
               <span className="text-xl font-black text-slate-800 dark:text-slate-200 mt-1">{data.pq_dias || '-'}</span>
             </div>
             <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-4 rounded-lg flex flex-col transition-colors">
-              <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest">Média PP</span>
+              <span className="text-[0.625rem] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest">Média PP</span>
               <span className="text-xl font-black text-slate-800 dark:text-slate-200 mt-1">{data.pp_dias || '-'}</span>
             </div>
             <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-4 rounded-lg flex flex-col transition-colors">
-              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Média SD</span>
+              <span className="text-[0.625rem] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Média SD</span>
               <span className="text-xl font-black text-slate-800 dark:text-slate-200 mt-1">{data.sd_dias || '-'}</span>
             </div>
           </div>
-          <div className="mt-4 flex flex-col sm:flex-row justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors">
+          <div className="mt-4 flex flex-col sm:flex-row justify-between gap-2 text-[0.6875rem] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors">
             <span>Tempo Disp. Médio: <strong className="text-slate-800 dark:text-slate-200">{data.tempo_disp_calc || '-'}</strong></span>
             <span>Tempo Real Médio: <strong className="text-blue-600 dark:text-blue-400">{data.tempo_real_calc || '-'}</strong></span>
           </div>
@@ -79,20 +79,20 @@ const DetailedStats = ({ data }) => {
           </h4>
           <div className="space-y-3">
             <div className="flex justify-between items-center p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">Ensaios Solicitados</span>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">Ensaios Solicitados</span>
               <span className="font-black text-slate-800 dark:text-slate-200">{data.ensaios_solic || 0}</span>
             </div>
             <div className="flex justify-between items-center p-3.5 bg-blue-50/50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800/50 transition-colors">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-blue-700 dark:text-blue-400">Ensaios Executados</span>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-widest text-blue-700 dark:text-blue-400">Ensaios Executados</span>
               <span className="font-black text-blue-700 dark:text-blue-400">{data.ensaios_exec || 0}</span>
             </div>
             <div className="grid grid-cols-2 gap-3 mt-3">
               <div className="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1">Relatórios Emitidos</span>
+                <span className="text-[0.625rem] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1">Relatórios Emitidos</span>
                 <span className="font-black text-slate-800 dark:text-slate-200">{data.relatorios_emit || 0}</span>
               </div>
               <div className="p-3.5 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-lg border border-emerald-200 dark:border-emerald-800/50 transition-colors">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 block mb-1">Relatórios no Prazo</span>
+                <span className="text-[0.625rem] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 block mb-1">Relatórios no Prazo</span>
                 <span className="font-black text-emerald-700 dark:text-emerald-400">{data.relatorios_prazo || 0}</span>
               </div>
             </div>
@@ -118,18 +118,18 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-colors">
       <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-6 sticky left-0 transition-colors">
-        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-[11px] font-bold uppercase tracking-widest">
+        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-[0.6875rem] font-bold uppercase tracking-widest">
           <Info size={14} /> Legenda Visual:
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5"><span className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-emerald-600">UP</span><span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest">Uso Prog.</span></div>
-          <div className="flex items-center gap-1.5"><span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-rose-600">PQ</span><span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest">Quebra</span></div>
-          <div className="flex items-center gap-1.5"><span className="bg-purple-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-purple-700">PP</span><span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest">Planejada</span></div>
-          <div className="flex items-center gap-1.5"><span className="bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-amber-500">SD</span><span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest">Sem Demanda</span></div>
+          <div className="flex items-center gap-1.5"><span className="bg-emerald-500 text-white text-[0.625rem] font-bold px-1.5 py-0.5 rounded shadow-sm border border-emerald-600">UP</span><span className="text-[0.625rem] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest">Uso Prog.</span></div>
+          <div className="flex items-center gap-1.5"><span className="bg-rose-500 text-white text-[0.625rem] font-bold px-1.5 py-0.5 rounded shadow-sm border border-rose-600">PQ</span><span className="text-[0.625rem] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest">Quebra</span></div>
+          <div className="flex items-center gap-1.5"><span className="bg-purple-600 text-white text-[0.625rem] font-bold px-1.5 py-0.5 rounded shadow-sm border border-purple-700">PP</span><span className="text-[0.625rem] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest">Planejada</span></div>
+          <div className="flex items-center gap-1.5"><span className="bg-amber-400 text-white text-[0.625rem] font-bold px-1.5 py-0.5 rounded shadow-sm border border-amber-500">SD</span><span className="text-[0.625rem] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest">Sem Demanda</span></div>
         </div>
       </div>
 
-      <div className="overflow-x-auto max-h-[600px] custom-scrollbar bg-white dark:bg-slate-900 transition-colors">
+      <div className="overflow-x-auto max-h-[37.5rem] custom-scrollbar bg-white dark:bg-slate-900 transition-colors">
         <table className="w-full text-sm text-left border-collapse">
           <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase tracking-wider sticky top-0 z-20 shadow-sm transition-colors">
             <tr>
@@ -137,7 +137,7 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
               <th className="px-2 py-3 border-b border-slate-200 dark:border-slate-700">
                 <div className="flex gap-0.5">
                   {Array.from({ length: daysInMonth }, (_, i) => (
-                    <span key={i} className="w-[22px] text-center text-[10px] font-bold text-slate-400 dark:text-slate-500 block">{i + 1}</span>
+                    <span key={i} className="w-[1.375rem] text-center text-[0.625rem] font-bold text-slate-400 dark:text-slate-500 block">{i + 1}</span>
                   ))}
                 </div>
               </th>
@@ -146,7 +146,7 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {gridData.map((row, idx) => (
               <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                <td className="px-4 py-2 font-mono font-bold text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] text-[11px] transition-colors">
+                <td className="px-4 py-2 font-mono font-bold text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] text-[0.6875rem] transition-colors">
                   {row.id === 'iDevice' || row.raw_id === 'iDevice' ? (
                     <span className="text-blue-600 dark:text-blue-400">iDevice</span>
                   ) : (
@@ -160,14 +160,14 @@ const ReadOnlyGrid = ({ gridData, daysInMonth }) => {
                     {row.days && row.days.map((status, i) => (
                       <div
                         key={i}
-                        className={`w-[22px] h-[22px] flex items-center justify-center text-[8px] font-bold border rounded shrink-0 cursor-default ${getColor(status)}`}
+                        className={`w-[1.375rem] h-[1.375rem] flex items-center justify-center text-[0.5rem] font-bold border rounded shrink-0 cursor-default ${getColor(status)}`}
                         title={`Dia ${i + 1}: ${status || 'Vazio'}`}
                       >
                         {status}
                       </div>
                     ))}
                     {Array.from({ length: Math.max(0, daysInMonth - (row.days?.length || 0)) }).map((_, i) => (
-                      <div key={`empty-${i}`} className="w-[22px] h-[22px] border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded transition-colors" />
+                      <div key={`empty-${i}`} className="w-[1.375rem] h-[1.375rem] border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded transition-colors" />
                     ))}
                   </div>
                 </td>
@@ -386,11 +386,11 @@ const HistoryView = ({ setToast }) => {
             <button onClick={handleBack} className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500 dark:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50">
               <ArrowLeft size={20} />
             </button>
-            <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-800 transition-colors"></div>
+            <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 transition-colors"></div>
             <div>
               <h1 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-3 transition-colors tracking-tight">
                 Relatório Mensal de OEE
-                <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-[10px] px-2.5 py-1 rounded-md font-bold transition-colors uppercase tracking-widest">FECHADO</span>
+                <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-[0.625rem] px-2.5 py-1 rounded-md font-bold transition-colors uppercase tracking-widest">FECHADO</span>
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1 transition-colors">
                 Referência: <strong className="text-slate-700 dark:text-slate-300">{selectedMonth.mes}/{selectedMonth.ano}</strong> • Gerado em: {new Date(selectedMonth.saved_at).toLocaleDateString()}
@@ -447,7 +447,7 @@ const HistoryView = ({ setToast }) => {
           <div className="space-y-4">
             <button 
               onClick={() => setShowGrid(!showGrid)}
-              className="flex items-center gap-2 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 font-bold text-[11px] uppercase tracking-widest transition-colors px-2 py-1 outline-none"
+              className="flex items-center gap-2 text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 font-bold text-[0.6875rem] uppercase tracking-widest transition-colors px-2 py-1 outline-none"
             >
               {showGrid ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               {showGrid ? "Ocultar Matriz de Planejamento" : "Visualizar Matriz de Planejamento (Grid)" }
@@ -602,36 +602,36 @@ const HistoryView = ({ setToast }) => {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                  <div>
-                    <h3 className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 dark:border-slate-800 pb-2 transition-colors">Referência</h3>
+                    <h3 className="text-[0.6875rem] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 dark:border-slate-800 pb-2 transition-colors">Referência</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block">Mês (1-12)</label>
+                        <label className="text-[0.6875rem] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block">Mês (1-12)</label>
                         <input required type="number" min="1" max="12" name="mes" value={manualForm.mes} onChange={handleManualFormChange} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20 outline-none transition-colors" />
                       </div>
                       <div>
-                        <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block">Ano</label>
+                        <label className="text-[0.6875rem] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block">Ano</label>
                         <input required type="number" min="2000" name="ano" value={manualForm.ano} onChange={handleManualFormChange} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20 outline-none transition-colors" />
                       </div>
                     </div>
                  </div>
 
                  <div className="col-span-2">
-                    <h3 className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 dark:border-slate-800 pb-2 transition-colors">Metas Operacionais</h3>
+                    <h3 className="text-[0.6875rem] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 dark:border-slate-800 pb-2 transition-colors">Metas Operacionais</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wide">Ens. Solicitados</label>
+                        <label className="text-[0.625rem] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wide">Ens. Solicitados</label>
                         <input required={inputMode==='grid'} type="number" name="ensaios_solic" value={manualForm.ensaios_solic} onChange={handleManualFormChange} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20 outline-none transition-colors" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1.5 block uppercase tracking-wide">Ens. Executados</label>
+                        <label className="text-[0.625rem] font-bold text-blue-600 dark:text-blue-400 mb-1.5 block uppercase tracking-wide">Ens. Executados</label>
                         <input required={inputMode==='grid'} type="number" name="ensaios_exec" value={manualForm.ensaios_exec} onChange={handleManualFormChange} className="w-full bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-700 text-slate-800 dark:text-white rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20 outline-none transition-colors" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wide">Rel. Emitidos</label>
+                        <label className="text-[0.625rem] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wide">Rel. Emitidos</label>
                         <input required={inputMode==='grid'} type="number" name="relatorios_emit" value={manualForm.relatorios_emit} onChange={handleManualFormChange} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20 outline-none transition-colors" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mb-1.5 block uppercase tracking-wide">Rel. no Prazo</label>
+                        <label className="text-[0.625rem] font-bold text-emerald-600 dark:text-emerald-400 mb-1.5 block uppercase tracking-wide">Rel. no Prazo</label>
                         <input required={inputMode==='grid'} type="number" name="relatorios_prazo" value={manualForm.relatorios_prazo} onChange={handleManualFormChange} className="w-full bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-white rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:border-emerald-500 focus:ring-emerald-500/20 outline-none transition-colors" />
                       </div>
                     </div>
@@ -639,8 +639,8 @@ const HistoryView = ({ setToast }) => {
               </div>
 
               {inputMode === 'grid' ? (
-                <div className="flex-1 min-h-[250px] flex flex-col animate-in fade-in duration-300">
-                  <h3 className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 dark:border-slate-800 pb-2 transition-colors">Área de Transferência do Excel</h3>
+                <div className="flex-1 min-h-[15.625rem] flex flex-col animate-in fade-in duration-300">
+                  <h3 className="text-[0.6875rem] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 dark:border-slate-800 pb-2 transition-colors">Área de Transferência do Excel</h3>
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-3 transition-colors">Cole as linhas e colunas. Células em branco da semana recebem <strong>SD</strong>. Sáb/Dom recebem <strong>PP</strong>.</p>
                   <textarea
                       required
@@ -648,56 +648,56 @@ const HistoryView = ({ setToast }) => {
                       value={manualForm.grid_text}
                       onChange={handleManualFormChange}
                       placeholder="Ex: 418&#9;PP&#9;UP&#9;UP..."
-                      className="w-full flex-1 p-5 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all resize-none font-mono text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed custom-scrollbar whitespace-pre shadow-inner"
+                      className="w-full flex-1 p-5 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all resize-none font-mono text-[0.6875rem] text-slate-700 dark:text-slate-300 leading-relaxed custom-scrollbar whitespace-pre shadow-inner"
                   />
                 </div>
               ) : (
                 <div className="space-y-8 animate-in fade-in duration-300">
                   <div>
-                    <h3 className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 dark:border-slate-800 pb-2 transition-colors">Indicadores Principais (%)</h3>
+                    <h3 className="text-[0.6875rem] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 dark:border-slate-800 pb-2 transition-colors">Indicadores Principais (%)</h3>
                     <div className="grid grid-cols-3 gap-6">
                       <div>
-                        <label className="text-[11px] font-bold text-orange-600 dark:text-orange-400 mb-1.5 block uppercase tracking-wider">Disponibilidade</label>
+                        <label className="text-[0.6875rem] font-bold text-orange-600 dark:text-orange-400 mb-1.5 block uppercase tracking-wider">Disponibilidade</label>
                         <input required type="number" step="0.01" min="0" max="100" name="availability" value={manualForm.availability} onChange={handleManualFormChange} className="w-full bg-white dark:bg-slate-900 border border-orange-300 dark:border-orange-700 text-slate-800 dark:text-white rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:border-orange-500 focus:ring-orange-500/20 outline-none transition-colors shadow-sm" />
                       </div>
                       <div>
-                        <label className="text-[11px] font-bold text-purple-600 dark:text-purple-400 mb-1.5 block uppercase tracking-wider">Performance</label>
+                        <label className="text-[0.6875rem] font-bold text-purple-600 dark:text-purple-400 mb-1.5 block uppercase tracking-wider">Performance</label>
                         <input required type="number" step="0.01" min="0" max="100" name="performance" value={manualForm.performance} onChange={handleManualFormChange} className="w-full bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 text-slate-800 dark:text-white rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:border-purple-500 focus:ring-purple-500/20 outline-none transition-colors shadow-sm" />
                       </div>
                       <div>
-                        <label className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mb-1.5 block uppercase tracking-wider">Qualidade</label>
+                        <label className="text-[0.6875rem] font-bold text-emerald-600 dark:text-emerald-400 mb-1.5 block uppercase tracking-wider">Qualidade</label>
                         <input required type="number" step="0.01" min="0" max="100" name="quality" value={manualForm.quality} onChange={handleManualFormChange} className="w-full bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-white rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:border-emerald-500 focus:ring-emerald-500/20 outline-none transition-colors shadow-sm" />
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 dark:border-slate-800 pb-2 transition-colors">Médias de Dias e Tempos (Opcional)</h3>
+                    <h3 className="text-[0.6875rem] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 border-b border-slate-100 dark:border-slate-800 pb-2 transition-colors">Médias de Dias e Tempos (Opcional)</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wider">Média UP</label>
+                        <label className="text-[0.625rem] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wider">Média UP</label>
                         <input type="number" step="0.1" name="up_dias" value={manualForm.up_dias} onChange={handleManualFormChange} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:border-blue-500 outline-none transition-colors" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wider">Média PQ</label>
+                        <label className="text-[0.625rem] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wider">Média PQ</label>
                         <input type="number" step="0.1" name="pq_dias" value={manualForm.pq_dias} onChange={handleManualFormChange} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:border-blue-500 outline-none transition-colors" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wider">Média PP</label>
+                        <label className="text-[0.625rem] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wider">Média PP</label>
                         <input type="number" step="0.1" name="pp_dias" value={manualForm.pp_dias} onChange={handleManualFormChange} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:border-blue-500 outline-none transition-colors" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wider">Média SD</label>
+                        <label className="text-[0.625rem] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wider">Média SD</label>
                         <input type="number" step="0.1" name="sd_dias" value={manualForm.sd_dias} onChange={handleManualFormChange} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:border-blue-500 outline-none transition-colors" />
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wider">Tempo Disp. (Ex: 240.5)</label>
+                        <label className="text-[0.625rem] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wider">Tempo Disp. (Ex: 240.5)</label>
                         <input type="number" step="0.1" name="tempo_disp_calc" value={manualForm.tempo_disp_calc} onChange={handleManualFormChange} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:border-blue-500 outline-none transition-colors" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wider">Tempo Real (Ex: 200)</label>
+                        <label className="text-[0.625rem] font-bold text-slate-600 dark:text-slate-400 mb-1.5 block uppercase tracking-wider">Tempo Real (Ex: 200)</label>
                         <input type="number" step="0.1" name="tempo_real_calc" value={manualForm.tempo_real_calc} onChange={handleManualFormChange} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:border-blue-500 outline-none transition-colors" />
                       </div>
                     </div>
@@ -722,7 +722,7 @@ const HistoryView = ({ setToast }) => {
       <div className="mb-6 flex flex-wrap justify-between items-center gap-4 transition-colors">
         <div className="flex items-center gap-4">
           <div className="flex gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
-            <button onClick={() => setViewMode('chart')} className={`px-5 py-2 rounded-md text-[13px] font-bold transition-all flex items-center gap-2 focus:outline-none ${viewMode === 'chart' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+            <button onClick={() => setViewMode('chart')} className={`px-5 py-2 rounded-md text-[0.8125rem] font-bold transition-all flex items-center gap-2 focus:outline-none ${viewMode === 'chart' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>
               <BarChart2 size={16} /> Gráficos de Evolução
             </button>
           </div>
@@ -743,7 +743,7 @@ const HistoryView = ({ setToast }) => {
                 >
                   Média Anual
                 </button>
-                <div className="w-[1px] bg-slate-200 dark:bg-slate-700 mx-2 transition-colors"></div>
+                <div className="w-px bg-slate-200 dark:bg-slate-700 mx-2 transition-colors"></div>
                 {availableYears.map(year => (
                   <button 
                     key={year}
@@ -767,7 +767,7 @@ const HistoryView = ({ setToast }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-3 h-[480px] bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8 relative transition-colors">
+          <div className="lg:col-span-3 h-[30rem] bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8 relative transition-colors">
               <h3 className="font-black text-slate-800 dark:text-white mb-6 text-sm tracking-widest uppercase flex items-center gap-3 absolute top-6 left-6 z-10 transition-colors">
                 <div className="w-8 h-8 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg flex items-center justify-center">
                   <TrendingUp size={16} /> 
@@ -853,10 +853,10 @@ const HistoryView = ({ setToast }) => {
             <div className="lg:col-span-1 flex flex-col gap-6">
               
               <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 flex flex-col items-center relative shadow-sm transition-colors flex-1">
-                <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 z-10 flex items-center gap-2 transition-colors">
+                <span className="text-[0.6875rem] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 z-10 flex items-center gap-2 transition-colors">
                   Média OEE {selectedYear === 'Todos' ? '(Geral)' : ''}
                 </span>
-                <div className="w-full flex-1 relative min-h-[120px]">
+                <div className="w-full flex-1 relative min-h-[7.5rem]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -875,21 +875,21 @@ const HistoryView = ({ setToast }) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4 h-[120px]">
+              <div className="grid grid-cols-3 gap-4 h-[7.5rem]">
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex flex-col items-center justify-center shadow-sm transition-colors text-center">
                   <Timer size={16} className="text-orange-500 mb-2"/>
                   <span className="text-xl font-black text-orange-600 dark:text-orange-400">{medias.availability}%</span>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1">Disp.</span>
+                  <span className="text-[0.5625rem] font-bold text-slate-400 uppercase tracking-wider mt-1">Disp.</span>
                 </div>
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex flex-col items-center justify-center shadow-sm transition-colors text-center">
                   <Zap size={16} className="text-purple-500 mb-2"/>
                   <span className="text-xl font-black text-purple-600 dark:text-purple-400">{medias.performance}%</span>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1">Perf.</span>
+                  <span className="text-[0.5625rem] font-bold text-slate-400 uppercase tracking-wider mt-1">Perf.</span>
                 </div>
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex flex-col items-center justify-center shadow-sm transition-colors text-center">
                   <CheckCircle2 size={16} className="text-emerald-500 mb-2"/>
                   <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{medias.quality}%</span>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1">Qual.</span>
+                  <span className="text-[0.5625rem] font-bold text-slate-400 uppercase tracking-wider mt-1">Qual.</span>
                 </div>
               </div>
             </div>
@@ -918,7 +918,7 @@ const HistoryView = ({ setToast }) => {
                         <h4 className="font-black text-xl text-slate-800 dark:text-white flex items-center gap-2 capitalize transition-colors tracking-tight">
                           {meses[parseInt(item.mes, 10) - 1]} / {item.ano}
                         </h4>
-                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-widest uppercase mt-1.5 transition-colors">
+                        <p className="text-[0.625rem] font-bold text-slate-400 dark:text-slate-500 tracking-widest uppercase mt-1.5 transition-colors">
                           {item.saved_at ? new Date(item.saved_at).toLocaleDateString() : 'Registro Manual'}
                         </p>
                       </div>
@@ -937,24 +937,24 @@ const HistoryView = ({ setToast }) => {
                         <Activity size={28} />
                       </div>
                       <div>
-                        <span className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest transition-colors mb-1">OEE Global</span>
+                        <span className="block text-[0.625rem] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest transition-colors mb-1">OEE Global</span>
                         <span className="text-3xl font-black text-slate-800 dark:text-white transition-colors tracking-tight">{item.kpi.oee}%</span>
                       </div>
                     </div>
 
                     <div className="mt-auto pt-5 border-t border-slate-100 dark:border-slate-800 flex justify-between px-2 transition-colors">
                       <div className="flex flex-col items-center">
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest transition-colors mb-1">Disp.</span>
+                        <span className="text-[0.625rem] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest transition-colors mb-1">Disp.</span>
                         <span className="text-sm font-black text-orange-600 dark:text-orange-400 transition-colors">{item.kpi.availability}%</span>
                       </div>
-                      <div className="w-[1px] bg-slate-100 dark:bg-slate-800"></div>
+                      <div className="w-px bg-slate-100 dark:bg-slate-800"></div>
                       <div className="flex flex-col items-center transition-colors">
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest transition-colors mb-1">Perf.</span>
+                        <span className="text-[0.625rem] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest transition-colors mb-1">Perf.</span>
                         <span className="text-sm font-black text-purple-600 dark:text-purple-400 transition-colors">{item.kpi.performance}%</span>
                       </div>
-                      <div className="w-[1px] bg-slate-100 dark:bg-slate-800"></div>
+                      <div className="w-px bg-slate-100 dark:bg-slate-800"></div>
                       <div className="flex flex-col items-center">
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest transition-colors mb-1">Qual.</span>
+                        <span className="text-[0.625rem] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest transition-colors mb-1">Qual.</span>
                         <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 transition-colors">{item.kpi.quality}%</span>
                       </div>
                     </div>
