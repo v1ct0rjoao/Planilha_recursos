@@ -89,14 +89,16 @@ const LoginPage = () => {
     );
 
     return (
-      <div className="max-w-5xl mx-auto flex flex-col gap-8 pb-20">
+      <div className="max-w-5xl mx-auto flex flex-col gap-10 pb-20">
         
         <div className="flex flex-col items-center">
+         
           <div className="bg-[#00205C]/40 border border-[#006CB0]/40 p-6 rounded-3xl backdrop-blur-md flex flex-col sm:flex-row items-center gap-6 w-full max-w-2xl shadow-[0_0_40px_rgba(0,32,92,0.3)] relative overflow-hidden group">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
             <img 
-              src={supervisor.imgUrl} alt={supervisor.nome} 
-              className="w-24 h-24 rounded-full border-4 border-[#FFBF3C] object-cover shadow-lg shrink-0" 
+              src={supervisor.imgUrl} 
+              alt={supervisor.nome} 
+              className="w-24 h-24 rounded-full border-4 border-[#FFBF3C] object-cover shadow-lg" 
               onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${supervisor.nome}&background=0f172a&color=fff` }} 
             />
             <div className="text-center sm:text-left">
@@ -114,7 +116,7 @@ const LoginPage = () => {
                 <div key={staff.id} className="bg-white/5 border border-white/10 rounded-2xl p-3 pr-5 flex items-center gap-4 hover:bg-white/10 transition-colors">
                   <img 
                     src={staff.imgUrl} alt={staff.nome} 
-                    className="w-11 h-11 rounded-full border-2 border-slate-600 object-cover shrink-0" 
+                    className="w-11 h-11 rounded-full border-2 border-slate-600 object-cover" 
                     onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${staff.nome}&background=0f172a&color=fff` }} 
                   />
                   <div>
@@ -128,7 +130,7 @@ const LoginPage = () => {
         )}
 
         {leaders.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mt-6">
             {leaders.map(leader => {
               const teamMembers = getDeepTeam(leader.id);
               return (
@@ -137,11 +139,11 @@ const LoginPage = () => {
                   <div className="flex items-center gap-5 pb-5 border-b border-white/10 mb-5">
                     <img 
                       src={leader.imgUrl} alt={leader.nome} 
-                      className="w-16 h-16 rounded-full border-2 border-[#006CB0] object-cover shadow-md shrink-0" 
+                      className="w-16 h-16 rounded-full border-2 border-[#006CB0] object-cover shadow-md" 
                       onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${leader.nome}&background=0f172a&color=fff` }} 
                     />
                     <div>
-                      <span className="text-[#5D96C9] text-[9px] font-bold uppercase tracking-widest block mb-1">Liderança de Célula</span>
+                      <span className="text-[#5D96C9] text-[9px] font-bold uppercase tracking-widest block mb-1">Liderança</span>
                       <h4 className="text-lg font-bold text-white leading-tight">{leader.nome}</h4>
                       <p className="text-slate-400 text-xs">{leader.cargo}</p>
                     </div>
@@ -152,7 +154,7 @@ const LoginPage = () => {
                       <div key={member.id} className="flex items-center gap-3 bg-white/5 rounded-xl p-2.5 hover:bg-white/10 transition-colors group">
                         <img 
                           src={member.imgUrl} alt={member.nome} 
-                          className="w-8 h-8 rounded-full border border-slate-600 group-hover:border-[#FFBF3C] transition-colors object-cover shrink-0" 
+                          className="w-8 h-8 rounded-full border border-slate-600 group-hover:border-[#FFBF3C] transition-colors object-cover" 
                           onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${member.nome}&background=0f172a&color=fff` }} 
                         />
                         <div className="overflow-hidden">
@@ -173,94 +175,47 @@ const LoginPage = () => {
   };
 
   return (
-    /* Mudamos de h-screen para min-h-screen. O overflow-y fica livre para criar scroll se a tela for pequena */
-    <div className="min-h-screen w-full bg-[#000a1a] text-white p-4 sm:p-8 flex items-center justify-center relative overflow-x-hidden font-sans selection:bg-[#006CB0]">
+
+    <div className="min-h-screen bg-[#000a1a] text-white p-4 md:p-8 flex items-center justify-center relative overflow-hidden font-sans selection:bg-[#006CB0]">
       
-      {/* Efeitos de Fundo da Moura */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[#00205C] rounded-full blur-[150px] opacity-40 pointer-events-none"></div>
+     
+      <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] bg-[#00205C] rounded-full blur-[150px] opacity-40 pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-[#006CB0] rounded-full blur-[150px] opacity-20 pointer-events-none"></div>
       <div className="absolute inset-0 opacity-[0.02] bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none"></div>
 
-      {/* Grid Responsivo Inteligente: 1 coluna no celular, 12 colunas no desktop */}
-      <div className="w-full max-w-[1500px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10 py-4">
+      <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
   
-        {/* LADO ESQUERDO: Dashboard Info (Ocupa 7 colunas no Desktop) */}
-        <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-6">
-          
-          <div className="bg-white/[0.03] border border-white/10 backdrop-blur-md rounded-3xl p-8 xl:p-12 shadow-2xl h-full flex flex-col justify-center">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-14 h-14 bg-gradient-to-br from-[#00205C] to-[#006CB0] rounded-2xl flex items-center justify-center shadow-lg border border-[#006CB0]/40 shrink-0">
-                <i className="fa-solid fa-bolt text-2xl text-[#FFBF3C]"></i>
-              </div>
-              <div>
-                <h1 className="text-2xl font-black tracking-tight text-white">CLM Moura</h1>
-                <p className="text-[#FFBF3C] text-xs font-bold uppercase tracking-widest mt-1">Laboratório Físico</p>
-              </div>
+        <div className="lg:col-span-8 bg-white/[0.03] border border-white/10 backdrop-blur-md rounded-3xl p-8 lg:p-12 flex flex-col justify-between shadow-2xl">
+          <div className="flex items-center gap-4 mb-10">
+            {/* Ícone com degradê institucional */}
+            <div className="w-14 h-14 bg-gradient-to-br from-[#00205C] to-[#006CB0] rounded-2xl flex items-center justify-center shadow-lg border border-[#006CB0]/40">
+              <i className="fa-solid fa-bolt text-2xl text-[#FFBF3C]"></i>
             </div>
-            
             <div>
-              <h2 className="text-3xl sm:text-4xl xl:text-5xl font-semibold tracking-tight leading-[1.15] mb-6">
-                Plataforma de Gestão<br/>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFBF3C] to-[#FFE082]">LabManager.</span>
-              </h2>
-              <p className="text-slate-300 text-base sm:text-lg max-w-2xl leading-relaxed mb-6">
-                {config.sobre}
-              </p>
-              {config.principio && (
-                <div className="inline-flex items-center gap-2 bg-[#006CB0]/20 border border-[#006CB0]/30 text-[#8EB1D8] px-4 py-2 rounded-full text-sm font-medium">
-                  <i className="fa-solid fa-leaf"></i> {config.principio}
-                </div>
-              )}
+              <h1 className="text-2xl font-black tracking-tight text-white">CLM Moura</h1>
+              <p className="text-[#FFBF3C] text-xs font-bold uppercase tracking-widest mt-1">Laboratório Físico</p>
             </div>
           </div>
-
-          {/* Os dois cards de baixo divididos lado a lado no desktop (Acreditações e Equipe) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors rounded-3xl p-6 shadow-xl">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <i className="fa-solid fa-award"></i> Acreditações
-              </h3>
-              <div className="space-y-3">
-                {config.acreditacoes?.slice(0, 3).map(cert => (
-                  <div key={cert.id} className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-[#8EB1D8]">
-                      <i className={`fa-solid ${cert.icon} text-sm`}></i>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-white text-sm font-medium truncate">{cert.nome}</p>
-                      <p className="text-slate-400 text-xs truncate">{cert.desc}</p>
-                    </div>
-                  </div>
-                ))}
-                {(!config.acreditacoes || config.acreditacoes.length === 0) && <p className="text-slate-400 text-sm">Nenhum registro.</p>}
+          
+          <div>
+            <h2 className="text-4xl lg:text-5xl font-semibold tracking-tight leading-[1.15] mb-6">
+              Plataforma de Gestão<br/>
+              {/* Degradê Amarelo Moura brilhante */}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFBF3C] to-[#FFE082]">LabFísico.</span>
+            </h2>
+            <p className="text-slate-300 text-lg max-w-2xl leading-relaxed mb-6">
+              {config.sobre}
+            </p>
+            {config.principio && (
+              <div className="inline-flex items-center gap-2 bg-[#006CB0]/20 border border-[#006CB0]/30 text-[#8EB1D8] px-4 py-2 rounded-full text-sm font-medium">
+                <i className="fa-solid fa-leaf"></i> {config.principio}
               </div>
-            </div>
-
-            <div className="bg-white/[0.02] border border-white/5 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <i className="fa-solid fa-users"></i> Nossa Estrutura
-                </h3>
-                <div className="flex -space-x-3 mb-6">
-                  {config.equipe?.slice(0, 5).map(member => (
-                    <img key={member.id} src={member.imgUrl} alt={member.nome} className="w-10 h-10 rounded-full border-2 border-[#000a1a] object-cover shrink-0" onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${member.nome}&background=0f172a&color=fff` }} />
-                  ))}
-                  {config.equipe?.length > 5 && (
-                    <div className="w-10 h-10 rounded-full border-2 border-[#000a1a] bg-[#00205C] flex items-center justify-center text-xs font-bold text-[#FFBF3C] shrink-0">
-                      +{config.equipe.length - 5}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <button onClick={() => setIsModalOpen(true)} className="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-medium text-white transition-colors flex items-center justify-center gap-2">
-                Ver Diretório da Equipe <i className="fa-solid fa-arrow-right text-xs"></i>
-              </button>
-            </div>
+            )}
           </div>
         </div>
 
-        {/* LADO DIREITO: Autenticação (Ocupa 5 colunas no Desktop) */}
-        <div className="lg:col-span-5 xl:col-span-4 bg-white border border-white/10 rounded-3xl p-8 xl:p-10 shadow-2xl relative overflow-hidden flex flex-col justify-center">
+        <div className="lg:col-span-4 lg:row-span-2 bg-white border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden flex flex-col justify-center">
+
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#00205C] to-[#FFBF3C]"></div>
           
           <h3 className="text-2xl font-bold text-slate-900 tracking-tight mb-2">
@@ -291,14 +246,12 @@ const LoginPage = () => {
                 <div className="flex-grow border-t border-slate-100"></div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => setIsTechMode(true)} disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-slate-50 border-2 border-slate-200 hover:border-[#006CB0] hover:bg-white text-slate-700 px-3 py-3.5 rounded-xl text-xs sm:text-sm font-semibold transition-all active:scale-[0.98]">
-                  <i className="fa-solid fa-terminal text-slate-400"></i> Acesso Local
-                </button>
-                <button onClick={() => handleAuth(loginWithGoogle)} disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-slate-50 border-2 border-slate-200 hover:border-slate-300 hover:bg-white text-slate-700 px-3 py-3.5 rounded-xl text-xs sm:text-sm font-semibold transition-all active:scale-[0.98]">
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" className="w-4 h-4" alt="Google" /> Google
-                </button>
-              </div>
+              <button onClick={() => setIsTechMode(true)} disabled={isLoading} className="w-full flex items-center justify-center gap-3 bg-slate-50 border-2 border-slate-200 hover:border-[#006CB0] hover:bg-white text-slate-700 px-4 py-3.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98]">
+                <i className="fa-solid fa-terminal text-slate-400"></i> Conta Local
+              </button>
+              <button onClick={() => handleAuth(loginWithGoogle)} disabled={isLoading} className="w-full flex items-center justify-center gap-3 bg-slate-50 border-2 border-slate-200 hover:border-slate-300 hover:bg-white text-slate-700 px-4 py-3.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98]">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" className="w-4 h-4" alt="Google" /> Conta Google
+              </button>
             </div>
           ) : (
             <form onSubmit={handleTechLogin} className="flex flex-col gap-4 animate-in fade-in">
@@ -335,23 +288,70 @@ const LoginPage = () => {
           </div>
         </div>
 
+        <div className="lg:col-span-4 bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <i className="fa-solid fa-award"></i> Acreditações
+            </h3>
+            <div className="space-y-3">
+              {config.acreditacoes?.slice(0, 3).map(cert => (
+                <div key={cert.id} className="flex items-center gap-3">
+                  {/* Removido as cores genéricas dinâmicas para forçar um azul corporativo neutro e elegante */}
+                  <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-[#8EB1D8]">
+                    <i className={`fa-solid ${cert.icon} text-sm`}></i>
+                  </div>
+                  <div className="truncate">
+                    <p className="text-white text-sm font-medium truncate">{cert.nome}</p>
+                    <p className="text-slate-400 text-xs truncate">{cert.desc}</p>
+                  </div>
+                </div>
+              ))}
+              {config.acreditacoes?.length === 0 && <p className="text-slate-400 text-sm">Nenhum registro.</p>}
+            </div>
+          </div>
+        </div>
+
+        <div className="lg:col-span-4 bg-white/[0.02] border border-white/5 rounded-3xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden group">
+          <div className="relative z-10">
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <i className="fa-solid fa-users"></i> Nossa Estrutura
+            </h3>
+            
+            <div className="flex -space-x-3 mb-6">
+              {config.equipe?.slice(0, 5).map(member => (
+                <img key={member.id} src={member.imgUrl} alt={member.nome} className="w-10 h-10 rounded-full border-2 border-[#000a1a] object-cover" onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${member.nome}&background=0f172a&color=fff` }} />
+              ))}
+              {config.equipe?.length > 5 && (
+                <div className="w-10 h-10 rounded-full border-2 border-[#000a1a] bg-[#00205C] flex items-center justify-center text-xs font-bold text-[#FFBF3C]">
+                  +{config.equipe.length - 5}
+                </div>
+              )}
+            </div>
+
+            <button onClick={() => setIsModalOpen(true)} className="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-medium text-white transition-colors flex items-center justify-center gap-2">
+              Ver organograma <i className="fa-solid fa-arrow-right text-xs"></i>
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* MODAL FULL-SCREEN DO DIRETÓRIO (Scroll Ativo) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-[#000a1a]/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-200 overflow-hidden">
-          <div className="w-full flex items-center justify-between p-6 border-b border-white/10 bg-[#000a1a] sticky top-0 z-10 shadow-lg shrink-0">
+   
+          <div className="w-full flex items-center justify-between p-6 border-b border-white/10 bg-[#000a1a] sticky top-0 z-10 shadow-lg">
             <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-white">Diretório do Laboratório</h2>
-              <p className="text-slate-400 text-xs sm:text-sm mt-1">Organização de Lideranças e Apoio Direto</p>
+              <h2 className="text-2xl font-bold text-white">Organograma</h2>
+              <p className="text-slate-400 text-sm mt-1">Organização de Lideranças e Apoio Direto</p>
             </div>
-            <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 bg-white/5 hover:bg-rose-500/20 text-white hover:text-rose-400 rounded-full flex items-center justify-center transition-all border border-white/10 shadow-sm shrink-0">
+            <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 bg-white/5 hover:bg-rose-500/20 text-white hover:text-rose-400 rounded-full flex items-center justify-center transition-all border border-white/10 shadow-sm">
               <i className="fa-solid fa-xmark text-lg"></i>
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 sm:p-10 scroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20">
+   
+          <div className="flex-1 overflow-y-auto p-6 sm:p-10 scroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20">
             {renderTeamBlocks()}
           </div>
+          
         </div>
       )}
     </div>
