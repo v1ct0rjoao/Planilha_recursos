@@ -107,7 +107,7 @@ const ClientSolicitationView = ({ user, initialData, onClearInitialData, setToas
         tipo: testCategory, status: 'pendente'
       };
       
-      const response = await apiRequest('/solicitacoes/add', 'POST', payload);
+      const response = await apiRequest('/api/solicitacoes/adicionar', 'POST', payload);
       
       if (response.success) {
         setToast?.({ message: `Solicitação ${formData.idSolicitacao} enviada com sucesso!`, type: "success" });

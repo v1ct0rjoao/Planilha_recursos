@@ -16,29 +16,15 @@ const OrgTreeStyles = () => (
     @media (max-width: 1600px) { html { font-size: 14px; } }
     @media (max-width: 1366px), (max-height: 800px) { html { font-size: 12px; } }
     @media (max-width: 1024px) { html { font-size: 14px; } }
-
-    .modal-tree-container { 
-      width: 100%; 
-      height: 100%; 
-      overflow: auto; 
-      text-align: center; 
-      padding: 2.5rem 1.25rem; 
-    }
+    .modal-tree-container { width: 100%; height: 100%; overflow: auto; text-align: center; padding: 2.5rem 1.25rem; }
     .modal-tree-container::-webkit-scrollbar { height: 0.5rem; width: 0.5rem; }
     .modal-tree-container::-webkit-scrollbar-track { background: transparent; }
     .modal-tree-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 0.625rem; }
     .modal-tree-container::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
-
-    .tree-wrapper { 
-      display: inline-block; 
-      margin: 0 auto; 
-      padding-bottom: 3.75rem; 
-      text-align: center;
-    }
+    .tree-wrapper { display: inline-block; margin: 0 auto; padding-bottom: 3.75rem; text-align: center; }
     .tree { display: inline-block; white-space: nowrap; }
     .tree ul { padding-top: 1.5rem; position: relative; transition: all 0.5s; display: flex; justify-content: center; padding-left: 0; margin: 0; }
     .tree li { text-align: center; list-style-type: none; position: relative; padding: 1.5rem 0.375rem 0 0.375rem; transition: all 0.5s; }
-    
     .tree li::before, .tree li::after { content: ''; position: absolute; top: 0; right: 50%; border-top: 0.125rem solid rgba(255,255,255,0.15); width: 50%; height: 1.5rem; }
     .tree li::after { right: auto; left: 50%; border-left: 0.125rem solid rgba(255,255,255,0.15); }
     .tree li:only-child::after, .tree li:only-child::before { display: none; }
@@ -47,15 +33,7 @@ const OrgTreeStyles = () => (
     .tree li:last-child::before { border-right: 0.125rem solid rgba(255,255,255,0.15); border-radius: 0 0.5rem 0 0; }
     .tree li:first-child::after { border-radius: 0.5rem 0 0 0; }
     .tree ul ul::before { content: ''; position: absolute; top: 0; left: 50%; border-left: 0.125rem solid rgba(255,255,255,0.15); width: 0; height: 1.5rem; transform: translateX(-1px); }
-    
-    .org-card { 
-      display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
-      background: rgba(0, 32, 92, 0.6); 
-      border: 1px solid rgba(0, 108, 176, 0.4); 
-      backdrop-filter: blur(12px); border-radius: 0.75rem; padding: 0.75rem 0.875rem; 
-      min-width: 8.125rem; max-width: 9.375rem; transition: all 0.2s; position: relative; z-index: 10;
-      box-shadow: 0 0.25rem 1.25rem rgba(0,0,0,0.2);
-    }
+    .org-card { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0, 32, 92, 0.6); border: 1px solid rgba(0, 108, 176, 0.4); backdrop-filter: blur(12px); border-radius: 0.75rem; padding: 0.75rem 0.875rem; min-width: 8.125rem; max-width: 9.375rem; transition: all 0.2s; position: relative; z-index: 10; box-shadow: 0 0.25rem 1.25rem rgba(0,0,0,0.2); }
     .org-card:hover { transform: translateY(-3px); background: rgba(0, 108, 176, 0.2); border-color: #FFBF3C; }
     .org-avatar { width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 0.125rem solid #FFBF3C; margin: 0 auto 0.5rem auto; object-fit: cover; }
     .org-name { color: white; font-size: 0.75rem; font-weight: 700; white-space: normal; line-height: 1.2; margin-bottom: 0.125rem;}
@@ -72,7 +50,7 @@ const chunkArray = (arr, size) => {
 };
 
 const LoginPage = () => {
-  const { loginWithMicrosoft, loginWithGoogle, loginWithEmail } = useAuth();
+  const { loginWithMicrosoft, loginWithGoogle, loginWithEmail, registerWithEmail } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [config, setConfig] = useState(defaultLabConfig);
@@ -80,12 +58,14 @@ const LoginPage = () => {
   const [techUsername, setTechUsername] = useState('');
   const [techPass, setTechPass] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [techName, setTechName] = useState('');
 
   useEffect(() => {
     const fetchConfigFromDB = async () => {
       try {
         const db = getFirestore(app);
-        const docSnap = await getDoc(docRef(db, 'lab_data', 'config_login'));
+        const docSnap = await getDoc(doc(db, 'lab_data', 'config_login'));
         if (docSnap.exists()) {
           setConfig(docSnap.data());
           localStorage.setItem('moura_lab_config', JSON.stringify(docSnap.data()));
@@ -112,9 +92,24 @@ const LoginPage = () => {
     if (!techUsername || !techPass) { setError('Preencha os dados.'); return; }
     setIsLoading(true); setError('');
     try { 
-      await loginWithEmail(`${techUsername.trim().toLowerCase()}@bancada.moura.com`, techPass); 
+      await loginWithEmail(`${techUsername.trim().toLowerCase()}@moura.com`, techPass);
     } catch (err) { 
       setError('Credenciais inválidas.'); setIsLoading(false); 
+    }
+  };
+
+  const handleTechRegister = async (e) => {
+    e.preventDefault();
+    if (!techName || !techUsername || !techPass) { setError('Preencha todos os dados.'); return; }
+    if (techPass.length < 6) { setError('A palavra-passe deve ter pelo menos 6 caracteres.'); return; }
+    
+    setIsLoading(true); setError('');
+    try { 
+      const emailFormatado = techUsername.includes('@') ? techUsername : `${techUsername.trim().toLowerCase()}@moura.com`;
+      await registerWithEmail(techName, emailFormatado, techPass); 
+    } catch (err) { 
+      setError('Erro ao criar conta. Verifique se o utilizador já existe.'); 
+      setIsLoading(false); 
     }
   };
 
@@ -172,9 +167,10 @@ const LoginPage = () => {
               Plataforma de Gestão<br/>
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFBF3C] to-[#FFE082]">LabFísico.</span>
             </h2>
-            <p className="text-slate-300 text-lg max-w-2xl leading-relaxed mb-6">
-              {config.sobre}
-            </p>
+            <div 
+              className="text-slate-300 text-lg max-w-2xl leading-relaxed mb-6 quill-content"
+              dangerouslySetInnerHTML={{ __html: config.sobre }}
+            />
             {config.principio && (
               <div className="inline-flex items-center gap-2 bg-[#006CB0]/20 border border-[#006CB0]/30 text-[#8EB1D8] px-4 py-2 rounded-full text-sm font-medium">
                 <i className="fa-solid fa-leaf"></i> {config.principio}
@@ -187,10 +183,10 @@ const LoginPage = () => {
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#00205C] to-[#FFBF3C]"></div>
           
           <h3 className="text-2xl font-bold text-slate-900 tracking-tight mb-2">
-            {isTechMode ? 'Acesso Técnico' : 'Acessar Sistema'}
+            {isTechMode ? (isRegisterMode ? 'Criar Conta' : 'Acesso Técnico') : 'Acessar Sistema'}
           </h3>
           <p className="text-slate-500 text-sm mb-8">
-            {isTechMode ? 'Credenciais de bancada.' : 'Identidade corporativa.'}
+            {isTechMode ? (isRegisterMode ? 'Registre-se para acompanhar solicitações.' : 'Credenciais de bancada.') : 'Identidade corporativa.'}
           </p>
 
           {error && (
@@ -222,17 +218,32 @@ const LoginPage = () => {
               </button>
             </div>
           ) : (
-            <form onSubmit={handleTechLogin} className="flex flex-col gap-4 animate-in fade-in">
+            <form onSubmit={isRegisterMode ? handleTechRegister : handleTechLogin} className="flex flex-col gap-4 animate-in fade-in">
+              
+              {isRegisterMode && (
+                <div className="animate-in slide-in-from-top-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Nome Completo</label>
+                  <input 
+                    type="text" value={techName} onChange={(e) => setTechName(e.target.value)}
+                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-[#006CB0] focus:ring-2 focus:ring-[#006CB0]/20 transition-all"
+                    placeholder="ex: João Victor Gomes"
+                  />
+                </div>
+              )}
+
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Usuário</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">
+                  {isRegisterMode ? 'E-mail ou Utilizador' : 'Usuário'}
+                </label>
                 <input 
                   type="text" value={techUsername} onChange={(e) => setTechUsername(e.target.value)}
                   className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-[#006CB0] focus:ring-2 focus:ring-[#006CB0]/20 transition-all"
-                  placeholder="ex: joao.victor"
+                  placeholder={isRegisterMode ? "ex: joao@empresa.com" : "ex: joao.victor"}
                 />
               </div>
+              
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Senha</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Palavra-passe</label>
                 <input 
                   type="password" value={techPass} onChange={(e) => setTechPass(e.target.value)}
                   className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-[#006CB0] focus:ring-2 focus:ring-[#006CB0]/20 transition-all"
@@ -241,12 +252,26 @@ const LoginPage = () => {
               </div>
               
               <button type="submit" disabled={isLoading} className="mt-2 w-full flex items-center justify-center gap-2 bg-[#006CB0] hover:bg-[#00205C] text-white py-4 rounded-xl text-sm font-bold transition-all active:scale-[0.98]">
-                {isLoading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : 'Acessar'}
+                {isLoading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : (isRegisterMode ? 'Criar Conta' : 'Acessar')}
               </button>
               
-              <button type="button" onClick={() => setIsTechMode(false)} className="mt-2 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors">
-                Voltar para Login Corporativo
-              </button>
+              <div className="flex flex-col items-center gap-2 mt-4">
+                <button 
+                  type="button" 
+                  onClick={() => { setIsRegisterMode(!isRegisterMode); setError(''); }} 
+                  className="text-xs font-bold text-[#006CB0] hover:text-[#00205C] transition-colors"
+                >
+                  {isRegisterMode ? 'Já tem conta? Faça Login' : 'Primeiro Acesso? Registe-se aqui'}
+                </button>
+                
+                <button 
+                  type="button" 
+                  onClick={() => { setIsTechMode(false); setIsRegisterMode(false); setError(''); }} 
+                  className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  Voltar para Login Corporativo
+                </button>
+              </div>
             </form>
           )}
           

@@ -159,7 +159,7 @@ const LabSettingsView = ({ setToast }) => {
       </div>
 
       <div className="flex-1 overflow-y-auto mt-6 pb-20 custom-scrollbar">
-        {/* ABA: GERAL */}
+       
         {activeTab === 'geral' && (
           <div className="max-w-3xl space-y-6 animate-in slide-in-from-bottom-4 duration-300">
             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -186,7 +186,6 @@ const LabSettingsView = ({ setToast }) => {
           </div>
         )}
 
-        {/* ABA: ACREDITAÇÕES */}
         {activeTab === 'acreditacoes' && (
           <div className="space-y-4 max-w-4xl animate-in slide-in-from-bottom-4 duration-300">
             {config.acreditacoes.map((item, index) => (

@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
-import { getAuth, onAuthStateChanged, signInWithPopup, OAuthProvider, GoogleAuthProvider, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, signInWithPopup, OAuthProvider, GoogleAuthProvider, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import { app } from '../firebaseConfig';
 
@@ -16,7 +15,6 @@ export const AuthProvider = ({ children }) => {
   const db = getFirestore(app);
 
   const defaultClientePermissions = ['nova_solicitacao', 'meus_acompanhamentos', 'baterias'];
-  
   const adminPermissions = ['dashboard', 'nova_solicitacao', 'meus_acompanhamentos', 'baterias', 'acompanhamento', 'lims', 'bancada', 'oee', 'history', 'protocolos', 'calendar', 'users', 'configuracoes', 'import_digatron'];
 
   const handleUserDatabase = async (loggedUser) => {
@@ -69,10 +67,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-
   const loginWithEmail = async (email, password) => {
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
+      await handleUserDatabase(result.user);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const registerWithEmail = async (name, email, password) => {
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(result.user, { displayName: name });
       await handleUserDatabase(result.user);
     } catch (error) {
       throw error;
@@ -120,9 +127,8 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, [auth, db]);
 
-
   return (
-    <AuthContext.Provider value={{ user, userRole, userPermissions, hasPermission, loading, loginWithMicrosoft, loginWithGoogle, loginWithEmail, logout }}>
+    <AuthContext.Provider value={{ user, userRole, userPermissions, hasPermission, loading, loginWithMicrosoft, loginWithGoogle, loginWithEmail, registerWithEmail, logout }}>
       {children}
     </AuthContext.Provider>
   );

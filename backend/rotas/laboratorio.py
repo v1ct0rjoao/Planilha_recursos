@@ -52,10 +52,10 @@ def criar_conta_local():
     dados = request.json
     try:
         username = dados.get('username', '').lower().strip()
-        email_bancada = f"{username}@bancada.moura.com"
-        user_record = auth.create_user(email=email_bancada, password=dados.get('password'), display_name=dados.get('nome'))
+        email = f"{username}@moura.com"
+        user_record = auth.create_user(email=email, password=dados.get('password'), display_name=dados.get('nome'))
         bd_firestore.collection('users').document(user_record.uid).set({
-            'name': dados.get('nome'), 'email': email_bancada, 'role': dados.get('role', 'tecnico'),
+            'name': dados.get('nome'), 'email': email, 'role': dados.get('role', 'tecnico'),
             'permissions': dados.get('permissions', []), 'createdAt': obter_agora().isoformat()
         })
         return jsonify({"sucesso": True, "uid": user_record.uid})
@@ -472,3 +472,4 @@ def protocol_delete():
         import traceback
         traceback.print_exc()
         return jsonify({"sucesso": False, "erro": str(e)}), 500
+
