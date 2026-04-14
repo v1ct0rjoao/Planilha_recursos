@@ -10,15 +10,15 @@ const AllCircuitsView = ({ baths, searchTerm, onToggleMaintenance, onDeleteCircu
     );
 
     all.sort((a, b) => {
-      const numA = parseInt(a.id.replace(/\D/g, '')) || 0;
-      const numB = parseInt(b.id.replace(/\D/g, '')) || 0;
+      const numA = parseInt(String(a.id).replace(/\D/g, '')) || 0;
+      const numB = parseInt(String(b.id).replace(/\D/g, '')) || 0;
       return numA - numB;
     });
 
     const term = searchTerm?.toUpperCase().trim();
 
     return all.filter(c => {
-      const s = c.status ? c.status.toLowerCase().trim() : 'free';
+      const s = c.status ? String(c.status).toLowerCase().trim() : 'free';
       const isFinished = s === 'finished' || (c.progress >= 100);
 
       let matchesTab = true;
@@ -29,10 +29,10 @@ const AllCircuitsView = ({ baths, searchTerm, onToggleMaintenance, onDeleteCircu
       if (!matchesTab) return false;
 
       if (term) {
-        return c.id.toUpperCase().includes(term) || 
-               (c.batteryId && c.batteryId.toUpperCase().includes(term)) ||
-               c.parentBathId.toUpperCase().includes(term) ||
-               (c.protocol && c.protocol.toUpperCase().includes(term));
+        return String(c.id).toUpperCase().includes(term) || 
+               (c.batteryId && String(c.batteryId).toUpperCase().includes(term)) ||
+               (c.parentBathId && String(c.parentBathId).toUpperCase().includes(term)) ||
+               (c.protocol && String(c.protocol).toUpperCase().includes(term));
       }
       return true;
     });
@@ -42,7 +42,7 @@ const AllCircuitsView = ({ baths, searchTerm, onToggleMaintenance, onDeleteCircu
     let r = 0, f = 0, m = 0;
     (baths || []).forEach(b => {
       (b.circuits || []).forEach(c => {
-        const s = c.status ? c.status.toLowerCase().trim() : 'free';
+        const s = c.status ? String(c.status).toLowerCase().trim() : 'free';
         if (s === 'maintenance') m++;
         else if (s === 'running' && c.progress < 100) r++;
         else f++;
@@ -52,9 +52,9 @@ const AllCircuitsView = ({ baths, searchTerm, onToggleMaintenance, onDeleteCircu
   }, [baths]);
 
   return (
-    <div className="flex flex-col h-full animate-in fade-in duration-300 transition-colors">
+    <div className="flex flex-col flex-1 h-full min-h-0 animate-in fade-in duration-300 transition-colors">
       
-      <div className="mb-6 flex gap-3 overflow-x-auto custom-scrollbar pb-2 items-center">
+      <div className="mb-6 flex gap-3 overflow-x-auto custom-scrollbar pb-2 items-center shrink-0">
         <i className="fa-solid fa-filter text-slate-400 dark:text-slate-500 mr-1 shrink-0 transition-colors"></i>
         {[
           { id: 'ALL', label: 'Todos', count: counts.all },
@@ -79,19 +79,21 @@ const AllCircuitsView = ({ baths, searchTerm, onToggleMaintenance, onDeleteCircu
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar pb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 content-start">
-        {filtered.map(c => (
-          <CircuitCard
-            key={`${c.parentBathId}-${c.id}`}
-            circuit={c}
-            searchTerm={searchTerm}
-            onDelete={(cid) => onDeleteCircuit(c.parentBathId, cid)}
-            onToggleMaintenance={(cid, isMaint) => onToggleMaintenance(c.parentBathId, cid, isMaint)}
-            onViewHistory={onViewHistory}
-            onMove={() => { }}
-            onToggleNoSpace={onToggleNoSpace}
-          />
-        ))}
+      <div className="flex-1 min-h-0 overflow-y-auto pr-2 custom-scrollbar pb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 auto-rows-max">
+          {filtered.map(c => (
+            <CircuitCard
+              key={`${c.parentBathId}-${c.id}`}
+              circuit={c}
+              searchTerm={searchTerm}
+              onDelete={(cid) => onDeleteCircuit(c.parentBathId, cid)}
+              onToggleMaintenance={(cid, isMaint) => onToggleMaintenance(c.parentBathId, cid, isMaint)}
+              onViewHistory={onViewHistory}
+              onMove={() => { }}
+              onToggleNoSpace={onToggleNoSpace}
+            />
+          ))}
+        </div>
         
         {filtered.length === 0 && (
           <div className="col-span-full mt-8 py-20 text-center flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-[2rem] bg-slate-50 dark:bg-slate-800/30 transition-colors">

@@ -28,8 +28,8 @@ const BathContainer = ({ bath, searchTerm, onAddCircuit, onUpdateTemp, onDeleteC
   });
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden mb-6 transition-colors">
-      <div className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 p-6 sm:px-8 sm:py-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors">
+    <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden mb-6 transition-colors flex flex-col">
+      <div className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 p-6 sm:px-8 sm:py-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors shrink-0">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center shadow-sm text-slate-500 dark:text-slate-400 transition-colors">
              <LocationIcon id={bath.id} size={24} />
@@ -71,7 +71,7 @@ const BathContainer = ({ bath, searchTerm, onAddCircuit, onUpdateTemp, onDeleteC
         </div>
       </div>
 
-      <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+      <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 content-start">
         {filteredCircuits.map(circuit => (
           <CircuitCard 
             key={circuit.id} 

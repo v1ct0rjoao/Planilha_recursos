@@ -5,11 +5,15 @@ import { formatDataCurta } from '../../utils/helpers';
 const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onViewHistory, onMove, onLink, onToggleNoSpace }) => {
   const rawStatus = circuit.status ? circuit.status.toString().toLowerCase().trim() : 'free';
   
-  const hasEnded = rawStatus === 'finished' || (circuit.progress >= 100);
+  // Quando bate 100% ou finished, ele volta a ser considerado totalmente "Livre" (cinza)
+  const hasEnded = rawStatus === 'finished' || circuit.progress >= 100;
   const isMaint = rawStatus === 'maintenance';
   const isFree = (rawStatus === 'free' || hasEnded) && !isMaint;
   const isRunning = rawStatus === 'running' && !hasEnded && !isMaint;
-  const isParallel = circuit.isParallel;
+  
+  // Só mostra a etiqueta de Paralelo se o circuito estiver ativamente rodando
+  const isParallel = circuit.isParallel === true;
+  const showParallel = isParallel && isRunning; 
   
   const isNoSpace = circuit.noSpace === true; 
 
@@ -24,11 +28,6 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
       bar: 'bg-rose-500', iconColor: 'text-rose-500 dark:text-rose-400', statusText: 'MANUTENÇÃO',
       mainIcon: 'fa-triangle-exclamation'
     },
-    finished: { 
-      borderTop: 'border-t-emerald-500', textStatus: 'text-emerald-600 dark:text-emerald-400', 
-      bar: 'bg-emerald-500', iconColor: 'text-emerald-500 dark:text-emerald-400', statusText: 'CONCLUÍDO',
-      mainIcon: 'fa-check'
-    },
     free: { 
       borderTop: 'border-t-slate-300 dark:border-t-slate-600', textStatus: 'text-slate-500 dark:text-slate-400', 
       bar: 'bg-slate-300 dark:bg-slate-600', iconColor: 'text-slate-400 dark:text-slate-500', statusText: 'LIVRE',
@@ -36,7 +35,7 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
     }
   };
 
-  const currentTheme = isMaint ? theme.maintenance : hasEnded ? theme.finished : isRunning ? theme.running : theme.free;
+  const currentTheme = isMaint ? theme.maintenance : isRunning ? theme.running : theme.free;
 
   const bgColor = isNoSpace 
     ? 'bg-slate-100 dark:bg-slate-800/80 border-slate-300 dark:border-slate-700 opacity-90 grayscale-[0.2]' 
@@ -47,7 +46,7 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
   return (
     <div className={`relative flex flex-col rounded-xl border border-slate-200 dark:border-slate-700/60 ${bgColor} ${currentTheme.borderTop} border-t-[3px] shadow-sm hover:shadow-md transition-all duration-300 min-h-[180px] group overflow-hidden`}>
       
-      {isParallel && (
+      {showParallel && (
         <div className="absolute -top-1 -right-1 bg-purple-500 text-white text-[8px] font-black px-2 py-1 rounded-bl-lg shadow-sm z-10 uppercase tracking-widest">
           Paralelo
         </div>
@@ -70,8 +69,17 @@ const CircuitCard = ({ circuit, searchTerm, onDelete, onToggleMaintenance, onVie
               </button>
            )}
            {onMove && <button onClick={() => onMove(circuit.id)} className="w-6 h-6 flex items-center justify-center rounded text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/20 transition-colors focus:outline-none" title="Mover"><i className="fa-solid fa-arrows-up-down-left-right"></i></button>}
+           
            {onLink && <button onClick={() => onLink(circuit)} className="w-6 h-6 flex items-center justify-center rounded text-slate-400 dark:text-slate-500 hover:text-purple-500 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/20 transition-colors focus:outline-none" title="Vincular Paralelo"><i className="fa-solid fa-link"></i></button>}
-           <button onClick={() => onViewHistory(circuit)} className="w-6 h-6 flex items-center justify-center rounded text-slate-400 dark:text-slate-500 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 transition-colors focus:outline-none" title="Histórico"><i className="fa-solid fa-clock-rotate-left"></i></button>
+           
+           
+           {isRunning && (
+              <button onClick={() => onToggleMaintenance(circuit.id, 'free')} className="w-6 h-6 flex items-center justify-center rounded text-slate-400 dark:text-slate-500 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 transition-colors focus:outline-none" title="Liberar circuito">
+                  <i className="fa-solid fa-flag-checkered"></i>
+              </button>
+           )}
+
+           <button onClick={() => onViewHistory(circuit)} className="w-6 h-6 flex items-center justify-center rounded text-slate-400 dark:text-slate-500 hover:text-teal-500 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-500/20 transition-colors focus:outline-none" title="Histórico"><i className="fa-solid fa-clock-rotate-left"></i></button>
            <button onClick={() => onToggleMaintenance(circuit.id, !isMaint)} className={`w-6 h-6 flex items-center justify-center rounded transition-colors focus:outline-none ${isMaint ? 'text-rose-500 bg-rose-50 dark:text-rose-400 dark:bg-rose-500/20' : 'text-slate-400 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/20'}`} title="Manutenção"><i className="fa-solid fa-wrench"></i></button>
            <button onClick={() => onDelete(circuit.id)} className="w-6 h-6 flex items-center justify-center rounded text-slate-400 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/20 transition-colors focus:outline-none" title="Excluir"><i className="fa-solid fa-trash-can"></i></button>
         </div>

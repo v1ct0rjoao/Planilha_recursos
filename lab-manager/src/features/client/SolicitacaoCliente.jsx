@@ -37,9 +37,10 @@ const SelectionCard = ({ title, icon, isSelected, onClick, themeColor }) => (
   </div>
 );
 
-const ClientSolicitationView = ({ user, initialData, onClearInitialData, setToast }) => {
+const ClientSolicitationView = ({ user, initialData, onClearInitialData, setToast, isEditMode, onCancelEdit, onSaveSuccess }) => {
   const [testCategory, setTestCategory] = useState(initialData?.tipo || 'eletrico');
   const [isThirdParty, setIsThirdParty] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const defaultFormState = {
     laboratorio: '', nomeSolicitante: '', emailContato: '', idSolicitacao: '',
@@ -59,10 +60,11 @@ const ClientSolicitationView = ({ user, initialData, onClearInitialData, setToas
   useEffect(() => {
     if (initialData) {
       setTestCategory(initialData.tipo || 'eletrico');
-      setFormData(prev => ({ ...prev, ...initialData, termoAceite: null }));
-      setToast?.({ message: "Dados carregados com sucesso!", type: "info" });
+      const targetId = isEditMode ? initialData.idSolicitacao : `REQ-${Math.floor(100000 + Math.random() * 900000)}`;
+      setFormData(prev => ({ ...prev, ...initialData, idSolicitacao: targetId, termoAceite: isEditMode ? 'concordo' : null }));
+      setToast?.({ message: isEditMode ? "Modo de edição ativado." : "Dados carregados com sucesso!", type: "info" });
     }
-  }, [initialData, setToast]);
+  }, [initialData, isEditMode, setToast]);
 
   useEffect(() => {
     if (user && !initialData) {
@@ -95,29 +97,42 @@ const ClientSolicitationView = ({ user, initialData, onClearInitialData, setToas
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.laboratorio) { setToast?.({ message: "Selecione o Laboratório de Destino.", type: "error" }); return; }
-    if (formData.termoAceite !== 'concordo') { setToast?.({ message: "Você precisa concordar com os termos.", type: "error" }); return; }
-
-    try {
-      const payload = {
-        ...formData,
-        nomeProprietario: isThirdParty ? formData.nomeProprietario : formData.nomeSolicitante,
-        emailProprietario: isThirdParty ? formData.emailProprietario : formData.emailContato,
-        tipo: testCategory, status: 'pendente'
-      };
+      e.preventDefault();
+      if (isSubmitting) return; 
       
-      const response = await apiRequest('/api/solicitacoes/adicionar', 'POST', payload);
+      setIsSubmitting(true);
+      try {
+        const payload = {
+          ...formData,
+          nomeProprietario: isThirdParty ? formData.nomeProprietario : formData.nomeSolicitante,
+          emailProprietario: isThirdParty ? formData.emailProprietario : formData.emailContato,
+          tipo: testCategory,
+          status: isEditMode ? formData.status : 'pendente'
+        };
       
-      if (response.success) {
-        setToast?.({ message: `Solicitação ${formData.idSolicitacao} enviada com sucesso!`, type: "success" });
-        setTimeout(() => window.location.reload(), 1500);
-      } else { 
-        setToast?.({ message: `Erro ao enviar: ${response.error || response.data?.erro}`, type: "error" }); 
+        let response;
+        if (isEditMode) {
+           response = await apiRequest('/solicitacoes/update', 'POST', { id: formData.idSolicitacao, dados: payload });
+        } else {
+           response = await apiRequest('/solicitacoes/adicionar', 'POST', payload);
+        }
+        
+        if (response.success) {
+          setToast?.({ message: isEditMode ? `Edição salva com sucesso!` : `Sucesso! ID: ${formData.idSolicitacao}`, type: "success" });
+          if (isEditMode) {
+             if (onSaveSuccess) onSaveSuccess();
+             else if (onCancelEdit) onCancelEdit();
+          } else {
+             setTimeout(() => window.location.reload(), 2000);
+          }
+        } else {
+          setToast?.({ message: response.data?.erro || "Erro no servidor", type: "error" });
+        }
+      } catch (error) {
+        setToast?.({ message: "Falha na conexão.", type: "error" });
+      } finally {
+        setIsSubmitting(false);
       }
-    } catch (error) { 
-      setToast?.({ message: "Erro de conexão com o servidor.", type: "error" }); 
-    }
   };
 
   const themes = {
@@ -142,23 +157,32 @@ const ClientSolicitationView = ({ user, initialData, onClearInitialData, setToas
         <div className="w-full flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <span className={`bg-${activeTheme.colorName}-100 dark:bg-${activeTheme.colorName}-500/20 text-${activeTheme.colorName}-700 dark:text-${activeTheme.colorName}-400 text-xs font-black px-3 py-1 rounded-md uppercase tracking-widest`}>Novo Registro</span>
+              <span className={`bg-${activeTheme.colorName}-100 dark:bg-${activeTheme.colorName}-500/20 text-${activeTheme.colorName}-700 dark:text-${activeTheme.colorName}-400 text-xs font-black px-3 py-1 rounded-md uppercase tracking-widest`}>
+                {isEditMode ? 'Modo de Edição Administrativa' : 'Novo Registro'}
+              </span>
               <span className="text-slate-400 dark:text-slate-500 text-sm font-mono font-bold">{formData.idSolicitacao}</span>
             </div>
             <h1 className="text-3xl lg:text-4xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
-              Abertura de Requisição
+              {isEditMode ? 'Edição de Requisição' : 'Abertura de Requisição'}
               <i className={`fa-solid ${activeTheme.iconClass} ${activeTheme.iconLabel} animate-pulse`}></i>
             </h1>
             <p className="text-slate-500 dark:text-slate-400 mt-2 text-base font-medium">
-              Preencha as especificações técnicas para iniciar a rastreabilidade da amostra no Complexo Laboratorial.
+              {isEditMode ? 'Altere os dados técnicos desta solicitação. Todas as mudanças ficarão registradas no histórico do processo.' : 'Preencha as especificações técnicas para iniciar a rastreabilidade da amostra no Complexo Laboratorial.'}
             </p>
           </div>
           
-          {initialData && (
-             <button onClick={handleClear} className="px-6 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl text-sm font-bold transition-all border border-slate-300 dark:border-slate-700 hover:border-rose-400 dark:hover:border-rose-500/50 shadow-sm flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-slate-500/20">
-               <i className="fa-solid fa-rotate-left"></i> Descartar Dados Reutilizados
-             </button>
-          )}
+          <div className="flex gap-3">
+            {isEditMode && onCancelEdit && (
+               <button onClick={onCancelEdit} className="px-6 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl text-sm font-bold transition-all border border-slate-300 dark:border-slate-700 hover:border-rose-400 shadow-sm flex items-center gap-2">
+                 Cancelar Edição
+               </button>
+            )}
+            {initialData && !isEditMode && (
+               <button onClick={handleClear} className="px-6 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl text-sm font-bold transition-all border border-slate-300 dark:border-slate-700 hover:border-rose-400 shadow-sm flex items-center gap-2">
+                 <i className="fa-solid fa-rotate-left"></i> Descartar Dados Reutilizados
+               </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -419,14 +443,14 @@ const ClientSolicitationView = ({ user, initialData, onClearInitialData, setToas
               </div>
             </div>
 
-          <div className="pt-4 pb-8 w-full flex justify-end">
+          <div className="pt-4 pb-8 w-full flex justify-end gap-4">
               <button 
                 type="submit" 
                 disabled={formData.termoAceite !== 'concordo'}
                 className={`w-full md:w-auto px-10 py-4 rounded-xl font-bold text-sm uppercase tracking-wider flex justify-center items-center gap-3 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-${activeTheme.colorName}-500/50 ${formData.termoAceite === 'concordo' ? `${activeTheme.btnMain} text-white shadow-md hover:shadow-lg active:scale-[0.98]` : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'}`}
               >
-                Enviar Solicitação
-                <i className="fa-solid fa-paper-plane"></i> 
+                {isEditMode ? 'Salvar Alterações' : 'Enviar Solicitação'}
+                <i className={isEditMode ? "fa-solid fa-save" : "fa-solid fa-paper-plane"}></i> 
               </button>
             </div>
         </form>

@@ -70,14 +70,6 @@ const DashboardView = ({
   `}</style>
 );
 
-const chunkArray = (arr, size) => {
-  const chunks = [];
-  for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size));
-  }
-  return chunks;
-};
-
   useEffect(() => {
     if (searchTerm.length >= 4) {
       for (const bath of safeBaths) {
@@ -202,6 +194,7 @@ const chunkArray = (arr, size) => {
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+        
         {dashViewMode === 'baths' && !expandedBathId && (
           <div className="flex flex-col h-full min-h-0">
             <div className="mb-3 flex gap-2 shrink-0 items-center">
@@ -257,7 +250,7 @@ const chunkArray = (arr, size) => {
             >
               <i className="fa-solid fa-arrow-left group-hover:-translate-x-1 transition-transform"></i> Voltar
             </button>
-            <div className="flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2 pb-6">
               {safeBaths.filter(b => b.id === expandedBathId).map(bath => (
                 <BathContainer 
                   key={bath.id} bath={bath} searchTerm={searchTerm} 
@@ -271,6 +264,20 @@ const chunkArray = (arr, size) => {
             </div>
           </div>
         )}
+
+        {dashViewMode === 'all_circuits' && !expandedBathId && (
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0 animate-in fade-in">
+            <AllCircuitsView
+              baths={safeBaths}
+              searchTerm={searchTerm}
+              onDeleteCircuit={onDeleteCircuit}
+              onToggleMaintenance={onToggleMaintenance}
+              onViewHistory={onViewHistory}
+              onToggleNoSpace={onToggleCircuitNoSpace}
+            />
+          </div>
+        )}
+
       </div>
 
       <TemperatureStatsModal isOpen={isTempStatsOpen} onClose={() => setIsTempStatsOpen(false)} baths={safeBaths} />

@@ -13,7 +13,7 @@ import CircuitCalendarView from './features/dashboard/Agenda';
 import UserManagementView from './features/admin/ConfigAcessos';
 import ClientSolicitationView from './features/client/SolicitacaoCliente';
 import ClientTrackingView from './features/client/AcompanhamentoCliente';
-import SolicitationsManagementView from './features/management/SolicitacaoAdm';
+import SolicitationsManagementView from './features/client/SolicitacaoAdm';
 import LabSettingsView from './features/admin/ConfigLogin';
 import ClientBatteryTracking from './features/client/AcompanharBaterias';
 import GerenciadorLims from './features/lims/GerenciadorLims';
@@ -116,6 +116,8 @@ const MainApp = () => {
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState('');
   const searchInputRef = useRef(null);
+
+  const isFullScreenView = ['dashboard', 'acompanhamento', 'meus_acompanhamentos'].includes(currentView);
 
   useEffect(() => {
     const handleResize = () => {
@@ -337,7 +339,12 @@ const MainApp = () => {
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-white/70 hover:text-white"><X size={18} /></button>
         </div>
 
-        <nav className={`flex-1 flex flex-col justify-start py-2 space-y-0.5 overflow-hidden no-scrollbar ${isSidebarOpen ? 'px-0' : 'px-0 pt-4'}`}>
+        <div className={`px-5 py-4 border-b border-[#00386E] dark:border-white/5 transition-all duration-300 ${isSidebarOpen ? 'block' : 'hidden lg:hidden'}`}>
+           <p className="text-[11px] text-blue-200 dark:text-slate-400 font-medium uppercase tracking-wider">{getGreeting()},</p>
+           <p className="text-sm font-bold text-white truncate">{user?.displayName?.split(' ')[0] || user?.email?.split('@')[0] || 'Usuário'}!</p>
+        </div>
+
+        <nav className={`flex-1 flex flex-col justify-start py-2 space-y-0.5 overflow-y-auto no-scrollbar ${isSidebarOpen ? 'px-0' : 'px-0 pt-4'}`}>
           {hasPermission('dashboard') && <MenuButton active={currentView === 'dashboard'} onClick={() => {setCurrentView('dashboard'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-chart-pie" label="Visão Geral" isSidebarOpen={isSidebarOpen} />}
           {hasPermission('nova_solicitacao') && <MenuButton active={currentView === 'nova_solicitacao'} onClick={() => {setCurrentView('nova_solicitacao'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-file-signature" label="Nova Solicitação" isSidebarOpen={isSidebarOpen} />}
           {hasPermission('meus_acompanhamentos') && <MenuButton active={currentView === 'meus_acompanhamentos'} onClick={() => {setCurrentView('meus_acompanhamentos'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-list-check" label="Acompanhamentos" isSidebarOpen={isSidebarOpen} />}
@@ -406,49 +413,51 @@ const MainApp = () => {
           </div>
         </header>
 
-        {/* CONTROLE MESTRE DE SCROLL: Se for Dashboard, trava. Se não, permite o scroll no <main>! */}
-        <main className={`flex-1 flex flex-col relative w-full bg-slate-50 dark:bg-transparent min-h-0 ${currentView === 'dashboard' ? 'overflow-hidden' : 'overflow-y-auto no-scrollbar'}`}>
-          <div className={`flex-1 w-full max-w-[1600px] mx-auto flex flex-col ${currentView === 'dashboard' ? 'h-full overflow-hidden min-h-0' : 'min-h-full'}`}>
+        <main className={`flex-1 relative w-full bg-slate-50 dark:bg-transparent min-h-0 ${isFullScreenView ? 'flex flex-col overflow-hidden' : 'block overflow-y-auto no-scrollbar'}`}>
+          <div className={`w-full max-w-[1600px] mx-auto flex flex-col ${isFullScreenView ? 'h-full overflow-hidden min-h-0 flex-1' : 'min-h-full'}`}>
             
-            {currentView === 'dashboard' && (
-              <ProtectedRoute requiredPermission="dashboard">
-                <div className="p-4 lg:p-6 h-full w-full flex flex-col overflow-hidden min-h-0">
-                  <DashboardView
-                    baths={baths} experienceOwners={experienceOwners} onRefreshData={fetchData}
-                    onAddCircuit={(bid) => { setTargetBath(bid); setIsAddOpen(true); }}
-                    onDeleteCircuit={deleteCircuit} onToggleMaintenance={toggleMaintenance}
-                    onDeleteBath={deleteBath} onUpdateTemp={updateTemp}
-                    onViewHistory={(c) => { setTargetCircuit(c); setIsHistoryOpen(true); }}
-                    onMoveCircuit={openMoveModal} onLinkCircuit={openLinkModal}
-                    onEditBath={(id) => { setBathToEdit(id); setIsEditBathOpen(true); }}
-                    onOpenAddBathModal={() => setIsAddBathOpen(true)}
-                    onToggleBathFull={handleToggleBathFull}
-                    onToggleCircuitNoSpace={handleToggleCircuitNoSpace}
-                  />
-                </div>
-              </ProtectedRoute>
+            <div className={`flex-1 flex flex-col w-full ${isFullScreenView ? 'h-full overflow-hidden min-h-0' : ''}`}>
+              {currentView === 'dashboard' && (
+                <ProtectedRoute requiredPermission="dashboard">
+                  <div className="p-4 lg:p-6 h-full w-full flex flex-col overflow-hidden min-h-0">
+                    <DashboardView
+                      baths={baths} experienceOwners={experienceOwners} onRefreshData={fetchData}
+                      onAddCircuit={(bid) => { setTargetBath(bid); setIsAddOpen(true); }}
+                      onDeleteCircuit={deleteCircuit} onToggleMaintenance={toggleMaintenance}
+                      onDeleteBath={deleteBath} onUpdateTemp={updateTemp}
+                      onViewHistory={(c) => { setTargetCircuit(c); setIsHistoryOpen(true); }}
+                      onMoveCircuit={openMoveModal} onLinkCircuit={openLinkModal}
+                      onEditBath={(id) => { setBathToEdit(id); setIsEditBathOpen(true); }}
+                      onOpenAddBathModal={() => setIsAddBathOpen(true)}
+                      onToggleBathFull={handleToggleBathFull}
+                      onToggleCircuitNoSpace={handleToggleCircuitNoSpace}
+                    />
+                  </div>
+                </ProtectedRoute>
+              )}
+              
+              {currentView === 'nova_solicitacao' && <ProtectedRoute requiredPermission="nova_solicitacao"><div className="w-full h-full"><ClientSolicitationView user={user} logout={logout} setToast={setToast} initialData={reusedData} onClearInitialData={() => setReusedData(null)} /></div></ProtectedRoute>}
+              {currentView === 'lims' && <ProtectedRoute requiredPermission="lims"><div className="w-full h-full"><GerenciadorLims /></div></ProtectedRoute>}
+              {currentView === 'acompanhamento' && <ProtectedRoute requiredPermission="acompanhamento"><div className="w-full h-full"><SolicitationsManagementView setToast={setToast} /></div></ProtectedRoute>}
+              {currentView === 'meus_acompanhamentos' && <ProtectedRoute requiredPermission="meus_acompanhamentos"><div className="w-full h-full"><ClientTrackingView user={user} baths={baths} setToast={setToast} onReuse={handleReuseSolicitation} /></div></ProtectedRoute>}
+              
+              {currentView === 'baterias' && <ProtectedRoute requiredPermission="baterias"><div className="p-4 lg:p-6 w-full flex-1 flex flex-col"><ClientBatteryTracking user={user} baths={baths} experienceOwners={experienceOwners} /></div></ProtectedRoute>}
+              {currentView === 'calendar' && <ProtectedRoute requiredPermission="calendar"><div className="p-4 lg:p-6 w-full flex-1 flex flex-col"><CircuitCalendarView baths={baths} searchTerm={""} /></div></ProtectedRoute>}
+              {currentView === 'history' && <ProtectedRoute requiredPermission="history"><div className="p-4 lg:p-6 w-full flex-1 flex flex-col"><HistoryView logs={logs} setToast={setToast} /></div></ProtectedRoute>}
+              {currentView === 'configuracoes' && <ProtectedRoute requiredPermission="configuracoes"><div className="p-4 lg:p-6 w-full flex-1 flex flex-col"><LabSettingsView setToast={setToast} /></div></ProtectedRoute>}
+              {currentView === 'users' && <ProtectedRoute requiredPermission="users"><div className="p-4 lg:p-6 w-full flex-1 flex flex-col"><UserManagementView setToast={setToast} /></div></ProtectedRoute>}
+              {currentView === 'oee' && <ProtectedRoute requiredPermission="oee"><div className="p-4 lg:p-6 w-full flex-1 flex flex-col"><OEEDashboardView setToast={setToast} /></div></ProtectedRoute>}
+            </div>
+            
+            {!isFullScreenView && (
+              <footer className="w-full text-center py-6 border-t border-slate-200 dark:border-white/5 mt-auto shrink-0 bg-transparent relative z-10">
+                <p className="text-xs text-slate-500 dark:text-slate-500 font-medium">
+                  Desenvolvido por João Victor Gomes Meneses © 2026 • LabFísico Enterprise
+                </p>
+              </footer>
             )}
-            
-            {currentView === 'nova_solicitacao' && <ProtectedRoute requiredPermission="nova_solicitacao"><div className="w-full h-full"><ClientSolicitationView user={user} logout={logout} setToast={setToast} initialData={reusedData} onClearInitialData={() => setReusedData(null)} /></div></ProtectedRoute>}
-            {currentView === 'lims' && <ProtectedRoute requiredPermission="lims"><div className="w-full h-full"><GerenciadorLims /></div></ProtectedRoute>}
-            {currentView === 'acompanhamento' && <ProtectedRoute requiredPermission="acompanhamento"><div className="w-full h-full"><SolicitationsManagementView setToast={setToast} /></div></ProtectedRoute>}
-            {currentView === 'meus_acompanhamentos' && <ProtectedRoute requiredPermission="meus_acompanhamentos"><div className="p-4 lg:p-6 w-full"><ClientTrackingView user={user} baths={baths} setToast={setToast} onReuse={handleReuseSolicitation} /></div></ProtectedRoute>}
-            {currentView === 'baterias' && <ProtectedRoute requiredPermission="baterias"><div className="p-4 lg:p-6 w-full"><ClientBatteryTracking user={user} baths={baths} experienceOwners={experienceOwners} /></div></ProtectedRoute>}
-            {currentView === 'calendar' && <ProtectedRoute requiredPermission="calendar"><div className="p-4 lg:p-6 w-full flex flex-col"><CircuitCalendarView baths={baths} searchTerm={""} /></div></ProtectedRoute>}
-            {currentView === 'history' && <ProtectedRoute requiredPermission="history"><div className="p-4 lg:p-6 w-full"><HistoryView logs={logs} setToast={setToast} /></div></ProtectedRoute>}
-            {currentView === 'configuracoes' && <ProtectedRoute requiredPermission="configuracoes"><div className="p-4 lg:p-6 w-full"><LabSettingsView setToast={setToast} /></div></ProtectedRoute>}
-            {currentView === 'users' && <ProtectedRoute requiredPermission="users"><div className="p-4 lg:p-6 w-full"><UserManagementView setToast={setToast} /></div></ProtectedRoute>}
-            {currentView === 'oee' && <ProtectedRoute requiredPermission="oee"><div className="p-4 lg:p-6 w-full"><OEEDashboardView setToast={setToast} /></div></ProtectedRoute>}
-            
+
           </div>
-          
-          {currentView !== 'dashboard' && (
-            <footer className="w-full text-center py-6 border-t border-slate-200 dark:border-white/5 mt-auto bg-slate-50 dark:bg-transparent shrink-0">
-              <p className="text-xs text-slate-500 dark:text-slate-500 font-medium">
-                Desenvolvido por João Victor Gomes Meneses © 2026 • LabFísico Enterprise
-              </p>
-            </footer>
-          )}
         </main>
       </div>
 
@@ -492,7 +501,10 @@ const MainApp = () => {
       <AddCircuitModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onConfirm={addCircuit} bathId={targetBath} baths={baths} setToast={setToast} />
       <AddBathModal isOpen={isAddBathOpen} onClose={() => setIsAddBathOpen(false)} onConfirm={addBath} />
       <TestManagerModal isOpen={isProtocolsOpen} onClose={() => setIsProtocolsOpen(false)} protocols={protocols} onAddProtocol={handleAddProtocol} onDeleteProtocol={handleDeleteProtocol} setToast={setToast} />
-      <CircuitHistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} circuit={targetCircuit} logs={logs} />
+      
+      {/* Aqui o onRefreshData={fetchData} foi passado para o modal de Rastreabilidade! */}
+      <CircuitHistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} circuit={targetCircuit} onRefreshData={fetchData} />
+      
       <MoveCircuitModal isOpen={isMoveOpen} onClose={() => setIsMoveOpen(false)} onConfirm={handleMoveCircuit} baths={baths} sourceBathId={moveData.sourceBathId} circuitId={moveData.circuitId} />
       <LinkCircuitModal isOpen={isLinkOpen} onClose={() => setIsLinkOpen(false)} onConfirm={handleLinkCircuit} bath={linkData.bath} sourceCircuitId={linkData.sourceId} />
       <EditBathModal isOpen={isEditBathOpen} onClose={() => setIsEditBathOpen(false)} onConfirm={handleRenameBath} currentBathId={bathToEdit} />

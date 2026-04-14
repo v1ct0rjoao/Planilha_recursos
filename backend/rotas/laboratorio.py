@@ -1,11 +1,12 @@
 from flask import Blueprint, request, jsonify
+from google.cloud.firestore import FieldFilter
 from .autenticacao import requer_autenticacao
-from banco_dados import carregar_bd, salvar_bd, salvar_log_no_bd
+from banco_dados import carregar_bd, salvar_bd, salvar_log_no_bd, salvar_log_circuito
 from utilitarios import obter_agora, atualizar_progresso_realtime
 from firebase_admin import auth
 from configuracao import bd_firestore
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 import traceback
 
 bp_lab = Blueprint('laboratorio', __name__)
@@ -87,6 +88,7 @@ def importar_digatron():
         experience_owners = db.get('experienceOwners', {})
         atualizados = []
         detalhes_importacao = [] 
+        agora = obter_agora()
         
         matches = re.finditer(r"Circuit\s*0*(\d+).*?(\d{2}/\d{2}/\d{4}\s\d{2}:\d{2})", text, re.IGNORECASE)
         for m in matches:
@@ -101,14 +103,17 @@ def importar_digatron():
             t_prev = calcular_previsao_fim(t_start, proto_name, protocols)
             
             dono = "Sem Dono"
+            expCode_display = "Desconhecida"
             parts = bat_id.split('-')
             if len(parts) >= 2 and parts[1].upper().startswith('E'):
                 expCode = parts[1].upper()
                 baseCode = expCode
                 if len(parts) >= 3:
                     anoLimpo = parts[2].split('_')[0]
-                    expCode = f"{expCode}/{anoLimpo}"
-                dono = experience_owners.get(expCode, experience_owners.get(baseCode, "Sem Dono"))
+                    expCode_display = f"{expCode}/{anoLimpo}"
+                else:
+                    expCode_display = expCode
+                dono = experience_owners.get(expCode_display, experience_owners.get(baseCode, "Sem Dono"))
                 
             for bath in db.get('baths', []):
                 for c in bath.get('circuits', []):
@@ -120,8 +125,20 @@ def importar_digatron():
                         atualizados.append(c['id'])
                         detalhes_importacao.append(f"C-{cid_num} ({bat_id} | Solicitante: {dono})")
                         
+                        data_inicio = t_start.split(' ')[0]
+                        
+                        log_individual = {
+                            "id": int(agora.timestamp() * 1000) + len(atualizados),
+                            "action": "Início de Teste",
+                            "bath": str(bath['id']),
+                            "circuitId": c['id'],
+                            "batteryId": bat_id,
+                            "date": agora.strftime("%d/%m/%Y %H:%M"),
+                            "details": f"Data: {data_inicio} | Exp/Ano: {expCode_display} | Lote/ID: {bat_id} | Prot: {proto_name}"
+                        }
+                        salvar_log_circuito(log_individual)
+                        
         if atualizados:
-            agora = obter_agora()
             detalhes_str = ", ".join(detalhes_importacao)
             if len(detalhes_str) > 250:
                  detalhes_str = detalhes_str[:247] + "..."
@@ -129,12 +146,14 @@ def importar_digatron():
                 "id": int(agora.timestamp() * 1000),
                 "action": "Importação em Massa",
                 "bath": "Vários",
+                "circuitId": "Vários",
                 "date": agora.strftime("%d/%m/%Y %H:%M"),
                 "details": f"Testes Iniciados: {detalhes_str}"
             }
             salvar_log_no_bd(new_log)
             if 'logs' not in db: db['logs'] = []
             db['logs'].insert(0, new_log)
+            db['logs'] = db['logs'][:100]
             
         salvar_bd(db)
         return jsonify({"sucesso": True, "atualizados": atualizados, "db_atualizado": db})
@@ -246,12 +265,14 @@ def bath_toggle_full():
             "id": int(agora.timestamp() * 1000),
             "action": "Espaço Físico",
             "bath": bath_id,
+            "circuitId": "Todos",
             "date": agora.strftime("%d/%m/%Y %H:%M"),
             "details": f"Status físico do local alterado para: {status_log}"
         }
         salvar_log_no_bd(new_log)
         if 'logs' not in db: db['logs'] = []
         db['logs'].insert(0, new_log)
+        db['logs'] = db['logs'][:100]
         return jsonify({"sucesso": True, "db_atualizado": db})
     except Exception as e:
         traceback.print_exc()
@@ -270,10 +291,12 @@ def circuit_add():
                 b['circuits'].append({"id": cid, "status": "free", "batteryId": None, "previsao": "-", "noSpace": b.get('isFull', False)})
                 break
         agora = obter_agora()
-        new_log = {"id": int(agora.timestamp() * 1000), "action": "Adição", "bath": str(d['bathId']), "date": agora.strftime("%d/%m/%Y %H:%M"), "details": f"Circuito {cid} adicionado"}
+        new_log = {"id": int(agora.timestamp() * 1000), "action": "Adição", "bath": str(d['bathId']), "circuitId": cid, "date": agora.strftime("%d/%m/%Y %H:%M"), "details": f"Circuito {cid} adicionado"}
         salvar_log_no_bd(new_log)
+        salvar_log_circuito(new_log)
         if 'logs' not in db: db['logs'] = []
         db['logs'].insert(0, new_log)
+        db['logs'] = db['logs'][:100]
         salvar_bd(db)
         return jsonify({"sucesso": True, "db_atualizado": db})
     except Exception as e:
@@ -314,16 +337,43 @@ def update_circuit_status():
             if str(b['id']) == target_bath:
                 for c in b.get('circuits', []):
                     if int(apenas_numeros(c['id'])) == int(apenas_numeros(target_circuit)):
+                        old_status = c.get('status', 'free')
+                        battery_id = c.get('batteryId', 'N/A')
+                        
+                        action_text = "Status Alterado"
+                        details_text = f"Status mudou de {old_status} para {new_status}."
+
+                        if new_status == 'maintenance':
+                            action_text = "Entrada em Manutenção"
+                            details_text = "Circuito bloqueado para verificação preventiva ou corretiva."
+                            battery_id = 'N/A' 
+                        elif new_status == 'free' and old_status == 'maintenance':
+                            action_text = "Saída de Manutenção"
+                            details_text = "Circuito liberado pela equipe técnica e pronto para uso."
+                        elif new_status == 'free' and old_status in ['running', 'finished']:
+                            action_text = "Teste Concluído"
+                            details_text = f"Bateria {battery_id} finalizada. Circuito vazio e liberado."
+                        elif new_status == 'finished':
+                            action_text = "Conclusão Manual"
+                            details_text = f"Teste da bateria {battery_id} foi marcado como finalizado manualmente."
+                        
                         if new_status == 'free':
                             c.update({'status': 'free', 'batteryId': None, 'protocol': None, 'previsao': '-', 'startTime': None, 'progress': 0, 'isParallel': False})
                         else:
                             c['status'] = new_status
                             c['noSpace'] = False
+                            
                         agora = obter_agora()
-                        new_log = {"id": int(agora.timestamp() * 1000), "action": "Status Alterado", "bath": target_bath, "date": agora.strftime("%d/%m/%Y %H:%M"), "details": f"Circuito {c['id']} alterado para {new_status}"}
+                        new_log = {
+                            "id": int(agora.timestamp() * 1000), "action": action_text, 
+                            "bath": target_bath, "circuitId": c['id'], "batteryId": battery_id if battery_id != 'N/A' else None,
+                            "date": agora.strftime("%d/%m/%Y %H:%M"), "details": details_text
+                        }
                         salvar_log_no_bd(new_log)
+                        salvar_log_circuito(new_log)
                         if 'logs' not in db: db['logs'] = []
                         db['logs'].insert(0, new_log)
+                        db['logs'] = db['logs'][:100]
                         break
         salvar_bd(db)
         return jsonify({"sucesso": True, "db_atualizado": db})
@@ -386,10 +436,16 @@ def circuit_move():
                     b['circuits'].sort(key=lambda x: int(apenas_numeros(x['id'])) if apenas_numeros(x['id']) else 999)
                     break
             agora = obter_agora()
-            new_log = {"id": int(agora.timestamp() * 1000), "action": "Movimentação", "bath": tgt_bath_id, "date": agora.strftime("%d/%m/%Y %H:%M"), "details": f"Circuito {circuit_obj['id']} movido de {src_bath_id}"}
+            new_log = {
+                "id": int(agora.timestamp() * 1000), "action": "Mudança de Local", 
+                "bath": tgt_bath_id, "circuitId": circuit_obj['id'], "batteryId": circuit_obj.get('batteryId'),
+                "date": agora.strftime("%d/%m/%Y %H:%M"), "details": f"Migrado fisicamente de {src_bath_id} para {tgt_bath_id}."
+            }
             salvar_log_no_bd(new_log)
+            salvar_log_circuito(new_log)
             if 'logs' not in db: db['logs'] = []
             db['logs'].insert(0, new_log)
+            db['logs'] = db['logs'][:100]
             salvar_bd(db)
             
         return jsonify({"sucesso": True, "db_atualizado": db})
@@ -423,12 +479,25 @@ def circuit_link():
             target_circuit['progress'] = source_circuit.get('progress', 0)
             target_circuit['isParallel'] = True 
             source_circuit['isParallel'] = True 
+            
+            agora = obter_agora()
+            new_log = {
+                "id": int(agora.timestamp() * 1000), "action": "Vínculo em Paralelo", 
+                "bath": bath_id, "circuitId": target_circuit['id'], "batteryId": target_circuit.get('batteryId'),
+                "date": agora.strftime("%d/%m/%Y %H:%M"), "details": f"Clonou as configurações do circuito mestre {source_circuit['id']}."
+            }
+            salvar_log_no_bd(new_log)
+            salvar_log_circuito(new_log)
+            if 'logs' not in db: db['logs'] = []
+            db['logs'].insert(0, new_log)
+            db['logs'] = db['logs'][:100]
+            
             salvar_bd(db)
             return jsonify({"sucesso": True, "db_atualizado": db})
         return jsonify({"sucesso": False, "erro": "Circuitos não encontrados"}), 404
     except Exception as e:
         return jsonify({"sucesso": False, "erro": str(e)}), 500
-    
+
 @bp_lab.route('/protocols/add', methods=['POST', 'OPTIONS'], strict_slashes=False)
 @requer_autenticacao
 def protocol_add():
@@ -436,16 +505,11 @@ def protocol_add():
     try:
         d = request.json
         db = carregar_bd()
-        
-        if 'protocols' not in db:
-            db['protocols'] = []
-            
+        if 'protocols' not in db: db['protocols'] = []
         name = str(d.get('name', '')).upper()
         duracao = int(d.get('duration', 0))
-        
         db['protocols'].append({"id": name, "name": name, "duration": duracao})
         salvar_bd(db)
-        
         return jsonify({"sucesso": True, "db_atualizado": db})
     except Exception as e:
         import traceback
@@ -459,17 +523,105 @@ def protocol_delete():
     try:
         d = request.json
         db = carregar_bd()
-        
-        if 'protocols' not in db:
-            db['protocols'] = []
-            
+        if 'protocols' not in db: db['protocols'] = []
         p_id = d.get('id')
         db['protocols'] = [p for p in db['protocols'] if p.get('id') != p_id]
         salvar_bd(db)
-        
         return jsonify({"sucesso": True, "db_atualizado": db})
     except Exception as e:
         import traceback
         traceback.print_exc()
         return jsonify({"sucesso": False, "erro": str(e)}), 500
 
+@bp_lab.route('/circuits/history', methods=['POST', 'OPTIONS'], strict_slashes=False)
+@requer_autenticacao
+def get_circuit_history():
+    if request.method == 'OPTIONS': return jsonify({}), 200
+    try:
+        data = request.json
+        circuit_id = str(data.get('circuitId'))
+        
+        logs_ref = bd_firestore.collection('circuit_logs').where(filter=FieldFilter('circuitId', '==', circuit_id)).get()
+        
+        history = [doc.to_dict() for doc in logs_ref]
+        history.sort(key=lambda x: x.get('id', 0), reverse=True)
+        
+        return jsonify({"sucesso": True, "logs": history})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
+
+@bp_lab.route('/circuits/history/add', methods=['POST', 'OPTIONS'], strict_slashes=False)
+@requer_autenticacao
+def add_circuit_history():
+    if request.method == 'OPTIONS': return jsonify({}), 200
+    try:
+        data = request.json
+        circuit_id = str(data.get('circuitId'))
+        action = str(data.get('action', 'Falha no Equipamento'))
+        details = str(data.get('details', ''))
+        battery_id = data.get('batteryId')
+
+        if "Falha" in action or "Reparo" in action or "Manutenção" in action:
+            battery_id = None
+
+        agora = obter_agora()
+        new_log = {
+            "id": int(agora.timestamp() * 1000),
+            "action": action,
+            "bath": "Registro Manual",
+            "circuitId": circuit_id,
+            "batteryId": battery_id if battery_id else None,
+            "date": agora.strftime("%d/%m/%Y %H:%M"),
+            "details": details if details else "Sem justificativa detalhada fornecida pelo operador."
+        }
+        
+        salvar_log_circuito(new_log)
+        
+        db = carregar_bd()
+        
+        if action == 'Falha no Equipamento' or action == 'Reparo Realizado':
+            ckt_num = int(apenas_numeros(circuit_id)) if apenas_numeros(circuit_id) else -1
+            for b in db.get('baths', []):
+                for c in b.get('circuits', []):
+                    c_num = int(apenas_numeros(c['id'])) if apenas_numeros(c['id']) else -2
+                    if c['id'] == circuit_id or c_num == ckt_num:
+                        if action == 'Falha no Equipamento':
+                            c['status'] = 'maintenance'
+                            c['noSpace'] = False
+                        elif action == 'Reparo Realizado':
+                            c.update({'status': 'free', 'batteryId': None, 'protocol': None, 'previsao': '-', 'startTime': None, 'progress': 0, 'isParallel': False})
+                        break
+                        
+        if 'logs' not in db: db['logs'] = []
+        db['logs'].insert(0, new_log)
+        db['logs'] = db['logs'][:100]
+        salvar_bd(db)
+
+        return jsonify({"sucesso": True, "log": new_log})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"sucesso": False, "erro": str(e)}), 500
+
+@bp_lab.route('/circuits/history/delete', methods=['POST', 'OPTIONS'], strict_slashes=False)
+@requer_autenticacao
+def delete_circuit_history():
+    if request.method == 'OPTIONS': return jsonify({}), 200
+    try:
+        data = request.json
+        log_id = str(data.get('logId'))
+        
+        bd_firestore.collection('circuit_logs').document(log_id).delete()
+        
+        db = carregar_bd()
+        if 'logs' in db:
+            db['logs'] = [log for log in db['logs'] if str(log.get('id')) != log_id]
+            salvar_bd(db)
+            
+        return jsonify({"sucesso": True})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"sucesso": False, "erro": str(e)}), 500

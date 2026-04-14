@@ -25,7 +25,6 @@ export const bathService = {
     return await apiRequest('/circuits/nospace', 'POST', { circuitId, noSpace });
   },
 
-
   addCircuit: async (bathId, circuitId) => {
     return await apiRequest('/circuits/add', 'POST', { bathId, circuitId });
   },
@@ -55,5 +54,17 @@ export const bathService = {
 
   importDigatron: async (text) => {
     return await apiRequest('/import', 'POST', { text });
+  },
+
+  getCircuitHistory: async (circuitId) => {
+    return await apiRequest('/circuits/history', 'POST', { circuitId });
+  },
+
+  addCircuitLog: async (circuitId, action, details, batteryId) => {
+    return await apiRequest('/circuits/history/add', 'POST', { circuitId, action, details, batteryId });
+  },
+
+  deleteCircuitLog: async (logId) => {
+    return await apiRequest('/circuits/history/delete', 'POST', { logId });
   }
 };
