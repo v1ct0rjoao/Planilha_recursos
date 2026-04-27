@@ -465,7 +465,7 @@ const MainApp = () => {
             {!isFullScreenView && (
               <footer className="w-full text-center py-6 border-t border-slate-200 dark:border-white/5 mt-auto shrink-0 bg-transparent relative z-10">
                 <p className="text-xs text-slate-500 dark:text-slate-500 font-medium">
-                  Desenvolvido por João Victor Gomes Meneses © 2026 • LabFísico Enterprise
+                  Desenvolvido por João Victor Gomes Meneses © 2026 • Sistema de gestão LabFísico v3.0
                 </p>
               </footer>
             )}

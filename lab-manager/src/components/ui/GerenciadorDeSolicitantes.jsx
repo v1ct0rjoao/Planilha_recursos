@@ -3,7 +3,7 @@ import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Label, Sector 
 } from 'recharts';
 import { Users, X, User, Tag, Save, Layers, PieChart as PieIcon, Search, ArrowRight, Activity, Edit2, ChevronLeft } from 'lucide-react';
-
+import { getAuth } from 'firebase/auth';
 import { API_URL } from '../../utils/constants';
 
 const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#64748b'];
@@ -114,28 +114,32 @@ const ExperienceOwnerModal = ({ isOpen, onClose, baths = [], experienceOwners = 
   const [selectedOwner, setSelectedOwner] = useState(null);
   const [activeIndex, setActiveIndex] = useState(null);
 
-  const saveOwner = useCallback(async (expCode, name) => {
+ const saveOwner = useCallback(async (expCode, name) => {
     const updatedName = name || "Sem Dono";
     
     try {
-      // CORREÇÃO: Limpando a barra '/' e outros caracteres problemáticos do Firebase
-      const safeExpCode = expCode.replace(/[\.\/\[\]]/g, '_');
-      const payload = { [safeExpCode]: updatedName }; 
-      
+     
+      const auth = getAuth();
+      const token = await auth.currentUser.getIdToken();
+      const payload = { [expCode]: updatedName }; 
       const response = await fetch(`${API_URL}/experience/owners`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // <-- A CHAVE MÁGICA QUE FALTAVA AQUI!
+        },
         body: JSON.stringify(payload)
       });
       
       const data = await response.json();
 
-      if (!data.sucesso) throw new Error("Falha ao salvar");
+      if (!data.sucesso) throw new Error(data.erro || "Falha ao salvar");
       
       if (onRefreshData) onRefreshData();
+      
     } catch (error) {
       console.error(error);
-      alert("Erro ao salvar no banco de dados.");
+      alert("Erro ao salvar no banco de dados: " + error.message);
     }
   }, [onRefreshData]);
 
