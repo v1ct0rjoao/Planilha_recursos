@@ -53,10 +53,15 @@ def criar_conta_local():
     dados = request.json
     try:
         username = dados.get('username', '').lower().strip()
-        email = f"{username}@moura.com"
+        
+        if '@' in username:
+            email = username
+        else:
+            email = f"{username}@moura.com"
+            
         user_record = auth.create_user(email=email, password=dados.get('password'), display_name=dados.get('nome'))
         bd_firestore.collection('users').document(user_record.uid).set({
-            'name': dados.get('nome'), 'email': email, 'role': dados.get('role', 'tecnico'),
+            'name': dados.get('nome'), 'email': email, 'role': dados.get('role', 'cliente'),
             'permissions': dados.get('permissions', []), 'createdAt': obter_agora().isoformat()
         })
         return jsonify({"sucesso": True, "uid": user_record.uid})
@@ -467,8 +472,8 @@ def circuit_link():
         for b in db['baths']:
             if str(b['id']) == bath_id:
                 for c in b['circuits']:
-                    if c['id'] == source_id: source_circuit = c
-                    if c['id'] == target_id: target_circuit = c
+                    if int(apenas_numeros(c['id'])) == int(apenas_numeros(source_id)):source_circuit = c
+                    if int(apenas_numeros(c['id'])) == int(apenas_numeros(target_id)):target_circuit = c
                 break
         if source_circuit and target_circuit:
             target_circuit['status'] = source_circuit['status']
@@ -497,6 +502,7 @@ def circuit_link():
         return jsonify({"sucesso": False, "erro": "Circuitos não encontrados"}), 404
     except Exception as e:
         return jsonify({"sucesso": False, "erro": str(e)}), 500
+    
 
 @bp_lab.route('/protocols/add', methods=['POST', 'OPTIONS'], strict_slashes=False)
 @requer_autenticacao

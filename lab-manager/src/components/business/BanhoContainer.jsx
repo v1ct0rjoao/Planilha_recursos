@@ -81,7 +81,7 @@ const BathContainer = ({ bath, searchTerm, onAddCircuit, onUpdateTemp, onDeleteC
             onToggleMaintenance={(cid, isMaint) => onToggleMaintenance(bath.id, cid, isMaint)} 
             onViewHistory={onViewHistory} 
             onMove={(cid) => onMoveCircuit(bath.id, cid)} 
-            onLink={(c) => onLinkCircuit({ ...c, bathId: bath.id })}
+            onLink={(c) => onLinkCircuit(bath, c.id)}
             onToggleNoSpace={onToggleNoSpace}
           />
         ))}

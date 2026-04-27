@@ -92,7 +92,8 @@ const LoginPage = () => {
     if (!techUsername || !techPass) { setError('Preencha os dados.'); return; }
     setIsLoading(true); setError('');
     try { 
-      await loginWithEmail(`${techUsername.trim().toLowerCase()}@moura.com`, techPass);
+      const emailFormatado = techUsername.includes('@') ? techUsername : `${techUsername.trim().toLowerCase()}@moura.com`;
+      await loginWithEmail(emailFormatado, techPass);
     } catch (err) { 
       setError('Credenciais inválidas.'); setIsLoading(false); 
     }
@@ -226,19 +227,19 @@ const LoginPage = () => {
                   <input 
                     type="text" value={techName} onChange={(e) => setTechName(e.target.value)}
                     className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-[#006CB0] focus:ring-2 focus:ring-[#006CB0]/20 transition-all"
-                    placeholder="ex: João Victor Gomes"
+                    placeholder="Seu nome"
                   />
                 </div>
               )}
 
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">
-                  {isRegisterMode ? 'E-mail ou Utilizador' : 'Usuário'}
+                  email
                 </label>
                 <input 
                   type="text" value={techUsername} onChange={(e) => setTechUsername(e.target.value)}
                   className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-[#006CB0] focus:ring-2 focus:ring-[#006CB0]/20 transition-all"
-                  placeholder={isRegisterMode ? "ex: joao@empresa.com" : "ex: joao.victor"}
+                  placeholder= "exemplo@email.com"
                 />
               </div>
               

@@ -297,7 +297,19 @@ const MainApp = () => {
   }, []);
 
   const openMoveModal = useCallback((bid, cid) => { setMoveData({ sourceBathId: bid, circuitId: cid }); setIsMoveOpen(true); }, []);
-  const openLinkModal = useCallback((b, cid) => { setLinkData({ bath: b, sourceId: cid }); setIsLinkOpen(true); }, []);
+  const openLinkModal = useCallback((bathParam, circuitId) => {
+   
+    const fullBath = typeof bathParam === 'string'
+      ? baths.find(b => b.id === bathParam)
+      : bathParam;
+
+    setLinkData({ 
+      bath: fullBath, 
+      sourceId: circuitId 
+    }); 
+    
+    setIsLinkOpen(true); 
+  }, [baths]); 
 
   if (!user) return <LoginPage />;
 
@@ -346,28 +358,29 @@ const MainApp = () => {
 
         <nav className={`flex-1 flex flex-col justify-start py-2 space-y-0.5 overflow-y-auto no-scrollbar ${isSidebarOpen ? 'px-0' : 'px-0 pt-4'}`}>
           {hasPermission('dashboard') && <MenuButton active={currentView === 'dashboard'} onClick={() => {setCurrentView('dashboard'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-chart-pie" label="Visão Geral" isSidebarOpen={isSidebarOpen} />}
+          {hasPermission('protocolos') && <MenuButton active={isProtocolsOpen} onClick={() => {setIsProtocolsOpen(true); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-flask-vial" label="Protocolos" isSidebarOpen={isSidebarOpen} />}
           {hasPermission('nova_solicitacao') && <MenuButton active={currentView === 'nova_solicitacao'} onClick={() => {setCurrentView('nova_solicitacao'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-file-signature" label="Nova Solicitação" isSidebarOpen={isSidebarOpen} />}
           {hasPermission('meus_acompanhamentos') && <MenuButton active={currentView === 'meus_acompanhamentos'} onClick={() => {setCurrentView('meus_acompanhamentos'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-list-check" label="Acompanhamentos" isSidebarOpen={isSidebarOpen} />}
           {hasPermission('baterias') && <MenuButton active={currentView === 'baterias'} onClick={() => {setCurrentView('baterias'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-car-battery" label="Minhas Baterias" isSidebarOpen={isSidebarOpen} />}
           
           {(hasPermission('acompanhamento') || hasPermission('lims')) && isSidebarOpen && (
             <div className="pt-3 pb-1 px-5">
-              <span className="text-[10px] font-bold text-blue-300 dark:text-slate-500 uppercase tracking-widest">Lab / Admin</span>
+              <span className="text-[10px] font-bold text-blue-300 dark:text-slate-500 uppercase tracking-widest">Administração</span>
             </div>
           )}
           {hasPermission('acompanhamento') && <MenuButton active={currentView === 'acompanhamento'} onClick={() => {setCurrentView('acompanhamento'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-clipboard-check" label="Gestão Solicit." isSidebarOpen={isSidebarOpen} />}
           {hasPermission('lims') && <MenuButton active={currentView === 'lims'} onClick={() => {setCurrentView('lims'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-layer-group" label="Portal LABLIMS" isSidebarOpen={isSidebarOpen} />}
+          {hasPermission('calendar') && <MenuButton active={currentView === 'calendar'} onClick={() => {setCurrentView('calendar'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-calendar-days" label="Agenda" isSidebarOpen={isSidebarOpen} />}
+          {hasPermission('users') && <MenuButton active={currentView === 'users'} onClick={() => {setCurrentView('users'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-users" label="Acessos" isSidebarOpen={isSidebarOpen} />}
+
           
           {(hasPermission('oee') || hasPermission('history') || hasPermission('calendar')) && isSidebarOpen && (
             <div className="pt-3 pb-1 px-5">
-              <span className="text-[10px] font-bold text-blue-300 dark:text-slate-500 uppercase tracking-widest">Gestão LIMS</span>
+              <span className="text-[10px] font-bold text-blue-300 dark:text-slate-500 uppercase tracking-widest">Indicadores</span>
             </div>
           )}
           {hasPermission('oee') && <MenuButton active={currentView === 'oee'} onClick={() => {setCurrentView('oee'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-industry" label="Lançamento OEE" isSidebarOpen={isSidebarOpen} />}
           {hasPermission('history') && <MenuButton active={currentView === 'history'} onClick={() => {setCurrentView('history'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-chart-line" label="Dashboard OEE" isSidebarOpen={isSidebarOpen} />}
-          {hasPermission('protocolos') && <MenuButton active={isProtocolsOpen} onClick={() => {setIsProtocolsOpen(true); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-flask-vial" label="Protocolos" isSidebarOpen={isSidebarOpen} />}
-          {hasPermission('calendar') && <MenuButton active={currentView === 'calendar'} onClick={() => {setCurrentView('calendar'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-calendar-days" label="Agenda" isSidebarOpen={isSidebarOpen} />}
-          {hasPermission('users') && <MenuButton active={currentView === 'users'} onClick={() => {setCurrentView('users'); if(window.innerWidth<1024) setIsSidebarOpen(false);}} iconClass="fa-users" label="Acessos" isSidebarOpen={isSidebarOpen} />}
         </nav>
 
         <div className="py-3 border-t border-[#00386E] dark:border-white/5 flex flex-col gap-0.5 shrink-0">
