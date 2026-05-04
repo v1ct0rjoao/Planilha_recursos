@@ -10,7 +10,7 @@ export const oeeService = {
   },
 
   calculate: async (payload) => {
-    return await apiRequest('/oee/calculate', 'POST', payload);
+    return await apiRequest('/oee/calcular', 'POST', payload);
   },
 
   autoDefineExtras: async (limite) => {

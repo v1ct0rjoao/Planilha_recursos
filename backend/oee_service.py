@@ -31,13 +31,12 @@ def processar_upload_oee(file_path, target_mes, target_ano):
         dfs_validos = []
 
         alias_map = {
-            'circuito': ['circuit'],
-            'start': ['start time', 'starttime'],
-            'stop': ['stop time', 'stoptime']
+            'circuito': ['circuit', 'circuito'],
+            'start': ['start time', 'starttime', 'start'],
+            'stop': ['stop time', 'stoptime', 'stop']
         }
 
         for nome_aba, df in dict_dfs.items():
-            if not str(nome_aba).lower().startswith('dig'): continue
             if df.empty: continue
 
             cols_originais = {col: str(col).lower().strip().replace('_', '') for col in df.columns}
@@ -58,6 +57,10 @@ def processar_upload_oee(file_path, target_mes, target_ano):
             return {"sucesso": False, "erro": "Nenhuma aba válida."}
 
         df_final = pd.concat(dfs_validos, ignore_index=True)
+        
+        # O ESCUDO ANTI-LOGGER: Destrói qualquer linha que contenha a palavra "logger"
+        df_final = df_final[~df_final['circuito'].astype(str).str.lower().str.contains('logger', na=False)]
+
         df_final['start'] = pd.to_datetime(df_final['start'], dayfirst=True, errors='coerce')
         df_final['stop'] = pd.to_datetime(df_final['stop'], dayfirst=True, errors='coerce')
         df_final.dropna(subset=['start'], inplace=True)
@@ -79,7 +82,9 @@ def processar_upload_oee(file_path, target_mes, target_ano):
             circuitos_eventos[cid].append((start, stop))
 
         mapa_final = {}
-        lista_ids = ['iDevice'] + [str(i) for i in range(1, 451)]
+        
+        # Só adiciona o iDevice e os circuitos que de fato apareceram no arquivo
+        lista_ids = ['iDevice'] + list(circuitos_encontrados)
 
         for cid in lista_ids:
             status_array = []
@@ -260,7 +265,7 @@ def calcular_indicadores_oee(params):
         media_pq = media_simples(valores_pq)
 
         tempo_disponivel_global = dias_no_mes - media_pp - media_sd
-        tempo_operacao_real = media_up -  media_pq - media_sd
+        tempo_operacao_real = media_up - media_pq - media_sd
 
         if tempo_disponivel_global <= 0.001:
             disp_global = 0
@@ -409,14 +414,17 @@ def save_manual_history(payload):
                 
                 if "idevice" in id_bruto.lower():
                     cid = "iDevice"
+                elif "logger" in id_bruto.lower():
+                    continue  # Ignora loggers colados manualmente também
                 else:
                     cid = apenas_numeros(id_bruto)
                     
                 dados_colados[cid] = [c.strip().upper() for c in colunas[1:]]
 
-            lista_ids = ['iDevice'] + [str(i) for i in range(1, 451)]
+            # Só gera o grid para os circuitos que foram colados (sem inventar do 1 ao 450)
+            lista_ids_colados = ['iDevice'] + [k for k in dados_colados.keys() if k != 'iDevice']
             
-            for cid in lista_ids:
+            for cid in lista_ids_colados:
                 day_data = []
                 c_counts = {'UP': 0, 'SD': 0, 'PQ': 0, 'PP': 0, 'IGNORE': 0, '': 0}
                 
@@ -474,6 +482,8 @@ def save_manual_history(payload):
             media_pq = media_simples(valores_pq)
 
             tempo_disponivel_global = dias_no_mes - media_pp
+            
+            # Ajuste matemático no salvamento manual
             tempo_operacao_real = media_up
 
             if tempo_disponivel_global <= 0.001:
@@ -561,6 +571,3 @@ def delete_history_record(mes, ano):
         return {"sucesso": True}
     except Exception as e:
         return {"sucesso": False, "erro": str(e)}
-
-
-

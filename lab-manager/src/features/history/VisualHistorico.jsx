@@ -905,7 +905,7 @@ const HistoryView = ({ setToast }) => {
                 {[...filteredHistoryList]
                   .sort((a, b) => {
                     if (a.ano !== b.ano) return b.ano - a.ano; 
-                    return b.mes - a.mes; 
+                    return a.mes - b.mes; 
                   })
                   .map((item, idx) => (
                   <div

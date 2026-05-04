@@ -27,16 +27,7 @@ const KPICard = ({ title, value, icon: Icon, color, suffix = '%' }) => {
       <div className="flex items-end justify-between">
         <div>
           <span className="text-3xl font-bold text-slate-800">{numValue}{suffix}</span>
-          <div className="flex items-center mt-1 space-x-1">
-            {numValue >= 70 ? (
-              <TrendingUp size={14} className="text-green-500" />
-            ) : (
-              <TrendingDown size={14} className="text-red-500" />
-            )}
-            <span className={`text-[10px] font-bold uppercase tracking-wide ${numValue >= 70 ? 'text-green-500' : 'text-red-500'}`}>
-              {numValue >= 70 ? 'Meta Atingida' : 'Abaixo da Meta'}
-            </span>
-          </div>
+         
         </div>
       </div>
     </div>

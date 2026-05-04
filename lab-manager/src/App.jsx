@@ -173,6 +173,7 @@ const MainApp = () => {
     if (hasPermission('dashboard') && currentView === 'nova_solicitacao') setCurrentView('dashboard');
   }, [hasPermission]);
 
+  
   const fetchData = useCallback(async (isInitialLoad = false) => {
     if (fetchLock.current) return;
     fetchLock.current = true;

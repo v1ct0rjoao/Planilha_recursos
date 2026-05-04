@@ -5,7 +5,7 @@ import {
   Copy, X, Info, AlertTriangle
 } from 'lucide-react';
 
-// SUAS IMPORTAÇÕES ORIGINAIS (Corrigidas para o seu projeto)
+
 import KPICard from '../../components/ui/KPICard';
 import StatusLegend from '../../components/ui/LegendasOee';
 import ValidationCard from './components/ValidationCard';
@@ -22,10 +22,10 @@ const OEEDashboardView = ({ setToast }) => {
   
   const [modalConfirmSave, setModalConfirmSave] = useState(false); 
 
-  // --- NOVOS ESTADOS PARA A ANÁLISE CRÍTICA E O GRID ---
+
   const [justificativa, setJustificativa] = useState('');
   const [mostrarGrid, setMostrarGrid] = useState(false); 
-  const podeEditar = true; // Simulando permissão de edição
+  const podeEditar = true; 
 
   const [config, setConfig] = useState({
     ano: new Date().getFullYear(), 
@@ -63,7 +63,7 @@ const OEEDashboardView = ({ setToast }) => {
       });
       if (step !== 'dashboard') {
         setStep('dashboard');
-        setMostrarGrid(false); // Garante que o grid comece fechado ao entrar no dashboard
+        setMostrarGrid(false); 
       }
     } else {
       setToast({ message: "Erro ao calcular dados.", type: 'error' });
@@ -83,7 +83,7 @@ const OEEDashboardView = ({ setToast }) => {
       setToast({ message: 'Mapa gerado com sucesso!', type: 'success' });
       await calculate(config);
       setStep('dashboard');
-      setMostrarGrid(false); // Grid começa oculto
+      setMostrarGrid(false); 
     } else {
       setToast({ message: data?.erro || "Erro ao processar arquivo.", type: 'error' });
     }
@@ -121,7 +121,7 @@ const OEEDashboardView = ({ setToast }) => {
 
   const executeSaveHistory = async () => {
     setModalConfirmSave(false); 
-    // ATENÇÃO: Adicionamos a justificativa no momento de salvar
+   
     const { success } = await oeeService.saveHistory(results.kpi, config.mes, config.ano, justificativa);
     if (success) setToast({ message: "Fechamento salvo no Histórico!", type: 'success' });
   };
@@ -140,9 +140,6 @@ const OEEDashboardView = ({ setToast }) => {
     });
   };
 
-  // ==========================================
-  // PASSO 1: TELA DE CONFIGURAÇÃO ORIGINAL
-  // ==========================================
   if (step === 'config') {
     return (
       <div className="animate-in slide-in-from-right duration-300 max-w-4xl mx-auto w-full transition-colors">
@@ -203,9 +200,7 @@ const OEEDashboardView = ({ setToast }) => {
     )
   }
 
-  // ==========================================
-  // PASSO 2: TELA DE UPLOAD ORIGINAL
-  // ==========================================
+
   if (step === 'upload') {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] animate-in fade-in zoom-in duration-300 transition-colors">
@@ -241,9 +236,7 @@ const OEEDashboardView = ({ setToast }) => {
     );
   }
 
-  // ==========================================
-  // PASSO 3: DASHBOARD FINAL
-  // ==========================================
+
   if (step === 'dashboard') {
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative pb-20 transition-colors">
@@ -286,7 +279,7 @@ const OEEDashboardView = ({ setToast }) => {
           </div>
         </div>
 
-        {/* NOVA SESSÃO: CAIXA DE ANÁLISE CRÍTICA / JUSTIFICATIVA */}
+     
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden mb-6 transition-colors">
           <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
             <Info size={18} className="text-blue-600 dark:text-blue-400" />
