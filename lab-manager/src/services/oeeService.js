@@ -25,13 +25,16 @@ export const oeeService = {
     return await apiRequest('/oee/update_circuit', 'POST', { id: String(id), action });
   },
 
-  saveHistory: async (kpi, mes, ano) => {
-    return await apiRequest('/oee/save_history', 'POST', { kpi, mes, ano });
+
+  saveHistory: async (kpi, mes, ano, justificativa) => {
+    return await apiRequest('/oee/salvar_historico', 'POST', { kpi, mes, ano, justificativa });
   },
 
+
   deleteHistory: async (mes, ano) => {
-    return await apiRequest('/oee/history/delete', 'POST', { mes, ano });
+    return await apiRequest('/oee/deletar_historico', 'POST', { mes, ano });
   },
+
 
   getHistory: async () => {
     return await apiRequest('/oee/history', 'GET');
